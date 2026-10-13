@@ -64,9 +64,11 @@ Then, entirely in the browser (no commands):
 1. In **Attack builder**, click a component to prefill the target (or type a
    PLC/tag), choose a kind and window, and **Add attack**.
 2. **Run on testbed** — the lab launches the 51-container town plus an isolated
-   attacker and streams the live readout: the **true** value vs. what the
-   **MTU sees** (falsified while the attack window is open), and whether the
-   attack is active.
+   attacker and streams a **live chart** of the **true** value (blue) vs. what
+   the **MTU sees** (red, falsified while the attack window is shaded), with a
+   progress bar and an "ATTACK ACTIVE" indicator. (If the images are not built
+   yet, a banner offers a one-click **Build images**; if Docker is absent it
+   says so — the viewer, authoring and builder still work.)
 3. When it finishes, **Export dataset** downloads the labelled bundle.
 4. **Saved runs** lists every run; **↻ reproduce** re-runs one from its saved
    files (deterministic for the same seed).
