@@ -74,6 +74,7 @@ svg text{fill:var(--ink)}
       <button class="b" onclick="autoAssign()">إسناد PLC تلقائيًّا</button>
       <button class="b" onclick="clearAll()">مسح الكل</button>
       <button class="b" onclick="delSel()">حذف المحدَّد</button>
+      <button class="b" onclick="exportCfg()">⬇ صدّر الإعداد (JSON)</button>
       <button class="bp" onclick="run()">▶ تشغيل على EPANET</button>
     </div>
     <div id="msg"></div>
@@ -316,6 +317,26 @@ function animate(resp,atk){
       s.push(`<polyline points="${d}" fill="none" stroke="${cssv(C[i%6])}" stroke-width="2.3"/>`);});
     document.getElementById('ch').innerHTML=s.join('');k+=1;if(k>T)clearInterval(anim);};
   anim=setInterval(draw,70);draw();}
+
+// ---- export the built configuration as a .json file ----
+async function exportCfg(){
+  let cfg=state.loadedCfg;
+  try{
+    if(!cfg){
+      if(!state.els.some(e=>e.plc&&e.kind!=='plc')){msg('أسنِد عنصرًا إلى PLC أولًا (أو «إسناد تلقائي»).',false);return;}
+      const {design,plcs,rules_text}=buildDesign();
+      const cr=await fetch('compose',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({design,plcs,rules_text,with_mtu:state.mtu,protocol:state.proto})});
+      if(!cr.ok)throw 0; const cj=await cr.json();
+      if(cj.issues.length){msg('مشاكل: '+cj.issues.join(' ؛ '),false);return;}
+      cfg=cj.config;
+    }
+    const blob=new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(cfg.name||'lab')+'.json';a.click();URL.revokeObjectURL(a.href);
+    msg('نُزِّل ملف الإعداد: '+(cfg.name||'lab')+'.json',true);
+  }catch(e){msg('التصدير يحتاج الخادم (python -m scadavt.labui).',false);}
+}
 
 // ---- upload a ready configuration (.json) and run it as-is ----
 async function uploadCfg(file){
