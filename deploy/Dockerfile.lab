@@ -1,0 +1,29 @@
+# SCADAVT Research Lab — self-contained web application image.
+#
+# Single-command launch (from the repository root):
+#   docker compose -f docker-compose.lab.yml up --build
+# then open http://127.0.0.1:8000
+#
+# This image bundles the simulation core, the web backend and the browser GUI.
+# It needs no network at runtime for the process-level live mode; the Melbourne
+# Water consumption series is fetched once on first run (or mount a copy on
+# /app/data).
+FROM python:3.12.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLBACKEND=Agg
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-urw-base35 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+COPY requirements.lock deploy/requirements-webui.txt ./
+RUN pip install --no-cache-dir -r requirements.lock -r requirements-webui.txt
+
+COPY pyproject.toml README.md LICENSE ./
+COPY scadavt ./scadavt
+COPY tools ./tools
+COPY tests ./tests
+COPY experiments ./experiments
+RUN pip install --no-cache-dir --no-deps . && mkdir -p /app/data /app/runs
+
+EXPOSE 8000
+CMD ["python", "-m", "scadavt.webui", "--host", "0.0.0.0", "--port", "8000"]

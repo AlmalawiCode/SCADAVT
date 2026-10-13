@@ -44,6 +44,19 @@ MTU, the routers, the gateway and the plant run as 51 containers, the MTU
 polls the PLCs over real Modbus/TCP through the routed network, and faults are
 injected into the network (link loss, rate limits, frozen routers).
 
+## Research lab (web interface)
+
+An interactive browser laboratory — visually explore the SCADA network,
+simulate the plant and its communications in real time, run controlled attacks,
+and export labelled IDS datasets — runs on top of this core. One command:
+
+```bash
+docker compose -f docker-compose.lab.yml up --build   # then open http://127.0.0.1:8000
+```
+
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) and the architecture in
+[docs/RESEARCH_LAB_DESIGN.md](docs/RESEARCH_LAB_DESIGN.md).
+
 ## Quick start
 
 ```bash

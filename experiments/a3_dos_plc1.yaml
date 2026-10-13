@@ -1,0 +1,7 @@
+name: a3_dos_plc1
+# Denial of service: 100% packet loss on PLC1's field link cuts the MTU's
+# monitoring and control of the T2 area for the window.
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 24,
+             step: 300, tick: 1.0, period: "1.0", capture: true}
+attacks:
+  - {id: d1, kind: dos, target: PLC1, start_h: 8, end_h: 16}

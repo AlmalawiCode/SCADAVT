@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 from pathlib import Path
 
 from ..scenario import Scenario
@@ -14,7 +15,10 @@ DATA = PKG.parent / "data"
 
 
 def default_series_path() -> Path:
-    return DATA / "consumption_per_person.csv"
+    """Path to the consumption series. ``SCADAVT_CONSUMPTION`` overrides it, so a
+    researcher (or CI) can point at their own copy without moving files."""
+    env = os.environ.get("SCADAVT_CONSUMPTION")
+    return Path(env) if env else DATA / "consumption_per_person.csv"
 
 
 class Plant:

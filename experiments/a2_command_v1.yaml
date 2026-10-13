@@ -1,0 +1,8 @@
+name: a2_command_v1
+# Command manipulation: the attacker rewrites the MTU's V1 flow setpoint to 0
+# on the wire, so the valve closes while the MTU believes it commanded flow.
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 24,
+             step: 300, tick: 1.0, period: "1.0", capture: true}
+attacks:
+  - {id: c1, kind: command, target: PLC6, tag: V1_SET_O, mode: const, value: 0,
+     start_h: 8, end_h: 16}

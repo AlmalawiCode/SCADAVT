@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCADAVT Research Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">SCADAVT <span>Research Lab</span></div>
+    <div class="clock">
+      <span id="state" class="pill">idle</span>
+      <span id="simclock">t = &mdash;</span>
+    </div>
+  </header>
+
+  <div id="sysbanner" class="banner" style="display:none"></div>
+
+  <main>
+    <section id="canvas-wrap">
+      <svg id="net" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="chart-wrap">
+        <div class="chart-title">Tank levels (m) &mdash; dashed line: critical</div>
+        <svg id="chart" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <aside id="side">
+      <div class="panel">
+        <h2>Run</h2>
+        <label>Scenario <input id="scenario-name" value="&mdash;" readonly></label>
+        <div class="row">
+          <label>Hours <input id="p-hours" type="number" value="24" min="1" step="1"></label>
+          <label>Seed <input id="p-seed" type="number" value="1" min="0" step="1"></label>
+        </div>
+        <div class="row">
+          <label>Step (sim s) <input id="p-step" type="number" value="300" min="1" step="1"></label>
+          <label>Tick (wall s) <input id="p-tick" type="number" value="1.0" min="0.05" step="0.05"></label>
+        </div>
+        <label class="check"><input id="p-sup" type="checkbox" checked> Supervisory control</label>
+        <label class="check"><input id="p-v1" type="checkbox" checked> V1 flow balancing</label>
+        <div class="row">
+          <button id="btn-start">Start</button>
+          <button id="btn-stop" class="ghost" disabled>Stop</button>
+        </div>
+        <div id="run-msg" class="msg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Selection</h2>
+        <div id="sel"><p class="dim">Click a tank, pump or valve.</p></div>
+      </div>
+
+      <div class="panel">
+        <h2>Layout authoring</h2>
+        <label class="check"><input id="edit-mode" type="checkbox"> Edit layout (drag nodes)</label>
+        <div class="row">
+          <button id="btn-save-layout" class="ghost" disabled>Save layout</button>
+        </div>
+        <div id="layout-msg" class="msg dim">Editing works on a private copy of the scenario; saves are validated by a real EPANET solve.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Attack builder</h2>
+        <label>Kind
+          <select id="atk-kind">
+            <option value="fdi">fdi — falsify sensor</option>
+            <option value="replay">replay — recorded readings</option>
+            <option value="command">command — alter actuator</option>
+            <option value="dos">dos — link loss</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Target PLC <input id="atk-plc" placeholder="PLC1"></label>
+          <label>Tag <input id="atk-tag" placeholder="T2_LVL"></label>
+        </div>
+        <div class="row">
+          <label>Mode
+            <select id="atk-mode">
+              <option value="const">const</option><option value="offset">offset</option>
+              <option value="freeze">freeze</option>
+            </select>
+          </label>
+          <label>Value <input id="atk-value" type="number" value="0" step="0.1"></label>
+        </div>
+        <div class="row">
+          <label>Start (h) <input id="atk-start" type="number" value="8" step="1"></label>
+          <label>End (h) <input id="atk-end" type="number" value="16" step="1"></label>
+        </div>
+        <div class="row">
+          <button id="btn-atk-add">Add attack</button>
+        </div>
+        <ul id="atk-list" class="legend"></ul>
+        <div class="row">
+          <button id="btn-atk-run" disabled>Run on testbed</button>
+          <button id="btn-atk-stop" class="ghost" disabled>Stop</button>
+        </div>
+        <div class="row">
+          <button id="btn-atk-export" class="ghost" disabled>Export YAML</button>
+          <button id="btn-atk-dataset" class="ghost" disabled>Export dataset</button>
+        </div>
+        <div id="atk-progress-wrap" class="progress-wrap" style="display:none">
+          <div id="atk-progress" class="progress"></div>
+        </div>
+        <div id="atk-phase" class="phase"></div>
+        <svg id="atk-chart" style="display:none"></svg>
+        <div id="atk-live"></div>
+        <div id="atk-msg" class="msg dim">Click a component to prefill the target, Add, then Run on the containerised testbed. Needs Docker on the host.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Saved runs</h2>
+        <div class="row"><button id="btn-results" class="ghost">Refresh</button></div>
+        <ul id="results-list" class="legend"><li class="dim">No runs yet.</li></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Legend</h2>
+        <ul class="legend">
+          <li><span class="sw tank"></span> tank (fill = level)</li>
+          <li><span class="sw pumpon"></span> pump running</li>
+          <li><span class="sw pumpoff"></span> pump stopped</li>
+          <li><span class="sw valve"></span> valve</li>
+          <li><span class="sw junc"></span> junction</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Web interface dependencies for the SCADAVT research lab (pinned).
+# Installed on top of the base image's requirements.lock.
+fastapi==0.119.1
+uvicorn[standard]==0.34.3
