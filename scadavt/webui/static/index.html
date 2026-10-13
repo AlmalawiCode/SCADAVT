@@ -15,6 +15,8 @@
     </div>
   </header>
 
+  <div id="sysbanner" class="banner" style="display:none"></div>
+
   <main>
     <section id="canvas-wrap">
       <svg id="net" preserveAspectRatio="xMidYMid meet"></svg>
@@ -98,6 +100,11 @@
           <button id="btn-atk-export" class="ghost" disabled>Export YAML</button>
           <button id="btn-atk-dataset" class="ghost" disabled>Export dataset</button>
         </div>
+        <div id="atk-progress-wrap" class="progress-wrap" style="display:none">
+          <div id="atk-progress" class="progress"></div>
+        </div>
+        <div id="atk-phase" class="phase"></div>
+        <svg id="atk-chart" style="display:none"></svg>
         <div id="atk-live"></div>
         <div id="atk-msg" class="msg dim">Click a component to prefill the target, Add, then Run on the containerised testbed. Needs Docker on the host.</div>
       </div>

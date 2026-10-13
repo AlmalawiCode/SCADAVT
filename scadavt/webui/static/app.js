@@ -48,6 +48,66 @@ async function init() {
   $("btn-results").onclick = loadResults;
   connectAttackWS();
   loadResults();
+  checkSystem();
+}
+
+// --------------------------------------------------------- system readiness
+async function checkSystem() {
+  let s;
+  try { s = await (await fetch("api/system")).json(); } catch { return; }
+  const b = $("sysbanner");
+  if (!s.docker) {
+    b.className = "banner err"; b.style.display = "flex";
+    b.innerHTML = "Docker not detected on the host — the live viewer, authoring and attack builder work, but running attacks on the testbed is unavailable.";
+  } else if (!s.images_ready) {
+    b.className = "banner"; b.style.display = "flex";
+    b.innerHTML = `Testbed images are not built yet. <button id="btn-build">Build images</button> <span id="build-step" class="dim"></span>`;
+    $("btn-build").onclick = buildImages;
+  } else {
+    b.style.display = "none";
+  }
+}
+
+async function buildImages() {
+  const step = $("build-step"); const btn = $("btn-build");
+  btn.disabled = true; step.textContent = "starting build…";
+  await fetch("api/system/build", { method: "POST" });
+  const poll = setInterval(async () => {
+    const st = await (await fetch("api/system/build")).json();
+    step.textContent = st.step || st.state;
+    if (st.state === "done") { clearInterval(poll); checkSystem(); }
+    else if (st.state === "error") { clearInterval(poll); btn.disabled = false; step.textContent = "build failed: " + st.step; }
+  }, 2000);
+}
+
+// --------------------------------------------------- live attack chart
+let ATKSERIES = { h: [], tru: [], seen: [], act: [] };
+function drawAtkChart() {
+  const c = $("atk-chart");
+  const H = c.clientHeight || 96, W = c.clientWidth || 280, pad = 6;
+  c.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  c.innerHTML = "";
+  const hs = ATKSERIES.h; if (hs.length < 2) return;
+  const vals = [...ATKSERIES.tru, ...ATKSERIES.seen].filter((v) => v != null);
+  if (!vals.length) return;
+  const vmin = Math.min(...vals), vmax = Math.max(...vals) || 1;
+  const span = (vmax - vmin) || 1;
+  const h0 = hs[0], h1 = hs[hs.length - 1] || h0 + 1;
+  const sx = (h) => pad + (W - 2 * pad) * (h - h0) / Math.max(1e-6, h1 - h0);
+  const sy = (v) => H - pad - (H - 2 * pad) * (v - vmin) / span;
+  // shade attack-active spans
+  for (let i = 1; i < hs.length; i++) if (ATKSERIES.act[i]) {
+    c.appendChild(el("rect", { x: sx(hs[i - 1]), y: 0, width: Math.max(1, sx(hs[i]) - sx(hs[i - 1])), height: H, fill: "#ef4444", opacity: 0.12 }));
+  }
+  const line = (arr, color, dash) => {
+    let d = "";
+    for (let k = 0; k < hs.length; k++) { const v = arr[k]; if (v == null) continue; d += (d ? "L" : "M") + sx(hs[k]) + " " + sy(v); }
+    const p = el("path", { d, fill: "none", stroke: color, "stroke-width": 1.6 });
+    if (dash) p.setAttribute("stroke-dasharray", "4 3");
+    c.appendChild(p);
+  };
+  line(ATKSERIES.tru, "#60a5fa");       // true (blue)
+  line(ATKSERIES.seen, "#ef4444", true); // MTU-seen (red dashed)
 }
 
 function svgSpace() {
@@ -392,6 +452,8 @@ function attackDeployment() {
 }
 
 async function runAttack() {
+  ATKSERIES = { h: [], tru: [], seen: [], act: [] };
+  $("atk-chart").innerHTML = "";
   const name = `gui_${Date.now().toString().slice(-6)}`;
   const experiment = { name, deployment: attackDeployment(), attacks: ATTACKS };
   const r = await fetch("api/attacks/run", {
@@ -417,13 +479,23 @@ function connectAttackWS() {
 }
 
 function renderAttackLive(f) {
-  const live = $("atk-live");
+  $("atk-progress-wrap").style.display = "block";
+  $("atk-chart").style.display = "block";
+  if (f.progress != null) $("atk-progress").style.width = (f.progress * 100).toFixed(1) + "%";
+  const ph = $("atk-phase");
+  ph.textContent = f.attack_active ? `⚠ ATTACK ACTIVE — ${(f.active_ids || []).join(", ")}` : (f.phase || "running");
+  ph.className = "phase" + (f.attack_active ? " active" : "");
+  // accumulate series (skip duplicate sim_h)
+  const n = ATKSERIES.h.length;
+  if (f.sim_h != null && (n === 0 || f.sim_h !== ATKSERIES.h[n - 1])) {
+    ATKSERIES.h.push(f.sim_h); ATKSERIES.tru.push(f.true); ATKSERIES.seen.push(f.mtu_seen); ATKSERIES.act.push(f.attack_active);
+    drawAtkChart();
+  }
   const diff = (f.true != null && f.mtu_seen != null) ? Math.abs(f.true - f.mtu_seen) : null;
-  live.innerHTML = `
+  $("atk-live").innerHTML = `
     <table>
       <tr><td>sim time</td><td>${f.sim_h != null ? f.sim_h.toFixed(2) + " h" : "—"}</td></tr>
-      <tr><td>attack</td><td style="color:${f.attack_active ? "var(--crit)" : "var(--dim)"}">${f.attack_active ? "ACTIVE" : "idle"}</td></tr>
-      <tr><td>true reading</td><td>${f.true != null ? f.true.toFixed(2) : "—"}</td></tr>
+      <tr><td>true reading</td><td style="color:#60a5fa">${f.true != null ? f.true.toFixed(2) : "—"}</td></tr>
       <tr><td>MTU sees</td><td style="color:${diff > 0.05 ? "var(--crit)" : "var(--ink)"}">${f.mtu_seen != null ? f.mtu_seen.toFixed(2) : "—"}</td></tr>
     </table>`;
 }
@@ -433,9 +505,23 @@ function onAttackStatus(s) {
   $("btn-atk-run").disabled = run || !ATTACKS.length;
   $("btn-atk-stop").disabled = !run;
   $("btn-atk-dataset").disabled = s.state !== "done";
+  if (run && s.progress === 0) { ATKSERIES = { h: [], tru: [], seen: [], act: [] }; }  // new run
   const m = $("atk-msg");
-  if (s.state === "done") { m.textContent = "run finished ✓ — Export dataset, or reproduce from Saved runs."; m.className = "msg dim"; loadResults(); }
-  else if (s.state === "error") { m.textContent = "run failed: " + (s.error || ""); m.className = "msg err"; }
+  if (s.state === "running") { $("atk-phase").textContent = s.phase || "running"; }
+  else if (s.state === "done") {
+    $("atk-progress").style.width = "100%";
+    $("atk-phase").textContent = "finished ✓"; $("atk-phase").className = "phase";
+    let extra = "";
+    if (s.metrics) {
+      const mk = Object.entries(s.metrics).filter(([k]) => k.endsWith("_events") && s.metrics[k] > 0);
+      extra = mk.length ? " — critical events: " + mk.map(([k, v]) => `${k.replace("_events", "")}:${v}`).join(", ") : "";
+    }
+    m.textContent = "run finished ✓ — Export dataset, or reproduce from Saved runs." + extra; m.className = "msg dim";
+    loadResults();
+  } else if (s.state === "error") {
+    $("atk-phase").textContent = "failed"; $("atk-phase").className = "phase active";
+    m.textContent = "run failed: " + (s.error || ""); m.className = "msg err";
+  }
 }
 
 async function exportDataset() {

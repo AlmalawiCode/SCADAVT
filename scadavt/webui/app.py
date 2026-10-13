@@ -46,6 +46,21 @@ def create_app() -> FastAPI:
     async def health():
         return {"ok": True, "service": "scadavt-lab"}
 
+    @app.get("/api/system")
+    async def system_info():
+        from . import system
+        return system.info()
+
+    @app.post("/api/system/build")
+    async def system_build():
+        from . import system
+        return await system.build_job.start()
+
+    @app.get("/api/system/build")
+    async def system_build_status():
+        from . import system
+        return system.build_job.status()
+
     @app.get("/api/scenario")
     async def scenario(path: str | None = None):
         try:

@@ -142,8 +142,22 @@ class AttackJobManager:
                 self.state = "idle"
             return self.status()
 
+    def _hours(self) -> float:
+        return float((self.experiment or {}).get("deployment", {}).get("hours", 0) or 0)
+
+    def _progress(self) -> float:
+        sim = (self.latest or {}).get("sim_h") or 0.0
+        h = self._hours()
+        return round(min(1.0, sim / h), 4) if h else 0.0
+
+    def _phase(self) -> str:
+        if self.state == "running":
+            return "starting containers" if self.latest is None else "running"
+        return self.state
+
     def status(self) -> dict:
-        return {"state": self.state, "name": self.name, "error": self.error,
+        return {"state": self.state, "phase": self._phase(), "name": self.name,
+                "error": self.error, "progress": self._progress(), "hours": self._hours(),
                 "view": {k: self.view[k] for k in ("plc", "tag", "gt_col", "mtu_col")}
                 if self.view else None,
                 "latest": self.latest, "metrics": (self.summary or {}).get("metrics"),
@@ -221,7 +235,8 @@ class AttackJobManager:
             self.latest = {"sim_h": round(last_sim, 3), "true": last_true,
                            "mtu_seen": last_seen, "attack_active": bool(active),
                            "active_ids": active}
-            await self._broadcast({"type": "attack_frame", **self.latest})
+            await self._broadcast({"type": "attack_frame", "progress": self._progress(),
+                                   "phase": self._phase(), **self.latest})
             await asyncio.sleep(0.4)
 
     async def _watch(self):
