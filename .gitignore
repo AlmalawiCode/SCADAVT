@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+# Melbourne Water data are not redistributed (all rights reserved);
+# run tools/fetch_consumption.py to obtain them.
+data/consumption_per_person.csv
+data/raw/
+out/

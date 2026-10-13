@@ -1,0 +1,6 @@
+.venv
+**/__pycache__
+results
+out
+data/raw
+.git
