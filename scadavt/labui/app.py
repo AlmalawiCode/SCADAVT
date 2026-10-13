@@ -34,12 +34,32 @@ from .sim import Lab
 STATIC = Path(__file__).parent / "static"
 
 app = FastAPI(title="SCADAVT Lab API")
-_sessions: dict[str, Lab] = {}
+_sessions: dict = {}
+
+
+def make_engine(cfg: dict):
+    """The REAL EPANET engine when the config carries a physical design and the
+    EPANET library is present; otherwise the lightweight preview."""
+    if cfg.get("epanet"):
+        try:
+            from .wds_lab import WdsLab
+            return WdsLab(cfg["epanet"]), "epanet"
+        except Exception:
+            pass
+    return Lab(cfg), "preview"
 
 
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/make")
+def make(plcs: int = 3, mtu: bool = True, protocol: str = "modbus"):
+    """The single source of truth for a lab config (EPANET-backed), used by the
+    web builder so a run goes through the real engine with register bindings."""
+    from .config import make_lab
+    return make_lab(plcs, with_mtu=mtu, protocol=protocol)
 
 
 @app.post("/validate")
@@ -62,7 +82,7 @@ def generate(config: dict = Body(...)):
     }}
 
 
-def _apply_attacks(lab: Lab, attacks: list) -> None:
+def _apply_attacks(lab, attacks: list) -> None:
     for a in attacks or []:
         lab.add_attack(a["kind"], a["target"], a.get("start", 0), a.get("end", 10 ** 9))
 
@@ -73,11 +93,15 @@ def run(body: dict = Body(...)):
     issues = coregen.validate(cfg)
     if issues:
         raise HTTPException(400, {"issues": issues})
-    lab = Lab(cfg)
-    _apply_attacks(lab, body.get("attacks"))
-    lab.run(int(body.get("cycles", 120)))
-    return {"traces": lab.traces(), "summary": lab.summary(),
-            "placement": cfg.get("control", {}).get("placement", "mtu")}
+    lab, engine = make_engine(cfg)
+    try:
+        _apply_attacks(lab, body.get("attacks"))
+        lab.run(int(body.get("cycles", 120)))
+        return {"traces": lab.traces(), "summary": lab.summary(), "engine": engine,
+                "placement": cfg.get("control", {}).get("placement", "mtu")}
+    finally:
+        if hasattr(lab, "close"):
+            lab.close()
 
 
 # ---------------------------------------------------------------- live sessions
@@ -88,8 +112,9 @@ def create_session(body: dict = Body(...)):
     if issues:
         raise HTTPException(400, {"issues": issues})
     sid = uuid.uuid4().hex[:12]
-    _sessions[sid] = Lab(cfg)
-    return {"id": sid, "plcs": _sessions[sid].plcs}
+    lab, engine = make_engine(cfg)
+    _sessions[sid] = lab
+    return {"id": sid, "plcs": lab.plcs, "engine": engine}
 
 
 def _get(sid: str) -> Lab:
@@ -108,7 +133,8 @@ def inject_attack(sid: str, body: dict = Body(...)):
     if end is None:
         end = start + int(body.get("duration", 30))
     lab.add_attack(body["kind"], body["target"], start, end)
-    return {"ok": True, "attacks": [vars(a) for a in lab.attacks]}
+    return {"ok": True, "attacks": [a if isinstance(a, dict) else vars(a)
+                                    for a in lab.attacks]}
 
 
 @app.post("/sessions/{sid}/step")
@@ -126,7 +152,9 @@ def get_session(sid: str):
 
 @app.post("/sessions/{sid}/stop")
 def stop_session(sid: str):
-    _sessions.pop(sid, None)
+    lab = _sessions.pop(sid, None)
+    if lab is not None and hasattr(lab, "close"):
+        lab.close()
     return {"ok": True}
 
 

@@ -67,14 +67,19 @@ def test_api_validate_and_generate():
     assert set(files) >= {"session.json", "core_session.py", "run_devices.sh"}
 
 
-def test_api_run_with_and_without_attack():
+def test_api_run_uses_real_epanet_engine():
     cfg = make_lab(2)
     r = client.post("/run", json={"config": cfg, "cycles": 80}).json()
-    assert set(r["traces"]) == {"PLC1", "PLC2"} and r["summary"]["attack_window_cycles"] == 0
+    assert r["engine"] == "epanet"                       # real EPANET, not the preview
+    assert set(r["traces"]) == {"PLC1", "PLC2"}
+    # tank levels are produced by the EPANET solver and stay within the tank range
+    lv = r["traces"]["PLC1"]
+    assert all(0.0 <= v <= 6.0 for v in lv) and min(lv) < max(lv)
+    assert r["summary"]["attack_window_cycles"] == 0
     r2 = client.post("/run", json={"config": cfg, "cycles": 80,
                                    "attacks": [{"kind": "dos", "target": "PLC1",
                                                 "start": 20, "end": 60}]}).json()
-    assert r2["summary"]["attack_window_cycles"] == 40
+    assert r2["summary"]["attack_window_cycles"] == 40    # window is schedule-based
 
 
 def test_api_live_session_inject_attack_from_terminal_path():

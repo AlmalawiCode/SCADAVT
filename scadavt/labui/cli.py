@@ -81,19 +81,25 @@ def cmd_run(a):
     issues = coregen.validate(cfg)
     if issues:
         raise SystemExit("invalid config:\n  " + "\n  ".join(issues))
-    lab = Lab(cfg)
-    for atk in _parse_attacks(a.attack):
-        lab.add_attack(atk["kind"], atk["target"], atk["start"], atk["end"])
-    lab.run(a.cycles)
-    print(json.dumps(lab.summary(), indent=2))
-    if a.out:
-        with open(a.out, "w", newline="") as fh:
-            w = csv.writer(fh)
-            cols = list(lab.trace[0].keys())
-            w.writerow(cols)
-            for r in lab.trace:
-                w.writerow([r[c] for c in cols])
-        print(f"trace -> {a.out}")
+    from .app import make_engine
+    lab, engine = make_engine(cfg)
+    try:
+        for atk in _parse_attacks(a.attack):
+            lab.add_attack(atk["kind"], atk["target"], atk["start"], atk["end"])
+        lab.run(a.cycles)
+        print("engine:", engine)
+        print(json.dumps(lab.summary(), indent=2))
+        if a.out:
+            with open(a.out, "w", newline="") as fh:
+                w = csv.writer(fh)
+                cols = list(lab.trace[0].keys())
+                w.writerow(cols)
+                for r in lab.trace:
+                    w.writerow([r[c] for c in cols])
+            print(f"trace -> {a.out}")
+    finally:
+        if hasattr(lab, "close"):
+            lab.close()
 
 
 def cmd_serve(a):

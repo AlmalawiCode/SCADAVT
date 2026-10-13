@@ -42,7 +42,17 @@ python -m scadavt.labui.cli session attack <id> --kind dos --target PLC1
 python -m scadavt.labui.cli session step   <id> --n 40
 ```
 
-## Attack model (preview)
+## The run engine is real EPANET
+A lab config is **EPANET-backed**: `make_lab(n)` builds a real physical network
+(a reservoir plus one tank/pump loop per PLC under `config["epanet"]`), the
+control `rules`, and each PLC's **register bindings** to EPANET elements (a level
+register ← a tank's level; a command register → a pump's status). `/run` and the
+live sessions use `wds_lab.WdsLab`, which drives the EPANET library: it reads the
+tank level from EPANET → the control engine decides → it writes the pump command
+back into EPANET → advances the hydraulic step. The browser-only preview (no
+server) is an approximation and is labelled as such; the server runs real EPANET.
+
+## Attack model
 On the shared timeline: `dos`/`delay` **freeze** a PLC's command (level over/under-
 shoots) and mark the attack window; `integrity` **forces the command off** and
 marks samples **confirmed-malicious**. Window and confirmed are kept as separate
