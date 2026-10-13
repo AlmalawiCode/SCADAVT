@@ -148,12 +148,26 @@ _RE_PRIO = re.compile(r"PRIORITY\s+(\d+)", re.I)
 
 
 def parse_rules_txt(text: str) -> list[dict]:
-    """Parse the original WaterSim ``RULES.txt`` grammar into the JSON rule model."""
-    rules, cur, side = [], None, "if"
+    """Parse the WaterSim ``RULES.txt`` grammar into the JSON rule model.
+
+    Accepts the original ``RULE n`` / ``IF`` / ``THEN`` block form *and* the
+    natural one-line form ``IF <cond> THEN <act>`` (one rule per line), so a
+    researcher can write a PLC's instructions simply."""
+    # normalise: break a single line "IF ... THEN ..." into an IF line + THEN line
+    norm = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
+        parts = re.split(r"\bTHEN\b", line, flags=re.I)
+        head = parts[0].strip()
+        if head:
+            norm.append(head)
+        for p in parts[1:]:
+            norm.append("THEN " + p.strip())
+
+    rules, cur, side = [], None, "if"
+    for line in norm:
         up = line.upper()
         if up.startswith("RULE"):
             if cur:
@@ -162,6 +176,12 @@ def parse_rules_txt(text: str) -> list[dict]:
                    "if": [], "then": [], "priority": 0}
             side = "if"
             continue
+        if re.match(r"IF\b", up):              # an IF begins a new rule when none is open
+            if cur is None or side == "then":
+                if cur:
+                    rules.append(cur)
+                cur = {"id": f"r{len(rules)+1}", "if": [], "then": [], "priority": 0}
+            side = "if"
         if cur is None:
             continue
         if up.startswith("THEN"):
