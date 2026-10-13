@@ -62,6 +62,18 @@ def make(plcs: int = 3, mtu: bool = True, protocol: str = "modbus"):
     return make_lab(plcs, with_mtu=mtu, protocol=protocol)
 
 
+@app.post("/compose")
+def compose(body: dict = Body(...)):
+    """Build a full runnable config from a hand-drawn EPANET design + PLC element
+    assignments (+ optional rules). The register bindings and auto rules are
+    derived here, so the drag-and-draw UI only sends the drawing."""
+    from .config import compose_lab
+    cfg = compose_lab(body.get("design") or {}, body.get("plcs") or [],
+                      rules=body.get("rules"), with_mtu=body.get("with_mtu", True),
+                      protocol=body.get("protocol", "modbus"), name=body.get("name"))
+    return {"config": cfg, "issues": coregen.validate(cfg)}
+
+
 @app.post("/validate")
 def validate(config: dict = Body(...)):
     return {"issues": coregen.validate(config)}

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from scadavt.core import coregen
 from scadavt.labui.app import app
-from scadavt.labui.config import make_lab
+from scadavt.labui.config import compose_lab, make_lab
 from scadavt.labui.sim import Lab
 
 client = TestClient(app)
@@ -56,6 +56,39 @@ def test_lab_integrity_attack_is_confirmed_malicious():
 def test_index_served():
     r = client.get("/")
     assert r.status_code == 200 and "باني مختبر" in r.text
+
+
+def _drawn_design():
+    return {"name": "drawn", "hours": 48,
+            "nodes": [{"id": "R1", "kind": "reservoir", "head": 50},
+                      {"id": "J1", "kind": "junction", "demand": 11, "elev": 0},
+                      {"id": "T1", "kind": "tank", "init": 3.5, "min": 0.1, "max": 6, "diam": 6},
+                      {"id": "T2", "kind": "tank", "init": 4.0, "min": 0.1, "max": 6, "diam": 6}],
+            "links": [{"id": "P1", "kind": "pump", "n1": "R1", "n2": "J1", "power": 11},
+                      {"id": "PI1", "kind": "pipe", "n1": "J1", "n2": "T1", "diam": 300},
+                      {"id": "V1", "kind": "valve", "n1": "J1", "n2": "T2",
+                       "vtype": "TCV", "setting": 5, "diam": 300}]}
+
+
+def test_compose_derives_bindings_and_rules():
+    plcs = [{"id": "PLC1", "elements": ["T1", "P1"]},
+            {"id": "PLC2", "elements": ["T2", "V1"]}]
+    cfg = compose_lab(_drawn_design(), plcs)
+    assert coregen.validate(cfg) == []
+    regs = {d["id"]: [p["id"] for p in d["points"]] for d in cfg["devices"]}
+    assert regs["PLC1"] == ["T1_LEV", "P1_CMD", "P1_FLOW"]
+    assert regs["PLC2"] == ["T2_LEV", "V1_SET", "V1_FLOW"]
+    assert [r["id"] for r in cfg["rules"]] == ["on_P1", "off_P1"]   # auto: tank+pump only
+
+
+def test_api_compose_then_run_on_epanet():
+    plcs = [{"id": "PLC1", "elements": ["T1", "P1"]}]
+    comp = client.post("/compose", json={"design": _drawn_design(), "plcs": plcs}).json()
+    assert comp["issues"] == []
+    r = client.post("/run", json={"config": comp["config"], "cycles": 40}).json()
+    assert r["engine"] == "epanet" and "PLC1" in r["traces"]
+    lv = r["traces"]["PLC1"]
+    assert all(0.0 <= v <= 6.0 for v in lv)
 
 
 def test_api_validate_and_generate():
