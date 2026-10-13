@@ -62,6 +62,15 @@ def make(plcs: int = 3, mtu: bool = True, protocol: str = "modbus"):
     return make_lab(plcs, with_mtu=mtu, protocol=protocol)
 
 
+@app.post("/import_inp")
+def import_inp(body: dict = Body(...)):
+    """Parse an uploaded EPANET .inp into a design the builder draws. The .inp is
+    kept verbatim (``inp_text``) and used authoritatively when the lab runs."""
+    from .inp import parse_inp, summary
+    design = parse_inp(body.get("inp", ""))
+    return {"design": design, "summary": summary(design)}
+
+
 @app.post("/compose")
 def compose(body: dict = Body(...)):
     """Build a full runnable config from a hand-drawn EPANET design + PLC element

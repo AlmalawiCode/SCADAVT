@@ -128,10 +128,16 @@ def generate_scada(design: dict, inp_name: str = "plant.inp") -> dict:
 
 
 def write_scenario(design: dict, out_dir: str | Path) -> Path:
-    """Write plant.inp + scada.yaml into ``out_dir``; return the scada.yaml path."""
+    """Write plant.inp + scada.yaml into ``out_dir``; return the scada.yaml path.
+
+    If ``design["inp_text"]`` is present (an EPANET file the researcher built and
+    uploaded), it is written verbatim as plant.inp and used authoritatively — we
+    do NOT regenerate the network from a hand-built design. Otherwise the .inp is
+    generated from the design."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "plant.inp").write_text(generate_inp(design))
+    inp_text = design.get("inp_text")
+    (out / "plant.inp").write_text(inp_text if inp_text else generate_inp(design))
     scada = generate_scada(design, "plant.inp")
     scada_path = out / "scada.yaml"
     scada_path.write_text(yaml.dump(scada, sort_keys=False))
