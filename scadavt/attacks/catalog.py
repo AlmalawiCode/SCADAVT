@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from .. import scenario as sc
 
-KINDS = ("fdi",)
+KINDS = ("fdi", "replay", "command", "dos")
 
 
 @dataclass
@@ -33,7 +33,7 @@ class Attack:
             id=str(d.get("id") or f"a{index + 1}"),
             kind=d["kind"],
             plc=d["target"],
-            tag=d["tag"],
+            tag=d.get("tag", ""),
             start_h=float(d["start_h"]),
             end_h=float(d["end_h"]),
             mode=d.get("mode", "freeze"),
@@ -56,35 +56,47 @@ def resolve(atk: Attack, scen: sc.Scenario, plan: dict) -> dict:
         raise ValueError(f"unknown attack kind {atk.kind!r}")
     if atk.plc not in scen.plcs:
         raise ValueError(f"attack {atk.id}: no such PLC {atk.plc!r}")
+    if atk.end_h <= atk.start_h:
+        raise ValueError(f"attack {atk.id}: end_h must be after start_h")
+    if atk.plc not in plan["plcs"]:
+        raise ValueError(f"attack {atk.id}: PLC {atk.plc} is not in the deployment plan")
+    pa = plan["plcs"][atk.plc]
+    fa = plan["fields"][pa["field"]]
+    base = {"field": pa["field"], "victim_ip": pa["lan"],
+            "router_ip": fa["router_lan"], "subnet": fa["subnet"]}
+
+    if atk.kind == "dos":
+        return {**base, "port": 502}
+
     spec = scen.plcs[atk.plc]
     try:
         tag = spec.tag(atk.tag)
     except Exception:
         raise ValueError(f"attack {atk.id}: PLC {atk.plc} has no tag {atk.tag!r}")
-    if atk.end_h <= atk.start_h:
-        raise ValueError(f"attack {atk.id}: end_h must be after start_h")
 
-    if atk.kind == "fdi":
+    facts: dict = {}
+    if atk.kind in ("fdi", "replay"):
         if tag.direction != "i":
-            raise ValueError(f"attack {atk.id}: FDI target {atk.tag} is not a sensor ('i')")
+            raise ValueError(f"attack {atk.id}: {atk.kind} target {atk.tag} is not a sensor ('i')")
         if tag.is_bool:
-            raise ValueError(f"attack {atk.id}: FDI target {atk.tag} is boolean; "
-                             "phase 2 FDI supports float sensors only")
+            raise ValueError(f"attack {atk.id}: {atk.kind} target {atk.tag} is boolean; "
+                             "only float sensors are supported")
         if tag.reg_type not in _READ_FC:
             raise ValueError(f"attack {atk.id}: tag {atk.tag} has non-readable register "
                              f"type {tag.reg_type!r}")
-        if atk.mode not in ("const", "offset", "freeze"):
+        if atk.kind == "fdi" and atk.mode not in ("const", "offset", "freeze"):
             raise ValueError(f"attack {atk.id}: unknown FDI mode {atk.mode!r}")
+        facts["func"] = _READ_FC[tag.reg_type]
+    elif atk.kind == "command":
+        if tag.direction != "o":
+            raise ValueError(f"attack {atk.id}: command target {atk.tag} is not an actuator ('o')")
+        if tag.reg_type not in ("C", "H"):
+            raise ValueError(f"attack {atk.id}: command target {atk.tag} has register type "
+                             f"{tag.reg_type!r}; expected coil (C) or holding (H)")
+        if atk.mode not in ("const", "offset"):
+            raise ValueError(f"attack {atk.id}: unknown command mode {atk.mode!r}")
+        facts["reg_type"] = tag.reg_type
 
-    if atk.plc not in plan["plcs"]:
-        raise ValueError(f"attack {atk.id}: PLC {atk.plc} is not in the deployment plan")
-    pa = plan["plcs"][atk.plc]
-    fa = plan["fields"][pa["field"]]
-    return {
-        "field": pa["field"],
-        "victim_ip": pa["lan"],
-        "router_ip": fa["router_lan"],
-        "subnet": fa["subnet"],
-        "func": _READ_FC[tag.reg_type],
-        "address": tag.address,
-    }
+    facts.update(base)
+    facts["address"] = tag.address
+    return facts

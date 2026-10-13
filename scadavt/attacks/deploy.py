@@ -30,22 +30,26 @@ def attacker_services(scen: sc.Scenario, plan: dict, attacks, image: str,
         r = catalog.resolve(atk, scen, plan)
         ip = _field_ip(r["subnet"], ip_base + i)
         name = f"attacker_{atk.id}"
+        ctl = f"/logs/{logs_dir}/{atk.id}.json"
+        log = f"/logs/{logs_dir}/{atk.id}.csv"
         svc[name] = {
             "image": image,
             "hostname": name,
-            "cap_add": ["NET_ADMIN", "NET_RAW"],
-            "sysctls": ATTACKER_SYSCTLS,
             "environment": {"GATEWAY": r["router_ip"], "SCADAVT_NODE": name.upper()},
-            "command": [
-                "python", "-m", "scadavt.attacks.mitm",
-                "--victim-ip", r["victim_ip"], "--gw-ip", r["router_ip"],
-                "--func", str(r["func"]), "--address", str(r["address"]),
-                "--mode", atk.mode, "--value", str(atk.value),
-                "--control", f"/logs/{logs_dir}/{atk.id}.json",
-                "--log", f"/logs/{logs_dir}/{atk.id}.csv",
-            ],
             "volumes": [logs_vol],
             "depends_on": [f"router_{r['field'].lower()}", atk.plc.lower()],
             "networks": {f"field_{r['field']}": {"ipv4_address": ip}},
         }
+        cmd = ["python", "-m", "scadavt.attacks.mitm", "--kind", atk.kind,
+               "--victim-ip", r["victim_ip"], "--gw-ip", r["router_ip"],
+               "--address", str(r["address"]), "--control", ctl, "--log", log]
+        if atk.kind in ("fdi", "replay"):
+            cmd += ["--func", str(r["func"])]
+        if atk.kind in ("fdi", "command"):
+            cmd += ["--mode", atk.mode, "--value", str(atk.value)]
+        if atk.kind == "command":
+            cmd += ["--reg-type", r["reg_type"]]
+        svc[name]["command"] = cmd
+        svc[name]["cap_add"] = ["NET_ADMIN", "NET_RAW"]  # ARP + iptables for MITM
+        svc[name]["sysctls"] = ATTACKER_SYSCTLS
     return svc

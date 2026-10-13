@@ -68,17 +68,35 @@ attack labels with wall and simulated time), and `attacks/<id>.csv` (attacker
 actions). Each attacker is confined to one field network and cannot reach the
 plant's ground-truth back channel or the Internet.
 
-FDI modes: `const` (report a fixed value), `offset` (true + value), `freeze`
-(hold the first true value seen).
+Attack kinds (`experiments/a1…a4`):
 
-## 5. What is coming
+| kind | target | effect |
+|---|---|---|
+| `fdi` | a float sensor (`'i'`) | falsify the reading the MTU sees (`const`/`offset`/`freeze`) |
+| `replay` | a float sensor | replay recorded legitimate readings while the plant diverges |
+| `command` | an actuator (`'o'`) | rewrite the MTU's command on the wire (e.g. close a valve) |
+| `dos` | a PLC | 100 % packet loss on its field link — loss of monitoring/control |
+
+## 5. Building a labelled, reproducible dataset (Phase 3)
+
+```bash
+python -m scadavt.attacks.runner  experiments/a1_fdi_t2.yaml
+python -m scadavt.attacks.dataset --result results/attacks/a1_fdi_t2 --out datasets/a1_fdi_t2
+```
+
+The bundle contains `process.csv` (ground truth + MTU-observed values),
+`network.csv` (per-cycle connection/gateway features), `labels.csv` (binary +
+multiclass, aligned by `sim_h`), and `manifest.json` — which pins the seed,
+scenario/EPANET SHA-256, Docker image digest and git commit so the dataset
+reproduces deterministically.
+
+## 6. What is coming
 
 | Phase | Capability |
 |---|---|
-| P3 | Replay, command manipulation, DoS; automatic labelling; reproducible dataset export |
 | P4 | Drag-and-drop network authoring with live hydraulic validity checks; attack panel in the GUI |
 
-## 6. Tests
+## 7. Tests
 
 ```bash
 python -m pytest -q tests/test_webui.py tests/test_attacks.py

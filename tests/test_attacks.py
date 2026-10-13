@@ -8,6 +8,7 @@ proxy) falsifies a client's reading and recovers cleanly.
 
 from __future__ import annotations
 
+import json
 import os
 import struct
 
@@ -18,7 +19,7 @@ from scadavt.deploy import compose as dc
 from scadavt.attacks import catalog
 from scadavt.attacks import deploy as adeploy
 from scadavt.attacks import runner as arunner
-from scadavt.attacks.handlers import FDIHandler
+from scadavt.attacks.handlers import CommandHandler, FDIHandler, ReplayHandler
 from scadavt.attacks import proxy
 from scadavt.protocols import modbus as mb
 
@@ -88,6 +89,67 @@ def test_fdi_disabled_and_out_of_window():
     assert h2.hits == 0
 
 
+def _read_resp(addr, qty, value):
+    regs = bytearray(qty * 2)
+    regs[0:4] = struct.pack(">HH", *mb.float_to_regs(value))
+    return bytes([4, qty * 2]) + bytes(regs)
+
+
+def test_replay_records_then_replays_cyclically():
+    h = ReplayHandler(func=4, address=10, window=3)
+    req = bytes([4]) + struct.pack(">HH", 10, 4)
+    for v in (1.0, 2.0, 3.0):                 # disabled: record, passthrough
+        h.on_request(1, 1, 4, req)
+        out = h.on_response(1, 1, 4, _read_resp(10, 4, v))
+        assert mb.regs_to_float(list(struct.unpack(">HH", out[2:6]))) == v
+    h.enabled = True
+    seen = []
+    for _ in range(4):                         # true now 9.0, but replay 1,2,3,1
+        h.on_request(1, 1, 4, req)
+        out = h.on_response(1, 1, 4, _read_resp(10, 4, 9.0))
+        seen.append(mb.regs_to_float(list(struct.unpack(">HH", out[2:6]))))
+    assert seen == [1.0, 2.0, 3.0, 1.0]
+
+
+def test_command_coil_force_off():
+    h = CommandHandler("C", 5, "const", 0.0)
+    h.enabled = True
+    pdu = bytes([5]) + struct.pack(">H", 5) + b"\xff\x00"   # write coil 5 ON
+    out = h.on_request(9, 1, 5, pdu)
+    assert out[3:5] == b"\x00\x00" and h.hits == 1          # forced OFF
+    # disabled -> passthrough
+    h2 = CommandHandler("C", 5, "const", 0.0)
+    assert h2.on_request(9, 1, 5, pdu) == pdu
+
+
+def test_command_holding_float_setpoint():
+    h = CommandHandler("H", 20, "const", 1234.0)
+    h.enabled = True
+    data = struct.pack(">HH", *mb.float_to_regs(500.0))
+    pdu = bytes([16]) + struct.pack(">HH", 20, 2) + bytes([4]) + data   # FC16 write 2 regs
+    out = h.on_request(9, 1, 16, pdu)
+    assert abs(mb.regs_to_float(list(struct.unpack(">HH", out[6:10]))) - 1234.0) < 1e-3
+    assert h.hits == 1
+
+
+def test_resolve_command_and_replay_targeting():
+    scen = sc.load()
+    plan = dc.plan(scen)
+    cmd = catalog.Attack.from_spec(
+        {"kind": "command", "target": "PLC6", "tag": "V1_SET_O", "mode": "const",
+         "value": 0, "start_h": 1, "end_h": 2}, 0)
+    assert catalog.resolve(cmd, scen, plan)["reg_type"] in ("C", "H")
+    # command on a sensor is rejected; replay on an actuator is rejected
+    with pytest.raises(ValueError, match="not an actuator"):
+        catalog.resolve(catalog.Attack.from_spec(
+            {"kind": "command", "target": "PLC1", "tag": "T2_LVL",
+             "start_h": 1, "end_h": 2}, 0), scen, plan)
+    with pytest.raises(ValueError, match="not a sensor"):
+        catalog.resolve(catalog.Attack.from_spec(
+            {"kind": "replay", "target": "PLC6", "tag": "V1_SET_O",
+             "start_h": 1, "end_h": 2}, 0), scen, plan)
+
+
 # --------------------------------------------------------------- Modbus frame
 def test_proxy_frame_roundtrip():
     pdu = bytes([4, 4]) + struct.pack(">HH", 0x4048, 0x0000)  # FC4, 2 regs
@@ -120,6 +182,48 @@ def test_airgap_marks_all_but_back():
     assert doc["networks"]["wan"]["internal"] is True
     assert doc["networks"]["ctrl"]["internal"] is True
     assert doc["networks"]["field_A"]["internal"] is True
+
+
+# ------------------------------------------------------- dataset / labeller
+def test_dataset_build_labels_and_manifest(tmp_path):
+    from scadavt.attacks import dataset
+    res = tmp_path / "result"
+    res.mkdir()
+    # minimal ground truth over 0..5 h (1 h per row)
+    import csv as _csv
+    with open(res / "ground_truth.csv", "w", newline="") as fh:
+        w = _csv.writer(fh)
+        w.writerow(["wall_time", "sim_h", "sim_s", "T2_level"])
+        for i in range(6):
+            w.writerow([1000 + i, float(i), i * 3600, 3.0 + i * 0.1])
+    with open(res / "historian.csv", "w", newline="") as fh:
+        w = _csv.writer(fh)
+        w.writerow(["wall_time", "cycle", "PLC1.T2_LVL"])
+        for i in range(6):
+            w.writerow([1000 + i, i, 3.0 + i * 0.1])
+    with open(res / "connections.csv", "w", newline="") as fh:
+        w = _csv.writer(fh)
+        w.writerow(["wall_time", "cycle", "plc", "op", "ok", "connect_ms", "request_ms"])
+        for i in range(6):
+            w.writerow([1000 + i, i, "PLC1", "read", 1, 1.0, 2.0])
+    (res / "summary.json").write_text(json.dumps({
+        "name": "t", "deployment": {"seed": 1, "image": "scadavt-net:2.0"},
+        "metrics": {}, "attacks": [
+            {"id": "a1", "kind": "fdi", "plc": "PLC1", "tag": "T2_LVL",
+             "start_h": 2, "end_h": 4, "mode": "const", "value": 6.5}]}))
+
+    m = dataset.build(res, tmp_path / "ds")
+    import pandas as pd
+    labels = pd.read_csv(tmp_path / "ds" / "labels.csv")
+    # rows at sim_h 2,3 are attack; 0,1,4,5 are normal
+    assert labels.set_index("sim_h").loc[2.0, "label_binary"] == 1
+    assert labels.set_index("sim_h").loc[2.0, "label_class"] == "fdi"
+    assert labels.set_index("sim_h").loc[4.0, "label_binary"] == 0
+    assert m["label_distribution"].get("fdi") == 2
+    assert m["provenance"]["scenario_sha256"]  # scenario hashed
+    assert (tmp_path / "ds" / "process.csv").exists()
+    assert (tmp_path / "ds" / "manifest.json").exists()
+    assert (tmp_path / "ds" / "README.md").exists()
 
 
 # --------------------------------------------- end-to-end MITM (Docker only)

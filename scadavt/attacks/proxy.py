@@ -70,6 +70,9 @@ class Handler:
     def on_response(self, txn, unit, func, pdu: bytes) -> bytes:
         return pdu
 
+    def reset(self):
+        """Clear per-window scratch; overridden by stateful handlers."""
+
 
 def _split(frame: bytes):
     txn, proto, length, unit = struct.unpack(">HHHB", frame[:7])

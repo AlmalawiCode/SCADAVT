@@ -1,0 +1,7 @@
+name: a4_replay_t2
+# Replay: the attacker records legitimate T2 level readings, then replays them
+# so the MTU sees a plausible past signal while the true tank diverges.
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 24,
+             step: 300, tick: 1.0, period: "1.0", capture: true}
+attacks:
+  - {id: r1, kind: replay, target: PLC1, tag: T2_LVL, start_h: 8, end_h: 16}
