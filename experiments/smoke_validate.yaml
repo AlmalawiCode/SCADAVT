@@ -1,0 +1,7 @@
+# Orchestration smoke test: placeholder SCADA programs, real plant, two fault
+# windows on PLC6's link. Checks timing of fault actions and log collection.
+name: smoke_validate
+deployment: {profile: validate, seed: 1, start: 2025-01-23, hours: 6, step: 300, tick: 0.25}
+faults:
+  - {start_h: 1, end_h: 2, kind: link_loss, target: plc6}
+  - {start_h: 3, end_h: 4, kind: router_stop, target: router_f}

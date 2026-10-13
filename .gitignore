@@ -10,3 +10,4 @@ dist/
 data/consumption_per_person.csv
 data/raw/
 out/
+build/

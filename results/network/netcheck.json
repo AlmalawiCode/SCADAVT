@@ -1,0 +1,165 @@
+{
+  "repeats": [
+    {
+      "repeat": 1,
+      "deploy_s": 4.84,
+      "containers": 51,
+      "memory_mib_total": 610.9,
+      "memory_mib_node_mean": 16.75,
+      "memory_mib_router_mean": 0.53,
+      "mtu_paths": {
+        "ok": 33,
+        "n": 33,
+        "median": 1.448,
+        "max": 1.456
+      },
+      "mtu_connect_ms": {
+        "ok": 33,
+        "n": 33,
+        "median": 5.475,
+        "max": 7.216
+      },
+      "gateway_paths": {
+        "ok": 34,
+        "n": 34,
+        "median": 1.202,
+        "max": 1.216
+      },
+      "router_d_down_lost": [
+        "PLC1"
+      ],
+      "router_d_restored_ok": 33
+    },
+    {
+      "repeat": 2,
+      "deploy_s": 4.8,
+      "containers": 51,
+      "memory_mib_total": 609.9,
+      "memory_mib_node_mean": 16.72,
+      "memory_mib_router_mean": 0.53,
+      "mtu_paths": {
+        "ok": 33,
+        "n": 33,
+        "median": 1.441,
+        "max": 1.45
+      },
+      "mtu_connect_ms": {
+        "ok": 33,
+        "n": 33,
+        "median": 5.95,
+        "max": 10.566
+      },
+      "gateway_paths": {
+        "ok": 34,
+        "n": 34,
+        "median": 1.221,
+        "max": 1.235
+      },
+      "router_d_down_lost": [
+        "PLC1"
+      ],
+      "router_d_restored_ok": 33
+    },
+    {
+      "repeat": 3,
+      "deploy_s": 4.66,
+      "containers": 51,
+      "memory_mib_total": 610.4,
+      "memory_mib_node_mean": 16.73,
+      "memory_mib_router_mean": 0.54,
+      "mtu_paths": {
+        "ok": 33,
+        "n": 33,
+        "median": 1.412,
+        "max": 1.426
+      },
+      "mtu_connect_ms": {
+        "ok": 33,
+        "n": 33,
+        "median": 4.891,
+        "max": 6.445
+      },
+      "gateway_paths": {
+        "ok": 34,
+        "n": 34,
+        "median": 1.18,
+        "max": 1.187
+      },
+      "router_d_down_lost": [
+        "PLC1"
+      ],
+      "router_d_restored_ok": 33
+    },
+    {
+      "repeat": 4,
+      "deploy_s": 4.62,
+      "containers": 51,
+      "memory_mib_total": 610.7,
+      "memory_mib_node_mean": 16.74,
+      "memory_mib_router_mean": 0.53,
+      "mtu_paths": {
+        "ok": 33,
+        "n": 33,
+        "median": 0.969,
+        "max": 0.978
+      },
+      "mtu_connect_ms": {
+        "ok": 33,
+        "n": 33,
+        "median": 4.196,
+        "max": 7.355
+      },
+      "gateway_paths": {
+        "ok": 34,
+        "n": 34,
+        "median": 1.181,
+        "max": 1.191
+      },
+      "router_d_down_lost": [
+        "PLC1"
+      ],
+      "router_d_restored_ok": 33
+    },
+    {
+      "repeat": 5,
+      "deploy_s": 4.55,
+      "containers": 51,
+      "memory_mib_total": 611.3,
+      "memory_mib_node_mean": 16.76,
+      "memory_mib_router_mean": 0.53,
+      "mtu_paths": {
+        "ok": 33,
+        "n": 33,
+        "median": 1.922,
+        "max": 1.967
+      },
+      "mtu_connect_ms": {
+        "ok": 33,
+        "n": 33,
+        "median": 6.002,
+        "max": 7.75
+      },
+      "gateway_paths": {
+        "ok": 34,
+        "n": 34,
+        "median": 1.258,
+        "max": 1.276
+      },
+      "router_d_down_lost": [
+        "PLC1"
+      ],
+      "router_d_restored_ok": 33
+    }
+  ],
+  "shaped": {
+    "access_rate": "1mbit",
+    "wan_delay_one_way": "10ms",
+    "mtu_paths": {
+      "ok": 33,
+      "n": 33,
+      "median": 20.443,
+      "max": 20.503
+    },
+    "throughput_mbit_plc1": 0.949
+  }
+}

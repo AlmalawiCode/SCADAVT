@@ -1,0 +1,6 @@
+# E1 (networked): supervised plant, summer design week, seed 1, no faults.
+# Needs the three SCADA programs of docs/NETWORKED_INTERFACES.md.
+name: e1_supervised
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 168, step: 300, tick: 1.0,
+             period: "1.0", capture: false}
+faults: []

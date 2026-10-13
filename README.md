@@ -26,7 +26,13 @@ distribution plant* (submitted to *Internet of Things*, Elsevier).
 | Process-level reference mode and fault windows | `scadavt/experiments/offline.py` | ✅ |
 | Experiment suite (E1–E4, 160 runs) and every figure/table of the paper | `scadavt/experiments/suite.py`, `scadavt/analysis/` | ✅ |
 | Interactive viewer of the results | `docs/viewer.html` | ✅ |
-| Networked services (PLC Modbus server, MTU loop, HMI server, IOModuleGate on CORE/containers) | — | ⏳ not in this release |
+| WaterSystem server: the plant over TCP (WDS protocol, simulated clock, ground-truth log) | `scadavt/wds/server.py` | ✅ |
+| Container deployment generator: 14 field LANs, WAN, control LAN, back channel, 15 routers, 51 containers | `scadavt/deploy/compose.py`, `deploy/` | ✅ |
+| IOModuleGate and MTU configuration files (paper format), address plan | written by the generator | ✅ |
+| Network check (paths, RTT, isolation, shaping, memory) | `scadavt/deploy/netcheck.py` | ✅ |
+| Conformance test for field-device programs | `scadavt/deploy/conformance.py` | ✅ |
+| Networked experiment runner (link loss, rate limit, router freeze, hooks) | `scadavt/experiments/networked.py` | ✅ |
+| SCADA programs of the networked mode: field device, MTU, IOModuleGate/meta-converter | specified in [`docs/NETWORKED_INTERFACES.md`](docs/NETWORKED_INTERFACES.md) | ⏳ to be written |
 
 All experiments in the paper use the **process-level mode**: the supervisory
 logic reads the plant and applies its commands directly every control period.
@@ -47,6 +53,22 @@ python -m scadavt.analysis.viewer --results results --out docs/viewer.html
 ```
 
 One simulated week takes about 0.7 s on one core (≈870,000× real time).
+
+### Networked deployment
+
+```bash
+docker build -t scadavt:2.0 . && docker build -t scadavt-net:2.0 -f deploy/Dockerfile.net .
+python -m scadavt.deploy.netcheck --repeats 5           # 51 containers, checks every path
+python -m scadavt.deploy.compose --out build/town --profile validate
+docker compose -f build/town/docker-compose.yml up -d    # explore the network yourself
+```
+
+Once the three SCADA programs exist (see `docs/NETWORKED_INTERFACES.md`):
+
+```bash
+python -m scadavt.experiments.networked experiments/e3_plc6_link.yaml
+python -m scadavt.analysis.compare_networked --results results
+```
 
 ### Docker (exact reproduction)
 

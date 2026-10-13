@@ -1,0 +1,5 @@
+wall_time,sim_h,phase,kind,target,output
+1791853231.133,1.0,start,link_loss,plc6,
+1791853234.114,2.0,end,link_loss,plc6,
+1791853237.058,3.0833,start,router_stop,router_f,Container scadavt-router_f-1  Paused
+1791853239.806,4.0,end,router_stop,router_f,Container scadavt-router_f-1  Unpaused

@@ -1,0 +1,9 @@
+# Congested access link of field site F (PLC6, PLC7) during the three windows:
+# the link is limited to 8 kbit/s, which delays or drops the MTU's polls.
+name: e3_site_f_congested
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 168, step: 300, tick: 1.0,
+             period: "1.0", capture: true}
+faults:
+  - {start_h: 15, end_h: 20, kind: link_rate, target: plc6, value: 8kbit}
+  - {start_h: 55, end_h: 57, kind: link_rate, target: plc6, value: 8kbit}
+  - {start_h: 100, end_h: 105, kind: link_rate, target: plc6, value: 8kbit}

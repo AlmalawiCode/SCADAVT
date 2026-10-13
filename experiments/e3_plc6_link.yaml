@@ -1,0 +1,10 @@
+# E3 (networked): the control channel to PLC6 is lost in the three windows of
+# the paper (100 % packet loss on PLC6's field-LAN link). Compare with the
+# process-level fault "hold:PLC6".
+name: e3_plc6_link
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 168, step: 300, tick: 1.0,
+             period: "1.0", capture: true}
+faults:
+  - {start_h: 15, end_h: 20, kind: link_loss, target: plc6}
+  - {start_h: 55, end_h: 57, kind: link_loss, target: plc6}
+  - {start_h: 100, end_h: 105, kind: link_loss, target: plc6}

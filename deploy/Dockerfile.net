@@ -1,0 +1,12 @@
+# Image for the networked deployment: the SCADAVT package plus the network
+# tools that routers and nodes need (routing, traffic shaping, capture).
+#
+#   docker build -t scadavt:2.0 .                 (base image, from the repo root)
+#   docker build -t scadavt-net:2.0 -f deploy/Dockerfile.net .
+FROM scadavt:2.0
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        iproute2 iputils-ping tcpdump iptables procps netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+COPY deploy/net/ /opt/scadavt-net/
+RUN chmod +x /opt/scadavt-net/*.sh
+ENTRYPOINT ["/opt/scadavt-net/node.sh"]
