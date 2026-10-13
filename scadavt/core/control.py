@@ -34,18 +34,26 @@ class ControlHost:
     the engine never needs to know where it runs.
     """
 
-    def __init__(self, engine: RuleEngine, placement: str = "mtu"):
+    def __init__(self, decider, placement: str = "mtu"):
+        """``decider(read, sim_h) -> list[command dict]`` — a rule engine's
+        ``evaluate`` or any strategy's ``decide`` (see ``strategy.py``)."""
         if placement not in PLACEMENTS:
             raise ValueError(f"placement must be one of {PLACEMENTS}, got {placement!r}")
-        self.engine = engine
+        self._decide = decider
         self.placement = placement
 
     @classmethod
     def from_rules(cls, rules_json: list[dict], placement: str = "mtu") -> "ControlHost":
-        return cls(RuleEngine.from_json(rules_json), placement)
+        return cls(RuleEngine.from_json(rules_json).evaluate, placement)
+
+    @classmethod
+    def from_strategy(cls, strategy, placement: str = "mtu") -> "ControlHost":
+        """Host any control strategy (an object with ``decide(read, sim_h)``),
+        so the water V1 ``Supervisor`` or a custom controller is a config choice."""
+        return cls(strategy.decide, placement)
 
     def decide(self, read, sim_h: float = 0.0) -> list[dict]:
-        return self.engine.evaluate(read, sim_h)
+        return self._decide(read, sim_h)
 
     @property
     def needs_mtu(self) -> bool:

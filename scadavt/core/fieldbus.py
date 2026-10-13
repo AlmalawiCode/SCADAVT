@@ -151,8 +151,92 @@ class ModbusClientPlugin(FieldbusClient):
             self._open = False
 
 
+# ------------------------------------------------------------------ second plugin
+# A deliberately simple, non-Modbus field-bus to prove the layer is pluggable and
+# that devices of different protocols can coexist in one topology. It is a
+# reference second plugin, not a standard industrial protocol (real DNP3 / IEC-104
+# would drop in behind the same two interfaces).
+import asyncio as _asyncio
+import json as _json
+import struct as _struct
+
+_SLEN = _struct.Struct(">I")
+
+
+class SimpleTcpServer(FieldbusServer):
+    """Serve a device's DataBank over a length-prefixed JSON request protocol."""
+
+    def __init__(self, device: Device):
+        self.device = device
+
+    def _handle(self, req: dict) -> dict:
+        p = self.device.by_id.get(req.get("id"))
+        if p is None:
+            return {"ok": False}
+        t = self.device.bank.tables
+        if req["op"] == "read":
+            if p.is_bool:
+                return {"ok": True, "value": float(t[p.reg_type][p.address])}
+            return {"ok": True, "value": mb.regs_to_float(t[p.reg_type][p.address:p.address + 2])}
+        if req["op"] == "write":
+            if p.is_bool:
+                t[p.reg_type][p.address] = req["value"] >= 0.5
+                self.device.bank.written.add((p.reg_type, p.address))
+            else:
+                t[p.reg_type][p.address:p.address + 2] = mb.float_to_regs(req["value"])
+                self.device.bank.written.add((p.reg_type, p.address))
+                self.device.bank.written.add((p.reg_type, p.address + 1))
+            return {"ok": True}
+        return {"ok": False}
+
+    async def _serve(self, reader, writer):
+        try:
+            while (head := await reader.readexactly(_SLEN.size)):
+                (n,) = _SLEN.unpack(head)
+                req = _json.loads(await reader.readexactly(n))
+                body = _json.dumps(self._handle(req)).encode()
+                writer.write(_SLEN.pack(len(body)) + body)
+                await writer.drain()
+        except (_asyncio.IncompleteReadError, ConnectionError, OSError):
+            pass
+        finally:
+            writer.close()
+
+    async def serve(self, host: str = "127.0.0.1", port: int = 0):
+        return await _asyncio.start_server(self._serve, host, port)
+
+
+class SimpleTcpClient(FieldbusClient):
+    def __init__(self, host: str, port: int, unit: int = 1, timeout: float = 2.0):
+        self.host, self.port, self.timeout = host, port, timeout
+        self.reader = self.writer = None
+
+    async def _call(self, req: dict) -> dict:
+        if self.writer is None:
+            self.reader, self.writer = await _asyncio.wait_for(
+                _asyncio.open_connection(self.host, self.port), self.timeout)
+        body = _json.dumps(req).encode()
+        self.writer.write(_SLEN.pack(len(body)) + body)
+        await self.writer.drain()
+        head = await _asyncio.wait_for(self.reader.readexactly(_SLEN.size), self.timeout)
+        (n,) = _SLEN.unpack(head)
+        return _json.loads(await self.reader.readexactly(n))
+
+    async def read(self, point: DevicePoint) -> float:
+        return float((await self._call({"op": "read", "id": point.id}))["value"])
+
+    async def write(self, point: DevicePoint, value: float) -> None:
+        await self._call({"op": "write", "id": point.id, "value": float(value)})
+
+    async def close(self) -> None:
+        if self.writer is not None:
+            self.writer.close()
+            self.writer = None
+
+
 #: registry of available field-bus protocols (config selects by name)
 PROTOCOLS = {
     "modbus": {"server": ModbusServer, "client": ModbusClientPlugin, "default_port": 502},
-    # "dnp3": {...}, "iec104": {...}  -> future plugins, same interfaces
+    "simpletcp": {"server": SimpleTcpServer, "client": SimpleTcpClient, "default_port": 7002},
+    # real DNP3 / IEC-104 / EtherNet-IP would register here behind the same interfaces
 }

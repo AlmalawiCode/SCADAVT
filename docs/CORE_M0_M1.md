@@ -122,30 +122,64 @@ tests/test_core_m1.py + test_core_m2.py ... 19 passed
 full suite ................................ 67 passed, 1 skipped
 ```
 
+## M3 — standalone gateway, strategies, second plugin, distributed, bundle
+
+New in `scadavt/core/` (+ `scadavt/examples/`):
+
+- **`gateway.py`** — the standalone, domain-neutral gateway (deployment form of
+  IOModuleGate): driven by `session.json` + the point mapping, it moves
+  measurements/states from the external app (Integration API) into device back
+  channels and reads commands back out to the app. Reuses the validated
+  `gateway.bridge.DeviceLink` (IOModules client); every exchange is bounded.
+- **`strategy.py`** + **`examples/water_strategy.py`** — control strategies are a
+  config choice: `RuleStrategy` (generic rules) and the thesis water `Supervisor`
+  (pump groups + V1) wrapped as an *example* strategy behind the same
+  `decide(read, sim_h)` interface. `ControlHost.from_strategy(...)` hosts any.
+- **`fieldbus.py` (second plugin)** — a `simpletcp` field-bus plugin beside
+  Modbus, proving the layer is pluggable and that mixed-protocol topologies work
+  (a reference second protocol, not a standard; real DNP3/IEC-104 drop in behind
+  the same interfaces).
+- **distributed placement** — demonstrated: a device runs local control that
+  reads a neighbour's measurement over the SCADA net (peer field-bus client) and
+  actuates its own output, with no MTU.
+- **`bundle.py`** + **`capture.py`** — the synchronized experiment bundle
+  (`trace.csv` + two-dimensional `labels.csv` + `metadata.json` + pcap refs on
+  one reference clock) and a `tcpdump` capture wrapper (runs on a CORE/priv host).
+
+Tests `tests/test_core_m3.py` (8, all passing): rule-strategy ≡ rule-engine; the
+water Supervisor driving a pump as a strategy; the `simpletcp` plugin round trip;
+mixed-protocol config + per-plugin default ports; the standalone gateway moving a
+measurement app→device and a command device→app over the back channel; distributed
+local control with a peer read; the experiment bundle with both label dimensions
+and a pcap reference; the capture wrapper constructs.
+
+### Test results (M1+M2+M3)
+```
+tests/test_core_m[123].py ... 27 passed
+full suite .................. 75 passed, 1 skipped
+```
+
 ## Limitations (honest)
 - **CORE does not run in this sandbox** (no namespace privileges, no passwordless
   sudo, daemon not started). So the generated `core_session.py` is validated by
-  compilation + structure, the device runner and field-bus are exercised over
-  **loopback** (same Modbus/IOModules stack CORE would carry), and the
+  compilation + structure, the device runner / field-bus / gateway are exercised
+  over **loopback** (the same Modbus/IOModules stack CORE would carry), and the
   disturbance is injected by a loopback proxy instead of CORE `netem`. Running a
-  generated session on live CORE and capturing synchronized pcaps must be done
-  on a CORE-capable host.
-- `distributed` (PLC↔PLC) placement is defined but not yet implemented.
+  generated session on live CORE and capturing synchronized pcaps (the
+  `capture.py` wrapper) must be done on a CORE-capable, privileged host.
+- `simpletcp` is a *reference* second field-bus plugin, not a standard protocol;
+  real DNP3 / IEC-104 / EtherNet-IP remain to be implemented behind the same
+  interfaces.
 - The generator emits a runnable gRPC session script + gateway INIs; it does not
   emit a CORE `.imn` GUI session (optional, later).
-- Only the Modbus field-bus plugin ships; other protocols are interfaces only.
-- `Supervisor` (water V1 strategy) is not yet reworked into a config-loaded
-  strategy; the generic `RuleEngine` is the path the core uses.
-- There is not yet a domain-neutral **core gateway** process (generalising
-  `gateway/bridge.py`): the end-to-end runner performs the gateway role
-  in-process. A standalone gateway that connects the Integration API to device
-  back channels from `session.json` is the next integration step.
+- The distributed placement is demonstrated at loop level; a packaged
+  per-node distributed control service is a later step.
+- End-to-end on live CORE (generate → run nodes + gateway + external app →
+  attack → capture → bundle, all on one host) is the remaining integration that
+  this sandbox cannot execute.
 
-## Next steps (M3)
-- Standalone domain-neutral gateway (generalise `gateway/bridge.py`) driven by
-  `session.json` + the two gateway INIs; run a generated session end to end on a
-  CORE host.
-- Synchronized experiment-bundle export: pcap + process trace + metadata +
-  two-dimensional labels on one reference clock.
-- Rework `Supervisor` as an example strategy loaded from configuration; add a
-  second field-bus plugin to exercise mixed-protocol topologies.
+## Next steps
+- Run the whole pipeline on a CORE-capable host and record a real bundle
+  (live pcaps + process trace + labels).
+- Real industrial-protocol plugins (DNP3 / IEC-104) and a packaged distributed
+  control service; optional CORE `.imn` emission.
