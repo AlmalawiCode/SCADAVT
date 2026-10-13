@@ -118,6 +118,39 @@ def cmd_netrun(a):
     print(json.dumps(res["summary"], indent=2))
 
 
+def cmd_app(a):
+    """Run the external EPANET application server (what a CORE run connects to)."""
+    import asyncio
+    from ..examples.design_app import DesignApp
+    cfg = _load(a.file)
+    app = DesignApp(cfg["epanet"], cfg["mapping"])
+
+    async def serve():
+        server = await app.serve(a.host, a.port)
+        print(f"external EPANET app on {a.host}:{a.port} ({len(app.bind)} points)")
+        async with server:
+            await server.serve_forever()
+    try:
+        asyncio.run(serve())
+    finally:
+        app.close()
+
+
+def cmd_launch(a):
+    import asyncio
+    from .launch import CoreLauncher
+    cfg = _load(a.file)
+    launcher = CoreLauncher(cfg, a.out)
+    res = asyncio.run(launcher.run(cycles=a.cycles, attacks=_parse_attacks(a.attack),
+                                   out=None))
+    print(f"CORE available here: {res['core_available']}")
+    print(f"engine used:         {res['engine']}")
+    print(f"artifacts:           {a.out}/  (core_session.py, run_devices.sh, lab.json, launch.sh)")
+    print(f"experiment bundle:   {res['bundle']}/  (trace.csv, labels.csv, metadata.json)")
+    print(json.dumps(res["summary"], indent=2))
+    print(f"\nto bring up on a CORE host:  bash {a.out}/launch.sh   (see docs/CORE_RUNBOOK.md)")
+
+
 def cmd_serve(a):
     import uvicorn
     print(f"lab builder on http://{a.host}:{a.port}")
@@ -174,6 +207,15 @@ def main(argv=None):
     nr.add_argument("file"); nr.add_argument("--cycles", type=int, default=60)
     nr.add_argument("--attack", action="append", help="kind:target:start:end")
     nr.set_defaults(fn=cmd_netrun)
+
+    ap_ = sub.add_parser("app", help="serve the external EPANET app (for a CORE/networked run)")
+    ap_.add_argument("file"); ap_.add_argument("--host", default="0.0.0.0")
+    ap_.add_argument("--port", type=int, default=9000); ap_.set_defaults(fn=cmd_app)
+
+    lc = sub.add_parser("launch", help="orchestrate a full run + bundle (+ CORE package)")
+    lc.add_argument("file"); lc.add_argument("--cycles", type=int, default=60)
+    lc.add_argument("--attack", action="append", help="kind:target:start:end")
+    lc.add_argument("-o", "--out", default="lab_run"); lc.set_defaults(fn=cmd_launch)
 
     s = sub.add_parser("serve"); s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8000); s.set_defaults(fn=cmd_serve)

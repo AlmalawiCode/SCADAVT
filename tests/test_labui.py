@@ -193,6 +193,31 @@ def test_api_netrun_endpoint():
     assert r["engine"] == "networked" and "PLC1" in r["traces"]
 
 
+def test_core_launch_orchestrator(tmp_path):
+    """The launcher prepares the CORE package, runs the pipeline, and exports a
+    reproducible bundle (pcaps would be added on a CORE host)."""
+    import asyncio
+    from pathlib import Path
+    from scadavt.labui.launch import CoreLauncher
+
+    lab = CoreLauncher(make_lab(1), tmp_path)
+    assert isinstance(lab.core_available(), bool)
+    assert len(lab.plan()) >= 6
+    res = asyncio.run(lab.run(cycles=25, attacks=[{"kind": "integrity", "target": "PLC1",
+                                                   "start": 5, "end": 15}]))
+    # CORE bring-up package written
+    for f in ("core_session.py", "run_devices.sh", "lab.json", "launch.sh",
+              "gate_endpoints.ini"):
+        assert (tmp_path / f).exists()
+    assert Path(res["launch_script"]).exists()
+    # experiment bundle written with both label dimensions
+    b = Path(res["bundle"])
+    assert (b / "trace.csv").exists() and (b / "labels.csv").exists()
+    assert (b / "metadata.json").exists()
+    assert res["engine"] == "networked"
+    assert res["summary"]["confirmed_malicious_cycles"] >= 0
+
+
 def test_api_live_session_inject_attack_from_terminal_path():
     cfg = make_lab(2)
     sid = client.post("/sessions", json={"config": cfg}).json()["id"]

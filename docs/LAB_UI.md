@@ -60,6 +60,22 @@ tank level from EPANET → the control engine decides → it writes the pump com
 back into EPANET → advances the hydraulic step. The browser-only preview (no
 server) is an approximation and is labelled as such; the server runs real EPANET.
 
+## One-command orchestrator (`launch`)
+```bash
+./run.sh launch lab.json --cycles 60 --attack dos:PLC1:20:40 -o lab_run
+```
+`CoreLauncher` prepares the whole **CORE bring-up package** (`core_session.py`,
+`run_devices.sh`, gateway INIs, `lab.json`, and an auto-generated `launch.sh`),
+runs the full pipeline through the networked engine, and writes a reproducible
+**experiment bundle** (`trace.csv` + two-dimensional `labels.csv` +
+`metadata.json`; pcaps are added on a CORE host). It reports whether CORE is
+available here; on a CORE host, `bash lab_run/launch.sh` brings the lab up inside
+emulated namespaces (see the runbook). The `app` command serves the external
+EPANET application that such a run connects to:
+```bash
+./run.sh app lab.json --port 9000
+```
+
 ## Two run engines
 - **`/run`** — fast EPANET loop in one process (quick preview of the physics + control).
 - **`/netrun`** (and `cli netrun`) — the **full networked run**: the external
