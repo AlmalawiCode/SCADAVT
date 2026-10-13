@@ -18,6 +18,22 @@ let EDIT = false;       // layout-edit mode
 let SCEN_PATH = null;   // writable workspace scenario path (when editing)
 let MOVED = new Set();  // node ids whose coordinates changed
 let ATTACKS = [];       // composed attack specs
+let LINKS = {};         // link id -> {line, kind} for flow animation
+let LIVE = false;       // is the plant currently running (drives animation)
+
+function setLive(on) {
+  LIVE = on;
+  const net = $("net"); if (net) net.classList.toggle("live", on);
+}
+// set a link's flowing-water speed/direction from its flow value (L/min)
+function animateLink(line, flow) {
+  if (!line) return;
+  if (flow == null) { line.style.animationDuration = "3s"; line.style.opacity = "0.5"; return; }
+  const mag = Math.min(1, Math.abs(flow) / 3000);
+  line.style.animationDuration = (2.6 - 2.1 * mag).toFixed(2) + "s";
+  line.style.animationDirection = flow < 0 ? "reverse" : "normal";
+  line.style.opacity = (0.35 + 0.6 * mag).toFixed(2);
+}
 
 async function loadTopology() {
   const url = SCEN_PATH ? `api/scenario?path=${encodeURIComponent(SCEN_PATH)}` : "api/scenario";
@@ -126,15 +142,29 @@ function drawNetwork() {
   const vb = svgSpace();
   net.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const R = Math.max(vb.w, vb.h) / 110;  // base radius
-  REF = {};
+  REF = {}; LINKS = {};
 
-  // links first (drawn under nodes)
+  // vertical water gradient for tank fills
+  const defs = el("defs");
+  const grad = el("linearGradient", { id: "water", x1: "0", y1: "0", x2: "0", y2: "1" });
+  grad.appendChild(el("stop", { offset: "0", "stop-color": "#4aa3e0" }));
+  grad.appendChild(el("stop", { offset: "1", "stop-color": "#1f5c93" }));
+  defs.appendChild(grad);
+  net.appendChild(defs);
+
+  // links first (drawn under nodes) — every link carries flowing-water dashes
   for (const lk of TOPO.links) {
     const a = XY[lk.n1], b = XY[lk.n2];
     if (!a || !b) continue;
-    const stroke = lk.kind === "pump" ? "#3b82f6" : lk.kind === "valve" ? "#f59e0b" : "#3a4656";
-    const w = lk.kind === "pipe" ? R * 0.35 : R * 0.6;
-    net.appendChild(el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke, "stroke-width": w, "stroke-linecap": "round" }));
+    // faint base so a still/idle network still reads as pipes
+    const w = lk.kind === "pipe" ? R * 0.4 : R * 0.7;
+    net.appendChild(el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+      stroke: "#2b3a49", "stroke-width": w, "stroke-linecap": "round" }));
+    const color = lk.kind === "valve" ? "#58c4d6" : "#5aa9e6";
+    const flowLine = el("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "flow",
+      stroke: color, "stroke-width": w * 0.8, "stroke-linecap": "round", opacity: 0.45 });
+    net.appendChild(flowLine);
+    LINKS[lk.id] = { line: flowLine, kind: lk.kind };
     if (lk.kind === "pump" || lk.kind === "valve") {
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       let g;
@@ -158,16 +188,21 @@ function drawNetwork() {
     const p = XY[n.id];
     if (!p) continue;
     if (n.kind === "tank") {
-      const s = R * 2.4;
+      const s = R * 2.6;
       const box = el("rect", { x: p.x - s, y: p.y - s, width: 2 * s, height: 2 * s, rx: R * 0.4,
-        fill: "#101720", stroke: "#3a4656", "stroke-width": R * 0.25 });
-      const fill = el("rect", { x: p.x - s, y: p.y, width: 2 * s, height: 0, fill: "#2f6fb0", rx: R * 0.3 });
+        fill: "#0d141c", stroke: "#3a4656", "stroke-width": R * 0.25 });
+      const fill = el("rect", { x: p.x - s, y: p.y, width: 2 * s, height: 0, fill: "url(#water)",
+        rx: R * 0.3, class: "tank-fill" });
+      const surface = el("rect", { x: p.x - s, y: p.y, width: 2 * s, height: R * 0.28,
+        fill: "#9bd0f5", class: "tank-surface" });
+      const lvl = el("text", { x: p.x, y: p.y + s - R * 0.6, "text-anchor": "middle", class: "lvltext" });
+      lvl.setAttribute("font-size", R * 1.5);
       box.style.cursor = fill.style.cursor = "pointer";
       const sel = () => select(n.id);
       box.addEventListener("click", sel); fill.addEventListener("click", sel);
-      net.appendChild(box); net.appendChild(fill);
+      net.appendChild(box); net.appendChild(fill); net.appendChild(surface); net.appendChild(lvl);
       net.appendChild(label(n.id, p.x, p.y - s - R * 0.6));
-      REF[n.id] = { level: fill, tankTop: p.y - s, tankH: 2 * s };
+      REF[n.id] = { level: fill, surface, lvltext: lvl, tankTop: p.y - s, tankH: 2 * s };
       if (EDIT) { makeDraggable(box, n.id); makeDraggable(fill, n.id); }
     } else if (n.kind === "reservoir") {
       const c = el("circle", { cx: p.x, cy: p.y, r: R * 1.6, fill: "#1f6f5c", stroke: "#0d1219", "stroke-width": R * 0.2 });
@@ -220,26 +255,40 @@ function makeDraggable(elem, id) {
 
 function applyFrame(row) {
   if (!row) return;
-  // tanks
+  setLive(true);
+  // tanks: water rises/falls smoothly, surface sits on top, level shown
   for (const id in REF) {
     const ref = REF[id];
     if (ref.level) {
       const lvl = row[`${id}_level`];
       if (lvl != null) {
         const frac = Math.max(0, Math.min(1, lvl / MAXL));
-        ref.level.setAttribute("y", ref.tankTop + ref.tankH * (1 - frac));
+        const top = ref.tankTop + ref.tankH * (1 - frac);
+        ref.level.setAttribute("y", top);
         ref.level.setAttribute("height", ref.tankH * frac);
-        ref.level.setAttribute("fill", lvl <= CRIT ? "#b03a3a" : "#2f6fb0");
+        ref.level.setAttribute("fill", lvl <= CRIT ? "#c0392b" : "url(#water)");
+        if (ref.surface) { ref.surface.setAttribute("y", top - 1); ref.surface.setAttribute("opacity", frac > 0.02 ? 0.9 : 0); }
+        if (ref.lvltext) ref.lvltext.textContent = lvl.toFixed(2);
       }
     }
     if (ref.pump) {
       const st = row[`${id}_status`];
-      if (st != null) ref.pump.setAttribute("fill", st >= 0.5 ? "#22c55e" : "#5b6675");
+      if (st != null) {
+        const on = st >= 0.5;
+        ref.pump.setAttribute("fill", on ? "#22c55e" : "#5b6675");
+        ref.pump.classList.toggle("pump-on", on);
+      }
     }
     if (ref.valve) {
       const fl = row[`${id}_flow`];
-      if (fl != null) ref.valve.setAttribute("fill", Math.abs(fl) > 1 ? "#f59e0b" : "#8a6a28");
+      if (fl != null) ref.valve.setAttribute("fill", Math.abs(fl) > 1 ? "#58c4d6" : "#3a6670");
     }
+  }
+  // flowing water in every link, speed/direction from the measured flow
+  for (const id in LINKS) {
+    const m = LINKS[id];
+    const f = (m.kind === "pump" || m.kind === "valve") ? row[`${id}_flow`] : null;
+    animateLink(m.line, f);
   }
   // chart series (tanks)
   const h = row.sim_h;
@@ -333,6 +382,7 @@ function connectWS() {
 
 function setState(s) {
   const st = $("state");
+  setLive(!!s.running);
   if (s.running) { st.textContent = "running"; st.className = "pill run";
     $("btn-start").disabled = true; $("btn-stop").disabled = false; }
   else if (s.state === "finished") { st.textContent = "finished"; st.className = "pill";
