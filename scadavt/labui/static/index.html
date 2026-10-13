@@ -67,6 +67,7 @@ svg text{fill:var(--ink)}
       <input id="atkstart" type="number" value="40" title="بداية"><input id="atkdur" type="number" value="40" title="مدّة"></div>
     <div class="stack">
       <button class="b" onclick="loadTemplate()">قالب (٣ PLC)</button>
+      <button class="b" onclick="autoAssign()">إسناد PLC تلقائيًّا</button>
       <button class="b" onclick="clearAll()">مسح الكل</button>
       <button class="b" onclick="delSel()">حذف المحدَّد</button>
       <button class="bp" onclick="run()">▶ تشغيل على EPANET</button>
@@ -218,8 +219,32 @@ function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)ret
   const s=+document.getElementById('atkstart').value,d=+document.getElementById('atkdur').value;
   return[{kind:k,target:document.getElementById('atktgt').value,start:s,end:s+d}];}
 
+// create a PLC per tank and bind nearby pumps/valves (one-click runnable lab)
+function autoAssign(){
+  state.els=state.els.filter(e=>e.kind!=='plc');
+  state.els.forEach(e=>{if(e.kind!=='plc')e.plc=null;});
+  const tanks=state.els.filter(e=>e.kind==='tank');
+  if(!tanks.length){msg('لا خزّانات في الشبكة. ارفع ملف .inp فيه خزّان.',false);return;}
+  const adj={};nodes().forEach(n=>adj[n.id]=[]);
+  const links=state.els.filter(e=>!KINDS[e.kind].node);
+  links.forEach(l=>{if(adj[l.n1])adj[l.n1].push(l.n2);if(adj[l.n2])adj[l.n2].push(l.n1);});
+  const plcOfTank={};
+  tanks.forEach((t,i)=>{const id='PLC'+(i+1);state.ctr.plc=Math.max(state.ctr.plc||0,i+1);
+    state.els.push({id,kind:'plc',x:Math.min(690,t.x+70),y:t.y,props:{},plc:null});
+    t.plc=id;plcOfTank[t.id]=id;});
+  links.filter(l=>l.kind==='pump'||l.kind==='valve').forEach(l=>{
+    const seen=new Set([l.n1,l.n2]),q=[l.n1,l.n2];let found=null;
+    while(q.length){const c=q.shift();const nd=el(c);if(nd&&nd.kind==='tank'){found=c;break;}
+      (adj[c]||[]).forEach(x=>{if(!seen.has(x)){seen.add(x);q.push(x);}});}
+    l.plc=plcOfTank[found]||plcOfTank[tanks[0].id];});
+  render();showProps();
+  msg('أُسنِدت '+tanks.length+' PLC تلقائيًّا (خزّان+مضخّة لكلٍّ). يمكنك التعديل ثم التشغيل.',true);
+}
+
 async function run(){
-  if(nodes().filter(e=>e.kind==='tank').length===0){msg('أضِف خزّانًا واحدًا على الأقلّ.',false);return;}
+  if(nodes().filter(e=>e.kind==='tank').length===0){msg('ارفع شبكة EPANET فيها خزّان أولًا.',false);return;}
+  if(plcs().length===0){msg('لم تُضِف PLC. اضغط «إسناد PLC تلقائيًّا»، أو أضِف PLC من الأدوات وأسنِد إليه عناصر.',false);return;}
+  if(!state.els.some(e=>e.plc&&e.kind!=='plc')){msg('أسنِد عنصرًا إلى PLC: اختره ثم اختر الـPLC في الخصائص (أو «إسناد تلقائي»).',false);return;}
   msg('جارٍ التركيب والتشغيل…',true);
   const {design,plcs}=buildDesign();const attacks=getAttacks();
   try{
