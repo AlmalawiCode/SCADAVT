@@ -80,30 +80,72 @@ Three independent acceptance tests + end-to-end, all passing:
 - **Labels** — `attack_window` vs `malicious_confirmed` kept as distinct
   dimensions; benign traffic inside a window is counted as such.
 
-### Test results
+### Test results (M1)
 ```
 tests/test_core_m1.py ....... 15 passed
 full suite .................. 63 passed, 1 skipped   (48 pre-existing + 15 new)
 ```
 
+## M2 — generalized generator, device-node runner, disturbance measurement
+
+New in `scadavt/core/`:
+
+- **`device.py`** — the configuration-driven field-device node, i.e. *what a CORE
+  node runs*: a field-bus server (Modbus plugin) on the SCADA network **and** an
+  I/O-modules server on the back channel, built from a node's point list. Neutral;
+  runnable as `python -m scadavt.core.device --session session.json --node PLC1`.
+- **`coregen.py` (generalized)** — richer validation (IP and back-channel
+  uniqueness, link endpoints, placement/MTU rules), switch/router nodes,
+  per-node service commands pointing at the device runner, and
+  `write_session()` emitting `session.json`, the two gateway INIs, a runnable
+  `core_session.py` (CORE gRPC, compiles clean), and `run_devices.sh`.
+- **`netmeasure.py`** — communication-layer disturbance measurement: RTT and
+  failed/timed-out transaction rates for the Modbus stack, with delay+loss
+  injected by a loopback `DegradedProxy` (stand-in for CORE `netem`). Measures
+  the *communication* impact; asserts nothing about process deviation.
+
+Tests `tests/test_core_m2.py` (4, all passing):
+
+- device runner exercised on **both faces** over loopback (gateway writes a
+  measurement via IOModules → master reads it via Modbus → master writes a
+  command via Modbus → gateway reads it back via IOModules);
+- generator validated on **three distinct configurations** (single+MTU, local
+  MTU-less pair, switched 3-PLC+MTU), artefacts written and the gRPC script
+  compiles; service commands cover every device; run script launches each;
+- validation catches duplicate IPs, duplicate back channels and dangling links;
+- disturbance shows up at the communication layer (baseline 0 failures → with
+  delay+50% loss, failures and RTT rise), with no process-deviation assertion.
+
+### Test results (M1+M2)
+```
+tests/test_core_m1.py + test_core_m2.py ... 19 passed
+full suite ................................ 67 passed, 1 skipped
+```
+
 ## Limitations (honest)
 - **CORE does not run in this sandbox** (no namespace privileges, no passwordless
-  sudo, daemon not started). So the CORE *session generator* is validated
-  structurally and the network behaviour is exercised over **loopback**, which
-  carries the same Modbus stack. Running the generated session on live CORE,
-  and measuring per-link `netem` delay/loss and pcap capture, must be done on a
-  CORE-capable host (M1 test (c) network-disturbance measurement, M2).
+  sudo, daemon not started). So the generated `core_session.py` is validated by
+  compilation + structure, the device runner and field-bus are exercised over
+  **loopback** (same Modbus/IOModules stack CORE would carry), and the
+  disturbance is injected by a loopback proxy instead of CORE `netem`. Running a
+  generated session on live CORE and capturing synchronized pcaps must be done
+  on a CORE-capable host.
 - `distributed` (PLC↔PLC) placement is defined but not yet implemented.
-- The generator emits a gRPC build script and gateway INIs; it does not yet
-  emit a CORE `.imn` GUI session (M2, generalization).
-- Only the Modbus field-bus plugin ships; others are interfaces only.
+- The generator emits a runnable gRPC session script + gateway INIs; it does not
+  emit a CORE `.imn` GUI session (optional, later).
+- Only the Modbus field-bus plugin ships; other protocols are interfaces only.
 - `Supervisor` (water V1 strategy) is not yet reworked into a config-loaded
-  strategy; the generic `RuleEngine` is the path used by the core.
+  strategy; the generic `RuleEngine` is the path the core uses.
+- There is not yet a domain-neutral **core gateway** process (generalising
+  `gateway/bridge.py`): the end-to-end runner performs the gateway role
+  in-process. A standalone gateway that connects the Integration API to device
+  back channels from `session.json` is the next integration step.
 
-## Next steps
-- M2: generalize the CORE session generator; run on a CORE host; measure network
-  disturbance at the communication layer (RTT, failed/dropped transactions) and
-  capture synchronized pcaps.
-- Rework `Supervisor` as an example strategy loaded from configuration.
-- Add the synchronized experiment bundle export (pcap + process trace + metadata
-  + two-dimensional labels) end to end.
+## Next steps (M3)
+- Standalone domain-neutral gateway (generalise `gateway/bridge.py`) driven by
+  `session.json` + the two gateway INIs; run a generated session end to end on a
+  CORE host.
+- Synchronized experiment-bundle export: pcap + process trace + metadata +
+  two-dimensional labels on one reference clock.
+- Rework `Supervisor` as an example strategy loaded from configuration; add a
+  second field-bus plugin to exercise mixed-protocol topologies.
