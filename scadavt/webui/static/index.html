@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCADAVT Research Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">SCADAVT <span>Research Lab</span></div>
+    <div class="clock">
+      <span id="state" class="pill">idle</span>
+      <span id="simclock">t = &mdash;</span>
+    </div>
+  </header>
+
+  <main>
+    <section id="canvas-wrap">
+      <svg id="net" preserveAspectRatio="xMidYMid meet"></svg>
+      <div id="chart-wrap">
+        <div class="chart-title">Tank levels (m) &mdash; dashed line: critical</div>
+        <svg id="chart" preserveAspectRatio="none"></svg>
+      </div>
+    </section>
+
+    <aside id="side">
+      <div class="panel">
+        <h2>Run</h2>
+        <label>Scenario <input id="scenario-name" value="&mdash;" readonly></label>
+        <div class="row">
+          <label>Hours <input id="p-hours" type="number" value="24" min="1" step="1"></label>
+          <label>Seed <input id="p-seed" type="number" value="1" min="0" step="1"></label>
+        </div>
+        <div class="row">
+          <label>Step (sim s) <input id="p-step" type="number" value="300" min="1" step="1"></label>
+          <label>Tick (wall s) <input id="p-tick" type="number" value="1.0" min="0.05" step="0.05"></label>
+        </div>
+        <label class="check"><input id="p-sup" type="checkbox" checked> Supervisory control</label>
+        <label class="check"><input id="p-v1" type="checkbox" checked> V1 flow balancing</label>
+        <div class="row">
+          <button id="btn-start">Start</button>
+          <button id="btn-stop" class="ghost" disabled>Stop</button>
+        </div>
+        <div id="run-msg" class="msg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Selection</h2>
+        <div id="sel"><p class="dim">Click a tank, pump or valve.</p></div>
+      </div>
+
+      <div class="panel">
+        <h2>Legend</h2>
+        <ul class="legend">
+          <li><span class="sw tank"></span> tank (fill = level)</li>
+          <li><span class="sw pumpon"></span> pump running</li>
+          <li><span class="sw pumpoff"></span> pump stopped</li>
+          <li><span class="sw valve"></span> valve</li>
+          <li><span class="sw junc"></span> junction</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

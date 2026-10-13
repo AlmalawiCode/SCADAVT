@@ -1,0 +1,23 @@
+# SCADAVT Research Lab — one-command launch.
+#
+#   docker compose -f docker-compose.lab.yml up --build
+#
+# then open http://127.0.0.1:8000 in a browser.
+#
+# ./data persists the (non-redistributed) consumption series fetched on first
+# run; ./runs holds each run's ground-truth log and exported datasets.
+services:
+  lab:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.lab
+    image: scadavt-lab:2.0
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./runs:/app/runs
+    # The networked (container) attack mode added in a later phase will also
+    # mount the Docker socket here to orchestrate sibling containers:
+    #   - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

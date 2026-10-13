@@ -20,10 +20,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+webui = ["fastapi>=0.110,<0.120", "uvicorn[standard]>=0.29,<0.35"]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+scadavt-lab = "scadavt.webui.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["scadavt*"]
 
 [tool.setuptools.package-data]
 "scadavt.scenarios.town" = ["*.inp", "*.yaml"]
+"scadavt.webui" = ["static/*"]
