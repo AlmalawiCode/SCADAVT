@@ -1,0 +1,134 @@
+"""The lab API — one clean surface for the web builder and the terminal client.
+
+Endpoints (all JSON):
+
+    GET  /                       the drag-and-drop builder page
+    POST /validate   {config}            -> {issues: [...]}
+    POST /generate   {config}            -> {files: {name: text}}   (CORE session + gateway)
+    POST /run        {config, cycles,     -> {traces, summary}      (one-shot preview run)
+                      attacks?}
+    live sessions (drive from UI polling or from the terminal / a script):
+    POST   /sessions {config, cycles?}   -> {id, plcs}
+    POST   /sessions/{id}/attack {kind,   -> {ok, attacks}          (schedule OR inject now)
+                      target, start?, end?, duration?}
+    POST   /sessions/{id}/step   {n?}     -> {t, traces, summary}
+    GET    /sessions/{id}                 -> {t, traces, summary}
+    POST   /sessions/{id}/stop            -> {ok}
+
+The attack endpoints are the terminal/scripting path the researcher asked for:
+a script can create a session, step it, and inject an attack mid-run.
+"""
+
+from __future__ import annotations
+
+import uuid
+from pathlib import Path
+
+from fastapi import Body, FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from ..core import coregen
+from .sim import Lab
+
+STATIC = Path(__file__).parent / "static"
+
+app = FastAPI(title="SCADAVT Lab API")
+_sessions: dict[str, Lab] = {}
+
+
+@app.get("/")
+def index():
+    return FileResponse(STATIC / "index.html")
+
+
+@app.post("/validate")
+def validate(config: dict = Body(...)):
+    return {"issues": coregen.validate(config)}
+
+
+@app.post("/generate")
+def generate(config: dict = Body(...)):
+    issues = coregen.validate(config)
+    if issues:
+        raise HTTPException(400, {"issues": issues})
+    ep, pts = coregen.gateway_files(config)
+    return {"files": {
+        "session.json": coregen.session(config),
+        "core_session.py": coregen.core_build_script(config),
+        "run_devices.sh": coregen.run_script(config),
+        "gate_endpoints.ini": ep,
+        "gate_points.ini": pts,
+    }}
+
+
+def _apply_attacks(lab: Lab, attacks: list) -> None:
+    for a in attacks or []:
+        lab.add_attack(a["kind"], a["target"], a.get("start", 0), a.get("end", 10 ** 9))
+
+
+@app.post("/run")
+def run(body: dict = Body(...)):
+    cfg = body.get("config") or {}
+    issues = coregen.validate(cfg)
+    if issues:
+        raise HTTPException(400, {"issues": issues})
+    lab = Lab(cfg)
+    _apply_attacks(lab, body.get("attacks"))
+    lab.run(int(body.get("cycles", 120)))
+    return {"traces": lab.traces(), "summary": lab.summary(),
+            "placement": cfg.get("control", {}).get("placement", "mtu")}
+
+
+# ---------------------------------------------------------------- live sessions
+@app.post("/sessions")
+def create_session(body: dict = Body(...)):
+    cfg = body.get("config") or {}
+    issues = coregen.validate(cfg)
+    if issues:
+        raise HTTPException(400, {"issues": issues})
+    sid = uuid.uuid4().hex[:12]
+    _sessions[sid] = Lab(cfg)
+    return {"id": sid, "plcs": _sessions[sid].plcs}
+
+
+def _get(sid: str) -> Lab:
+    if sid not in _sessions:
+        raise HTTPException(404, "no such session")
+    return _sessions[sid]
+
+
+@app.post("/sessions/{sid}/attack")
+def inject_attack(sid: str, body: dict = Body(...)):
+    lab = _get(sid)
+    start = body.get("start")
+    if start is None:                      # inject now
+        start = lab.t
+    end = body.get("end")
+    if end is None:
+        end = start + int(body.get("duration", 30))
+    lab.add_attack(body["kind"], body["target"], start, end)
+    return {"ok": True, "attacks": [vars(a) for a in lab.attacks]}
+
+
+@app.post("/sessions/{sid}/step")
+def step_session(sid: str, body: dict = Body(default={})):
+    lab = _get(sid)
+    lab.run(int(body.get("n", 1)))
+    return {"t": lab.t, "traces": lab.traces(), "summary": lab.summary()}
+
+
+@app.get("/sessions/{sid}")
+def get_session(sid: str):
+    lab = _get(sid)
+    return {"t": lab.t, "traces": lab.traces(), "summary": lab.summary()}
+
+
+@app.post("/sessions/{sid}/stop")
+def stop_session(sid: str):
+    _sessions.pop(sid, None)
+    return {"ok": True}
+
+
+# mount any extra static assets under /static too
+app.mount("/static", StaticFiles(directory=STATIC), name="static")
