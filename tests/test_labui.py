@@ -212,6 +212,23 @@ def test_api_netrun_endpoint():
     assert r["engine"] == "networked" and "PLC1" in r["traces"]
 
 
+def test_thesis_example_config_runs(tmp_path):
+    """The shipped thesis example (water distribution) validates and runs on the
+    real EPANET engine with its 6 tanks."""
+    import json
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[1] / "scadavt" / "scenarios" / "thesis_example"
+    if not (p / "watertown.json").exists():
+        import pytest
+        pytest.skip("thesis example not generated")
+    cfg = json.loads((p / "watertown.json").read_text())
+    assert coregen.validate(cfg) == []
+    assert len(cfg["epanet"]["plcs"]) == 5 and len(cfg["devices"]) == 5
+    r = client.post("/run", json={"config": cfg, "cycles": 60}).json()
+    assert r["engine"] == "epanet"
+    assert set(r["frames"][0]["tanks"]) >= {"T1", "T2", "T3", "T4", "T5", "T6"}
+
+
 def test_core_launch_orchestrator(tmp_path):
     """The launcher prepares the CORE package, runs the pipeline, and exports a
     reproducible bundle (pcaps would be added on a CORE host)."""

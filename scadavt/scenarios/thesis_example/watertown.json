@@ -1,0 +1,3008 @@
+{
+  "name": "thesis-water-distribution",
+  "control": {
+    "placement": "mtu"
+  },
+  "epanet": {
+    "name": "thesis-water-distribution",
+    "hours": 168,
+    "nodes": [
+      {
+        "id": "J_W1",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 2100.0,
+        "y": 1000.0
+      },
+      {
+        "id": "J_P123",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 2400.0,
+        "y": 1000.0
+      },
+      {
+        "id": "J_V3a",
+        "kind": "junction",
+        "elev": 30.0,
+        "demand": 0.0,
+        "x": 2600.0,
+        "y": 1200.0
+      },
+      {
+        "id": "J_T1i",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 2700.0,
+        "y": 1300.0
+      },
+      {
+        "id": "J_T1o",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 2700.0,
+        "y": 1700.0
+      },
+      {
+        "id": "J_P45",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 2400.0,
+        "y": 1900.0
+      },
+      {
+        "id": "J_V35b",
+        "kind": "junction",
+        "elev": 55.0,
+        "demand": 0.0,
+        "x": 2000.0,
+        "y": 2000.0
+      },
+      {
+        "id": "J_T2i",
+        "kind": "junction",
+        "elev": 70.0,
+        "demand": 0.0,
+        "x": 1800.0,
+        "y": 2050.0
+      },
+      {
+        "id": "J_V1u",
+        "kind": "junction",
+        "elev": 60.0,
+        "demand": 0.0,
+        "x": 2000.0,
+        "y": 2400.0
+      },
+      {
+        "id": "J_V1d",
+        "kind": "junction",
+        "elev": 60.0,
+        "demand": 0.0,
+        "x": 2200.0,
+        "y": 2600.0
+      },
+      {
+        "id": "J_T3i",
+        "kind": "junction",
+        "elev": 62.0,
+        "demand": 0.0,
+        "x": 2250.0,
+        "y": 2700.0
+      },
+      {
+        "id": "J_W2a",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 4800.0,
+        "y": 2700.0
+      },
+      {
+        "id": "J_W2b",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 4700.0,
+        "y": 2600.0
+      },
+      {
+        "id": "J_P89",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 4800.0,
+        "y": 3100.0
+      },
+      {
+        "id": "J_V21a",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 4500.0,
+        "y": 3300.0
+      },
+      {
+        "id": "J_T4i",
+        "kind": "junction",
+        "elev": 55.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 3350.0
+      },
+      {
+        "id": "J_P67",
+        "kind": "junction",
+        "elev": 10.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 2500.0
+      },
+      {
+        "id": "J_V33b",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 3700.0,
+        "y": 2500.0
+      },
+      {
+        "id": "J_T6i",
+        "kind": "junction",
+        "elev": 55.0,
+        "demand": 0.0,
+        "x": 3400.0,
+        "y": 2500.0
+      },
+      {
+        "id": "J_T4o",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 4200.0,
+        "y": 3600.0
+      },
+      {
+        "id": "J_P1011",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 3900.0,
+        "y": 3900.0
+      },
+      {
+        "id": "J_V26b",
+        "kind": "junction",
+        "elev": 60.0,
+        "demand": 0.0,
+        "x": 3700.0,
+        "y": 4100.0
+      },
+      {
+        "id": "J_T5i",
+        "kind": "junction",
+        "elev": 68.0,
+        "demand": 0.0,
+        "x": 3550.0,
+        "y": 4150.0
+      },
+      {
+        "id": "J_T6o",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 3000.0,
+        "y": 2550.0
+      },
+      {
+        "id": "J_P12",
+        "kind": "junction",
+        "elev": 40.0,
+        "demand": 0.0,
+        "x": 2600.0,
+        "y": 2650.0
+      },
+      {
+        "id": "J_V3b",
+        "kind": "junction",
+        "elev": 57.0,
+        "demand": 0.0,
+        "x": 2900.0,
+        "y": 1200.0
+      },
+      {
+        "id": "J_A0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 3000.0,
+        "y": 1000.0
+      },
+      {
+        "id": "J_A1",
+        "kind": "junction",
+        "elev": 27.0,
+        "demand": 0.0,
+        "x": 3450.0,
+        "y": 1000.0
+      },
+      {
+        "id": "A1",
+        "kind": "junction",
+        "elev": 22.0,
+        "demand": 500.0,
+        "x": 3570.0,
+        "y": 840.0
+      },
+      {
+        "id": "J_V5",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 3510.0,
+        "y": 920.0
+      },
+      {
+        "id": "J_A2",
+        "kind": "junction",
+        "elev": 25.0,
+        "demand": 0.0,
+        "x": 3900.0,
+        "y": 1000.0
+      },
+      {
+        "id": "A2",
+        "kind": "junction",
+        "elev": 20.0,
+        "demand": 500.0,
+        "x": 4020.0,
+        "y": 840.0
+      },
+      {
+        "id": "J_V8",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 3960.0,
+        "y": 920.0
+      },
+      {
+        "id": "J_A3",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 4350.0,
+        "y": 1000.0
+      },
+      {
+        "id": "A3",
+        "kind": "junction",
+        "elev": 18.0,
+        "demand": 500.0,
+        "x": 4470.0,
+        "y": 840.0
+      },
+      {
+        "id": "J_V9",
+        "kind": "junction",
+        "elev": 19.0,
+        "demand": 0.0,
+        "x": 4410.0,
+        "y": 920.0
+      },
+      {
+        "id": "J_A4",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 4800.0,
+        "y": 1000.0
+      },
+      {
+        "id": "A4",
+        "kind": "junction",
+        "elev": 16.0,
+        "demand": 500.0,
+        "x": 4920.0,
+        "y": 840.0
+      },
+      {
+        "id": "J_V10",
+        "kind": "junction",
+        "elev": 17.0,
+        "demand": 0.0,
+        "x": 4860.0,
+        "y": 920.0
+      },
+      {
+        "id": "J_V35a",
+        "kind": "junction",
+        "elev": 73.0,
+        "demand": 0.0,
+        "x": 1550.0,
+        "y": 2200.0
+      },
+      {
+        "id": "J_B0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 1400.0,
+        "y": 2300.0
+      },
+      {
+        "id": "J_B3",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 1100.0,
+        "y": 2300.0
+      },
+      {
+        "id": "B3",
+        "kind": "junction",
+        "elev": 30.0,
+        "demand": 500.0,
+        "x": 1220.0,
+        "y": 2140.0
+      },
+      {
+        "id": "J_V11",
+        "kind": "junction",
+        "elev": 31.0,
+        "demand": 0.0,
+        "x": 1160.0,
+        "y": 2220.0
+      },
+      {
+        "id": "J_B2",
+        "kind": "junction",
+        "elev": 33.0,
+        "demand": 0.0,
+        "x": 800.0,
+        "y": 2300.0
+      },
+      {
+        "id": "B2",
+        "kind": "junction",
+        "elev": 28.0,
+        "demand": 500.0,
+        "x": 920.0,
+        "y": 2140.0
+      },
+      {
+        "id": "J_V12",
+        "kind": "junction",
+        "elev": 29.0,
+        "demand": 0.0,
+        "x": 860.0,
+        "y": 2220.0
+      },
+      {
+        "id": "J_B1",
+        "kind": "junction",
+        "elev": 31.0,
+        "demand": 0.0,
+        "x": 500.0,
+        "y": 2300.0
+      },
+      {
+        "id": "B1",
+        "kind": "junction",
+        "elev": 26.0,
+        "demand": 500.0,
+        "x": 620.0,
+        "y": 2140.0
+      },
+      {
+        "id": "J_V13",
+        "kind": "junction",
+        "elev": 27.0,
+        "demand": 0.0,
+        "x": 560.0,
+        "y": 2220.0
+      },
+      {
+        "id": "J_V7",
+        "kind": "junction",
+        "elev": 59.0,
+        "demand": 0.0,
+        "x": 2300.0,
+        "y": 2950.0
+      },
+      {
+        "id": "J_C0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 2400.0,
+        "y": 3100.0
+      },
+      {
+        "id": "J_C1",
+        "kind": "junction",
+        "elev": 27.0,
+        "demand": 0.0,
+        "x": 2800.0,
+        "y": 3100.0
+      },
+      {
+        "id": "C1",
+        "kind": "junction",
+        "elev": 22.0,
+        "demand": 500.0,
+        "x": 2920.0,
+        "y": 2940.0
+      },
+      {
+        "id": "J_V14",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 2860.0,
+        "y": 3020.0
+      },
+      {
+        "id": "J_C2",
+        "kind": "junction",
+        "elev": 25.0,
+        "demand": 0.0,
+        "x": 3200.0,
+        "y": 3100.0
+      },
+      {
+        "id": "C2",
+        "kind": "junction",
+        "elev": 20.0,
+        "demand": 500.0,
+        "x": 3320.0,
+        "y": 2940.0
+      },
+      {
+        "id": "J_V15",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 3260.0,
+        "y": 3020.0
+      },
+      {
+        "id": "J_C3",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 3600.0,
+        "y": 3100.0
+      },
+      {
+        "id": "C3",
+        "kind": "junction",
+        "elev": 18.0,
+        "demand": 500.0,
+        "x": 3720.0,
+        "y": 2940.0
+      },
+      {
+        "id": "J_V16",
+        "kind": "junction",
+        "elev": 19.0,
+        "demand": 0.0,
+        "x": 3660.0,
+        "y": 3020.0
+      },
+      {
+        "id": "J_C4",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 4000.0,
+        "y": 3100.0
+      },
+      {
+        "id": "C4",
+        "kind": "junction",
+        "elev": 16.0,
+        "demand": 500.0,
+        "x": 4120.0,
+        "y": 2940.0
+      },
+      {
+        "id": "J_V17",
+        "kind": "junction",
+        "elev": 17.0,
+        "demand": 0.0,
+        "x": 4060.0,
+        "y": 3020.0
+      },
+      {
+        "id": "J_V21b",
+        "kind": "junction",
+        "elev": 55.0,
+        "demand": 0.0,
+        "x": 4250.0,
+        "y": 3600.0
+      },
+      {
+        "id": "J_D0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 3800.0
+      },
+      {
+        "id": "J_D1",
+        "kind": "junction",
+        "elev": 25.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 4150.0
+      },
+      {
+        "id": "D1",
+        "kind": "junction",
+        "elev": 20.0,
+        "demand": 500.0,
+        "x": 4420.0,
+        "y": 3990.0
+      },
+      {
+        "id": "J_V18",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 4360.0,
+        "y": 4070.0
+      },
+      {
+        "id": "J_D2",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 4500.0
+      },
+      {
+        "id": "D2",
+        "kind": "junction",
+        "elev": 18.0,
+        "demand": 500.0,
+        "x": 4420.0,
+        "y": 4340.0
+      },
+      {
+        "id": "J_V19",
+        "kind": "junction",
+        "elev": 19.0,
+        "demand": 0.0,
+        "x": 4360.0,
+        "y": 4420.0
+      },
+      {
+        "id": "J_D3",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 4300.0,
+        "y": 4850.0
+      },
+      {
+        "id": "D3",
+        "kind": "junction",
+        "elev": 16.0,
+        "demand": 500.0,
+        "x": 4420.0,
+        "y": 4690.0
+      },
+      {
+        "id": "J_V20",
+        "kind": "junction",
+        "elev": 17.0,
+        "demand": 0.0,
+        "x": 4360.0,
+        "y": 4770.0
+      },
+      {
+        "id": "J_V26a",
+        "kind": "junction",
+        "elev": 67.0,
+        "demand": 0.0,
+        "x": 3400.0,
+        "y": 4350.0
+      },
+      {
+        "id": "J_E0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 3300.0,
+        "y": 4500.0
+      },
+      {
+        "id": "J_E1",
+        "kind": "junction",
+        "elev": 31.0,
+        "demand": 0.0,
+        "x": 2950.0,
+        "y": 4500.0
+      },
+      {
+        "id": "E1",
+        "kind": "junction",
+        "elev": 26.0,
+        "demand": 500.0,
+        "x": 3070.0,
+        "y": 4340.0
+      },
+      {
+        "id": "J_V22",
+        "kind": "junction",
+        "elev": 27.0,
+        "demand": 0.0,
+        "x": 3010.0,
+        "y": 4420.0
+      },
+      {
+        "id": "J_E2",
+        "kind": "junction",
+        "elev": 29.0,
+        "demand": 0.0,
+        "x": 2600.0,
+        "y": 4500.0
+      },
+      {
+        "id": "E2",
+        "kind": "junction",
+        "elev": 24.0,
+        "demand": 500.0,
+        "x": 2720.0,
+        "y": 4340.0
+      },
+      {
+        "id": "J_V23",
+        "kind": "junction",
+        "elev": 25.0,
+        "demand": 0.0,
+        "x": 2660.0,
+        "y": 4420.0
+      },
+      {
+        "id": "J_E3",
+        "kind": "junction",
+        "elev": 27.0,
+        "demand": 0.0,
+        "x": 2250.0,
+        "y": 4500.0
+      },
+      {
+        "id": "E3",
+        "kind": "junction",
+        "elev": 22.0,
+        "demand": 500.0,
+        "x": 2370.0,
+        "y": 4340.0
+      },
+      {
+        "id": "J_V24",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 2310.0,
+        "y": 4420.0
+      },
+      {
+        "id": "J_V33a",
+        "kind": "junction",
+        "elev": 55.0,
+        "demand": 0.0,
+        "x": 3050.0,
+        "y": 2700.0
+      },
+      {
+        "id": "J_F0",
+        "kind": "junction",
+        "elev": 35.0,
+        "demand": 0.0,
+        "x": 2900.0,
+        "y": 2900.0
+      },
+      {
+        "id": "J_F1",
+        "kind": "junction",
+        "elev": 25.0,
+        "demand": 0.0,
+        "x": 2850.0,
+        "y": 3300.0
+      },
+      {
+        "id": "F1",
+        "kind": "junction",
+        "elev": 20.0,
+        "demand": 500.0,
+        "x": 2970.0,
+        "y": 3140.0
+      },
+      {
+        "id": "J_V32",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 2910.0,
+        "y": 3220.0
+      },
+      {
+        "id": "J_F2",
+        "kind": "junction",
+        "elev": 23.0,
+        "demand": 0.0,
+        "x": 2800.0,
+        "y": 3700.0
+      },
+      {
+        "id": "F2",
+        "kind": "junction",
+        "elev": 18.0,
+        "demand": 500.0,
+        "x": 2920.0,
+        "y": 3540.0
+      },
+      {
+        "id": "J_V31",
+        "kind": "junction",
+        "elev": 19.0,
+        "demand": 0.0,
+        "x": 2860.0,
+        "y": 3620.0
+      },
+      {
+        "id": "J_F3",
+        "kind": "junction",
+        "elev": 21.0,
+        "demand": 0.0,
+        "x": 2750.0,
+        "y": 4100.0
+      },
+      {
+        "id": "F3",
+        "kind": "junction",
+        "elev": 16.0,
+        "demand": 500.0,
+        "x": 2870.0,
+        "y": 3940.0
+      },
+      {
+        "id": "J_V30",
+        "kind": "junction",
+        "elev": 17.0,
+        "demand": 0.0,
+        "x": 2810.0,
+        "y": 4020.0
+      },
+      {
+        "id": "W1",
+        "kind": "reservoir",
+        "head": 20.0,
+        "x": 2000.0,
+        "y": 1000.0
+      },
+      {
+        "id": "W2",
+        "kind": "reservoir",
+        "head": 20.0,
+        "x": 4800.0,
+        "y": 2600.0
+      },
+      {
+        "id": "T1",
+        "kind": "tank",
+        "elev": 62.0,
+        "init": 4.0,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 19.8,
+        "x": 2800.0,
+        "y": 1400.0
+      },
+      {
+        "id": "T2",
+        "kind": "tank",
+        "elev": 78.0,
+        "init": 3.5,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 14.0,
+        "x": 1700.0,
+        "y": 2100.0
+      },
+      {
+        "id": "T3",
+        "kind": "tank",
+        "elev": 64.0,
+        "init": 3.5,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 14.0,
+        "x": 2200.0,
+        "y": 2800.0
+      },
+      {
+        "id": "T4",
+        "kind": "tank",
+        "elev": 60.0,
+        "init": 4.0,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 26.0,
+        "x": 4200.0,
+        "y": 3400.0
+      },
+      {
+        "id": "T5",
+        "kind": "tank",
+        "elev": 72.0,
+        "init": 3.5,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 20.0,
+        "x": 3500.0,
+        "y": 4200.0
+      },
+      {
+        "id": "T6",
+        "kind": "tank",
+        "elev": 60.0,
+        "init": 4.0,
+        "min": 0.2,
+        "max": 7.0,
+        "diam": 24.0,
+        "x": 3200.0,
+        "y": 2500.0
+      }
+    ],
+    "links": [
+      {
+        "id": "p_W1",
+        "kind": "pipe",
+        "n1": "W1",
+        "n2": "J_W1"
+      },
+      {
+        "id": "p_P123",
+        "kind": "pipe",
+        "n1": "J_P123",
+        "n2": "J_V3a"
+      },
+      {
+        "id": "p_T1i",
+        "kind": "pipe",
+        "n1": "J_T1i",
+        "n2": "T1"
+      },
+      {
+        "id": "p_T1o",
+        "kind": "pipe",
+        "n1": "T1",
+        "n2": "J_T1o"
+      },
+      {
+        "id": "p_P45",
+        "kind": "pipe",
+        "n1": "J_P45",
+        "n2": "J_V35b"
+      },
+      {
+        "id": "p_T2i",
+        "kind": "pipe",
+        "n1": "J_T2i",
+        "n2": "T2"
+      },
+      {
+        "id": "p_T2V1",
+        "kind": "pipe",
+        "n1": "T2",
+        "n2": "J_V1u"
+      },
+      {
+        "id": "p_V1T3",
+        "kind": "pipe",
+        "n1": "J_V1d",
+        "n2": "J_T3i"
+      },
+      {
+        "id": "p_T3i",
+        "kind": "pipe",
+        "n1": "J_T3i",
+        "n2": "T3"
+      },
+      {
+        "id": "p_W2a",
+        "kind": "pipe",
+        "n1": "W2",
+        "n2": "J_W2a"
+      },
+      {
+        "id": "p_W2b",
+        "kind": "pipe",
+        "n1": "W2",
+        "n2": "J_W2b"
+      },
+      {
+        "id": "p_P89",
+        "kind": "pipe",
+        "n1": "J_P89",
+        "n2": "J_V21a"
+      },
+      {
+        "id": "p_T4i",
+        "kind": "pipe",
+        "n1": "J_T4i",
+        "n2": "T4"
+      },
+      {
+        "id": "p_P67",
+        "kind": "pipe",
+        "n1": "J_P67",
+        "n2": "J_V33b"
+      },
+      {
+        "id": "p_T6i",
+        "kind": "pipe",
+        "n1": "J_T6i",
+        "n2": "T6"
+      },
+      {
+        "id": "p_T4o",
+        "kind": "pipe",
+        "n1": "T4",
+        "n2": "J_T4o"
+      },
+      {
+        "id": "p_P1011",
+        "kind": "pipe",
+        "n1": "J_P1011",
+        "n2": "J_V26b"
+      },
+      {
+        "id": "p_T5i",
+        "kind": "pipe",
+        "n1": "J_T5i",
+        "n2": "T5"
+      },
+      {
+        "id": "p_T6o",
+        "kind": "pipe",
+        "n1": "T6",
+        "n2": "J_T6o"
+      },
+      {
+        "id": "p_P12",
+        "kind": "pipe",
+        "n1": "J_P12",
+        "n2": "J_T3i"
+      },
+      {
+        "id": "p_T1A",
+        "kind": "pipe",
+        "n1": "T1",
+        "n2": "J_V3b"
+      },
+      {
+        "id": "p_A1",
+        "kind": "pipe",
+        "n1": "J_A0",
+        "n2": "J_A1"
+      },
+      {
+        "id": "p_V5",
+        "kind": "pipe",
+        "n1": "J_A1",
+        "n2": "J_V5"
+      },
+      {
+        "id": "p_A2",
+        "kind": "pipe",
+        "n1": "J_A1",
+        "n2": "J_A2"
+      },
+      {
+        "id": "p_V8",
+        "kind": "pipe",
+        "n1": "J_A2",
+        "n2": "J_V8"
+      },
+      {
+        "id": "p_A3",
+        "kind": "pipe",
+        "n1": "J_A2",
+        "n2": "J_A3"
+      },
+      {
+        "id": "p_V9",
+        "kind": "pipe",
+        "n1": "J_A3",
+        "n2": "J_V9"
+      },
+      {
+        "id": "p_A4",
+        "kind": "pipe",
+        "n1": "J_A3",
+        "n2": "J_A4"
+      },
+      {
+        "id": "p_V10",
+        "kind": "pipe",
+        "n1": "J_A4",
+        "n2": "J_V10"
+      },
+      {
+        "id": "p_T2B",
+        "kind": "pipe",
+        "n1": "T2",
+        "n2": "J_V35a"
+      },
+      {
+        "id": "p_B1",
+        "kind": "pipe",
+        "n1": "J_B0",
+        "n2": "J_B3"
+      },
+      {
+        "id": "p_V11",
+        "kind": "pipe",
+        "n1": "J_B3",
+        "n2": "J_V11"
+      },
+      {
+        "id": "p_B2",
+        "kind": "pipe",
+        "n1": "J_B3",
+        "n2": "J_B2"
+      },
+      {
+        "id": "p_V12",
+        "kind": "pipe",
+        "n1": "J_B2",
+        "n2": "J_V12"
+      },
+      {
+        "id": "p_B3",
+        "kind": "pipe",
+        "n1": "J_B2",
+        "n2": "J_B1"
+      },
+      {
+        "id": "p_V13",
+        "kind": "pipe",
+        "n1": "J_B1",
+        "n2": "J_V13"
+      },
+      {
+        "id": "p_T3C",
+        "kind": "pipe",
+        "n1": "T3",
+        "n2": "J_V7"
+      },
+      {
+        "id": "p_C1",
+        "kind": "pipe",
+        "n1": "J_C0",
+        "n2": "J_C1"
+      },
+      {
+        "id": "p_V14",
+        "kind": "pipe",
+        "n1": "J_C1",
+        "n2": "J_V14"
+      },
+      {
+        "id": "p_C2",
+        "kind": "pipe",
+        "n1": "J_C1",
+        "n2": "J_C2"
+      },
+      {
+        "id": "p_V15",
+        "kind": "pipe",
+        "n1": "J_C2",
+        "n2": "J_V15"
+      },
+      {
+        "id": "p_C3",
+        "kind": "pipe",
+        "n1": "J_C2",
+        "n2": "J_C3"
+      },
+      {
+        "id": "p_V16",
+        "kind": "pipe",
+        "n1": "J_C3",
+        "n2": "J_V16"
+      },
+      {
+        "id": "p_C4",
+        "kind": "pipe",
+        "n1": "J_C3",
+        "n2": "J_C4"
+      },
+      {
+        "id": "p_V17",
+        "kind": "pipe",
+        "n1": "J_C4",
+        "n2": "J_V17"
+      },
+      {
+        "id": "p_T4D",
+        "kind": "pipe",
+        "n1": "T4",
+        "n2": "J_V21b"
+      },
+      {
+        "id": "p_D1",
+        "kind": "pipe",
+        "n1": "J_D0",
+        "n2": "J_D1"
+      },
+      {
+        "id": "p_V18",
+        "kind": "pipe",
+        "n1": "J_D1",
+        "n2": "J_V18"
+      },
+      {
+        "id": "p_D2",
+        "kind": "pipe",
+        "n1": "J_D1",
+        "n2": "J_D2"
+      },
+      {
+        "id": "p_V19",
+        "kind": "pipe",
+        "n1": "J_D2",
+        "n2": "J_V19"
+      },
+      {
+        "id": "p_D3",
+        "kind": "pipe",
+        "n1": "J_D2",
+        "n2": "J_D3"
+      },
+      {
+        "id": "p_V20",
+        "kind": "pipe",
+        "n1": "J_D3",
+        "n2": "J_V20"
+      },
+      {
+        "id": "p_T5E",
+        "kind": "pipe",
+        "n1": "T5",
+        "n2": "J_V26a"
+      },
+      {
+        "id": "p_E1",
+        "kind": "pipe",
+        "n1": "J_E0",
+        "n2": "J_E1"
+      },
+      {
+        "id": "p_V22",
+        "kind": "pipe",
+        "n1": "J_E1",
+        "n2": "J_V22"
+      },
+      {
+        "id": "p_E2",
+        "kind": "pipe",
+        "n1": "J_E1",
+        "n2": "J_E2"
+      },
+      {
+        "id": "p_V23",
+        "kind": "pipe",
+        "n1": "J_E2",
+        "n2": "J_V23"
+      },
+      {
+        "id": "p_E3",
+        "kind": "pipe",
+        "n1": "J_E2",
+        "n2": "J_E3"
+      },
+      {
+        "id": "p_V24",
+        "kind": "pipe",
+        "n1": "J_E3",
+        "n2": "J_V24"
+      },
+      {
+        "id": "p_T6F",
+        "kind": "pipe",
+        "n1": "T6",
+        "n2": "J_V33a"
+      },
+      {
+        "id": "p_F1",
+        "kind": "pipe",
+        "n1": "J_F0",
+        "n2": "J_F1"
+      },
+      {
+        "id": "p_V32",
+        "kind": "pipe",
+        "n1": "J_F1",
+        "n2": "J_V32"
+      },
+      {
+        "id": "p_F2",
+        "kind": "pipe",
+        "n1": "J_F1",
+        "n2": "J_F2"
+      },
+      {
+        "id": "p_V31",
+        "kind": "pipe",
+        "n1": "J_F2",
+        "n2": "J_V31"
+      },
+      {
+        "id": "p_F3",
+        "kind": "pipe",
+        "n1": "J_F2",
+        "n2": "J_F3"
+      },
+      {
+        "id": "p_V30",
+        "kind": "pipe",
+        "n1": "J_F3",
+        "n2": "J_V30"
+      },
+      {
+        "id": "P1",
+        "kind": "pump",
+        "n1": "J_W1",
+        "n2": "J_P123"
+      },
+      {
+        "id": "P2",
+        "kind": "pump",
+        "n1": "J_W1",
+        "n2": "J_P123"
+      },
+      {
+        "id": "P3",
+        "kind": "pump",
+        "n1": "J_W1",
+        "n2": "J_P123"
+      },
+      {
+        "id": "P4",
+        "kind": "pump",
+        "n1": "J_T1o",
+        "n2": "J_P45"
+      },
+      {
+        "id": "P5",
+        "kind": "pump",
+        "n1": "J_T1o",
+        "n2": "J_P45"
+      },
+      {
+        "id": "P6",
+        "kind": "pump",
+        "n1": "J_W2b",
+        "n2": "J_P67"
+      },
+      {
+        "id": "P7",
+        "kind": "pump",
+        "n1": "J_W2b",
+        "n2": "J_P67"
+      },
+      {
+        "id": "P8",
+        "kind": "pump",
+        "n1": "J_W2a",
+        "n2": "J_P89"
+      },
+      {
+        "id": "P9",
+        "kind": "pump",
+        "n1": "J_W2a",
+        "n2": "J_P89"
+      },
+      {
+        "id": "P10",
+        "kind": "pump",
+        "n1": "J_T4o",
+        "n2": "J_P1011"
+      },
+      {
+        "id": "P11",
+        "kind": "pump",
+        "n1": "J_T4o",
+        "n2": "J_P1011"
+      },
+      {
+        "id": "P12",
+        "kind": "pump",
+        "n1": "J_T6o",
+        "n2": "J_P12"
+      },
+      {
+        "id": "V3a",
+        "kind": "valve",
+        "n1": "J_V3a",
+        "n2": "J_T1i",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V35b",
+        "kind": "valve",
+        "n1": "J_V35b",
+        "n2": "J_T2i",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V1",
+        "kind": "valve",
+        "n1": "J_V1u",
+        "n2": "J_V1d",
+        "vtype": "FCV",
+        "setting": 2000.0
+      },
+      {
+        "id": "V21a",
+        "kind": "valve",
+        "n1": "J_V21a",
+        "n2": "J_T4i",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V33b",
+        "kind": "valve",
+        "n1": "J_V33b",
+        "n2": "J_T6i",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V26b",
+        "kind": "valve",
+        "n1": "J_V26b",
+        "n2": "J_T5i",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V3b",
+        "kind": "valve",
+        "n1": "J_V3b",
+        "n2": "J_A0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V5",
+        "kind": "valve",
+        "n1": "J_V5",
+        "n2": "A1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V8",
+        "kind": "valve",
+        "n1": "J_V8",
+        "n2": "A2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V9",
+        "kind": "valve",
+        "n1": "J_V9",
+        "n2": "A3",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V10",
+        "kind": "valve",
+        "n1": "J_V10",
+        "n2": "A4",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V35a",
+        "kind": "valve",
+        "n1": "J_V35a",
+        "n2": "J_B0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V11",
+        "kind": "valve",
+        "n1": "J_V11",
+        "n2": "B3",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V12",
+        "kind": "valve",
+        "n1": "J_V12",
+        "n2": "B2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V13",
+        "kind": "valve",
+        "n1": "J_V13",
+        "n2": "B1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V7",
+        "kind": "valve",
+        "n1": "J_V7",
+        "n2": "J_C0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V14",
+        "kind": "valve",
+        "n1": "J_V14",
+        "n2": "C1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V15",
+        "kind": "valve",
+        "n1": "J_V15",
+        "n2": "C2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V16",
+        "kind": "valve",
+        "n1": "J_V16",
+        "n2": "C3",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V17",
+        "kind": "valve",
+        "n1": "J_V17",
+        "n2": "C4",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V21b",
+        "kind": "valve",
+        "n1": "J_V21b",
+        "n2": "J_D0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V18",
+        "kind": "valve",
+        "n1": "J_V18",
+        "n2": "D1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V19",
+        "kind": "valve",
+        "n1": "J_V19",
+        "n2": "D2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V20",
+        "kind": "valve",
+        "n1": "J_V20",
+        "n2": "D3",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V26a",
+        "kind": "valve",
+        "n1": "J_V26a",
+        "n2": "J_E0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V22",
+        "kind": "valve",
+        "n1": "J_V22",
+        "n2": "E1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V23",
+        "kind": "valve",
+        "n1": "J_V23",
+        "n2": "E2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V24",
+        "kind": "valve",
+        "n1": "J_V24",
+        "n2": "E3",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V33a",
+        "kind": "valve",
+        "n1": "J_V33a",
+        "n2": "J_F0",
+        "vtype": "TCV",
+        "setting": 0.0
+      },
+      {
+        "id": "V32",
+        "kind": "valve",
+        "n1": "J_V32",
+        "n2": "F1",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V31",
+        "kind": "valve",
+        "n1": "J_V31",
+        "n2": "F2",
+        "vtype": "PRV",
+        "setting": 32.0
+      },
+      {
+        "id": "V30",
+        "kind": "valve",
+        "n1": "J_V30",
+        "n2": "F3",
+        "vtype": "PRV",
+        "setting": 32.0
+      }
+    ],
+    "plcs": [
+      {
+        "id": "PLC2",
+        "elements": [
+          "T1",
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "PLC4",
+        "elements": [
+          "T2",
+          "P4",
+          "P5"
+        ]
+      },
+      {
+        "id": "PLC28",
+        "elements": [
+          "T4",
+          "P8",
+          "P9"
+        ]
+      },
+      {
+        "id": "PLC27",
+        "elements": [
+          "T6",
+          "P6",
+          "P7"
+        ]
+      },
+      {
+        "id": "PLC25",
+        "elements": [
+          "T5",
+          "P10",
+          "P11"
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "id": "on_P1",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P1",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P1",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P1",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P2",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P2",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P2",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P2",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P3",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P3",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P3",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T1",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P3",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P4",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T2",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P4",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P4",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T2",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P4",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P5",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T2",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P5",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P5",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T2",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P5",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P8",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T4",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P8",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P8",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T4",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P8",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P9",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T4",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P9",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P9",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T4",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P9",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P6",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T6",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P6",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P6",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T6",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P6",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P7",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T6",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P7",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P7",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T6",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P7",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P10",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T5",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P10",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P10",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T5",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P10",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      },
+      {
+        "id": "on_P11",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T5",
+            "attr": "level",
+            "op": "below",
+            "value": 2.8
+          }
+        ],
+        "then": [
+          {
+            "comp": "P11",
+            "kind": "pump",
+            "attr": "status",
+            "value": "open"
+          }
+        ]
+      },
+      {
+        "id": "off_P11",
+        "if": [
+          {
+            "kind": "tank",
+            "comp": "T5",
+            "attr": "level",
+            "op": "above",
+            "value": 6.3
+          }
+        ],
+        "then": [
+          {
+            "comp": "P11",
+            "kind": "pump",
+            "attr": "status",
+            "value": "closed"
+          }
+        ]
+      }
+    ],
+    "inp_text": "[TITLE]\nSCADAVT small-town water distribution system (six areas, two works)\n\n[JUNCTIONS]\n;ID         Elev     Demand\n J_W1           10.0      0.000\n J_P123         10.0      0.000\n J_V3a          30.0      0.000\n J_T1i          40.0      0.000\n J_T1o          40.0      0.000\n J_P45          40.0      0.000\n J_V35b         55.0      0.000\n J_T2i          70.0      0.000\n J_V1u          60.0      0.000\n J_V1d          60.0      0.000\n J_T3i          62.0      0.000\n J_W2a          10.0      0.000\n J_W2b          10.0      0.000\n J_P89          10.0      0.000\n J_V21a         40.0      0.000\n J_T4i          55.0      0.000\n J_P67          10.0      0.000\n J_V33b         40.0      0.000\n J_T6i          55.0      0.000\n J_T4o          40.0      0.000\n J_P1011        40.0      0.000\n J_V26b         60.0      0.000\n J_T5i          68.0      0.000\n J_T6o          40.0      0.000\n J_P12          40.0      0.000\n J_V3b          57.0      0.000\n J_A0           35.0      0.000\n J_A1           27.0      0.000\n A1             22.0    500.000\n J_V5           23.0      0.000\n J_A2           25.0      0.000\n A2             20.0    500.000\n J_V8           21.0      0.000\n J_A3           23.0      0.000\n A3             18.0    500.000\n J_V9           19.0      0.000\n J_A4           21.0      0.000\n A4             16.0    500.000\n J_V10          17.0      0.000\n J_V35a         73.0      0.000\n J_B0           35.0      0.000\n J_B3           35.0      0.000\n B3             30.0    500.000\n J_V11          31.0      0.000\n J_B2           33.0      0.000\n B2             28.0    500.000\n J_V12          29.0      0.000\n J_B1           31.0      0.000\n B1             26.0    500.000\n J_V13          27.0      0.000\n J_V7           59.0      0.000\n J_C0           35.0      0.000\n J_C1           27.0      0.000\n C1             22.0    500.000\n J_V14          23.0      0.000\n J_C2           25.0      0.000\n C2             20.0    500.000\n J_V15          21.0      0.000\n J_C3           23.0      0.000\n C3             18.0    500.000\n J_V16          19.0      0.000\n J_C4           21.0      0.000\n C4             16.0    500.000\n J_V17          17.0      0.000\n J_V21b         55.0      0.000\n J_D0           35.0      0.000\n J_D1           25.0      0.000\n D1             20.0    500.000\n J_V18          21.0      0.000\n J_D2           23.0      0.000\n D2             18.0    500.000\n J_V19          19.0      0.000\n J_D3           21.0      0.000\n D3             16.0    500.000\n J_V20          17.0      0.000\n J_V26a         67.0      0.000\n J_E0           35.0      0.000\n J_E1           31.0      0.000\n E1             26.0    500.000\n J_V22          27.0      0.000\n J_E2           29.0      0.000\n E2             24.0    500.000\n J_V23          25.0      0.000\n J_E3           27.0      0.000\n E3             22.0    500.000\n J_V24          23.0      0.000\n J_V33a         55.0      0.000\n J_F0           35.0      0.000\n J_F1           25.0      0.000\n F1             20.0    500.000\n J_V32          21.0      0.000\n J_F2           23.0      0.000\n F2             18.0    500.000\n J_V31          19.0      0.000\n J_F3           21.0      0.000\n F3             16.0    500.000\n J_V30          17.0      0.000\n\n[RESERVOIRS]\n;ID         Head\n W1         20.0\n W2         20.0\n\n[TANKS]\n;ID Elev InitLvl MinLvl MaxLvl Diam MinVol VolCurve\n T1           62.0   4.00   0.20   7.00   19.8 0\n T2           78.0   3.50   0.20   7.00   14.0 0\n T3           64.0   3.50   0.20   7.00   14.0 0\n T4           60.0   4.00   0.20   7.00   26.0 0\n T5           72.0   3.50   0.20   7.00   20.0 0\n T6           60.0   4.00   0.20   7.00   24.0 0\n\n[PIPES]\n;ID Node1 Node2 Length Diam Rough MinorLoss Status\n p_W1       W1         J_W1           20.0    600.0  120.0 0 Open\n p_P123     J_P123     J_V3a        1200.0    500.0  120.0 0 Open\n p_T1i      J_T1i      T1             50.0    500.0  120.0 0 Open\n p_T1o      T1         J_T1o         300.0    500.0  120.0 0 Open\n p_P45      J_P45      J_V35b       1500.0    400.0  120.0 0 Open\n p_T2i      J_T2i      T2             50.0    400.0  120.0 0 Open\n p_T2V1     T2         J_V1u        1500.0    350.0  120.0 0 Open\n p_V1T3     J_V1d      J_T3i         200.0    350.0  120.0 0 Open\n p_T3i      J_T3i      T3             30.0    400.0  120.0 0 Open\n p_W2a      W2         J_W2a          20.0    600.0  120.0 0 Open\n p_W2b      W2         J_W2b          20.0    600.0  120.0 0 Open\n p_P89      J_P89      J_V21a       1200.0    450.0  120.0 0 Open\n p_T4i      J_T4i      T4             30.0    450.0  120.0 0 Open\n p_P67      J_P67      J_V33b       1200.0    400.0  120.0 0 Open\n p_T6i      J_T6i      T6             30.0    400.0  120.0 0 Open\n p_T4o      T4         J_T4o         200.0    400.0  120.0 0 Open\n p_P1011    J_P1011    J_V26b       1000.0    350.0  120.0 0 Open\n p_T5i      J_T5i      T5             30.0    350.0  120.0 0 Open\n p_T6o      T6         J_T6o         100.0    300.0  120.0 0 Open\n p_P12      J_P12      J_T3i        3500.0    300.0  120.0 0 Open\n p_T1A      T1         J_V3b         150.0    400.0  120.0 0 Open\n p_A1       J_A0       J_A1          800.0    300.0  120.0 0 Open\n p_V5       J_A1       J_V5           20.0    250.0  120.0 0 Open\n p_A2       J_A1       J_A2          800.0    300.0  120.0 0 Open\n p_V8       J_A2       J_V8           20.0    250.0  120.0 0 Open\n p_A3       J_A2       J_A3          800.0    300.0  120.0 0 Open\n p_V9       J_A3       J_V9           20.0    250.0  120.0 0 Open\n p_A4       J_A3       J_A4          800.0    300.0  120.0 0 Open\n p_V10      J_A4       J_V10          20.0    250.0  120.0 0 Open\n p_T2B      T2         J_V35a        150.0    400.0  120.0 0 Open\n p_B1       J_B0       J_B3          800.0    300.0  120.0 0 Open\n p_V11      J_B3       J_V11          20.0    250.0  120.0 0 Open\n p_B2       J_B3       J_B2          800.0    300.0  120.0 0 Open\n p_V12      J_B2       J_V12          20.0    250.0  120.0 0 Open\n p_B3       J_B2       J_B1          800.0    300.0  120.0 0 Open\n p_V13      J_B1       J_V13          20.0    250.0  120.0 0 Open\n p_T3C      T3         J_V7          150.0    400.0  120.0 0 Open\n p_C1       J_C0       J_C1          800.0    300.0  120.0 0 Open\n p_V14      J_C1       J_V14          20.0    250.0  120.0 0 Open\n p_C2       J_C1       J_C2          800.0    300.0  120.0 0 Open\n p_V15      J_C2       J_V15          20.0    250.0  120.0 0 Open\n p_C3       J_C2       J_C3          800.0    300.0  120.0 0 Open\n p_V16      J_C3       J_V16          20.0    250.0  120.0 0 Open\n p_C4       J_C3       J_C4          800.0    300.0  120.0 0 Open\n p_V17      J_C4       J_V17          20.0    250.0  120.0 0 Open\n p_T4D      T4         J_V21b        150.0    400.0  120.0 0 Open\n p_D1       J_D0       J_D1          800.0    300.0  120.0 0 Open\n p_V18      J_D1       J_V18          20.0    250.0  120.0 0 Open\n p_D2       J_D1       J_D2          800.0    300.0  120.0 0 Open\n p_V19      J_D2       J_V19          20.0    250.0  120.0 0 Open\n p_D3       J_D2       J_D3          800.0    300.0  120.0 0 Open\n p_V20      J_D3       J_V20          20.0    250.0  120.0 0 Open\n p_T5E      T5         J_V26a        150.0    400.0  120.0 0 Open\n p_E1       J_E0       J_E1          800.0    300.0  120.0 0 Open\n p_V22      J_E1       J_V22          20.0    250.0  120.0 0 Open\n p_E2       J_E1       J_E2          800.0    300.0  120.0 0 Open\n p_V23      J_E2       J_V23          20.0    250.0  120.0 0 Open\n p_E3       J_E2       J_E3          800.0    300.0  120.0 0 Open\n p_V24      J_E3       J_V24          20.0    250.0  120.0 0 Open\n p_T6F      T6         J_V33a        150.0    400.0  120.0 0 Open\n p_F1       J_F0       J_F1          800.0    300.0  120.0 0 Open\n p_V32      J_F1       J_V32          20.0    250.0  120.0 0 Open\n p_F2       J_F1       J_F2          800.0    300.0  120.0 0 Open\n p_V31      J_F2       J_V31          20.0    250.0  120.0 0 Open\n p_F3       J_F2       J_F3          800.0    300.0  120.0 0 Open\n p_V30      J_F3       J_V30          20.0    250.0  120.0 0 Open\n\n[PUMPS]\n;ID Node1 Node2 Parameters\n P1         J_W1       J_P123     HEAD C_P1\n P2         J_W1       J_P123     HEAD C_P2\n P3         J_W1       J_P123     HEAD C_P3\n P4         J_T1o      J_P45      HEAD C_P4\n P5         J_T1o      J_P45      HEAD C_P5\n P6         J_W2b      J_P67      HEAD C_P6\n P7         J_W2b      J_P67      HEAD C_P7\n P8         J_W2a      J_P89      HEAD C_P8\n P9         J_W2a      J_P89      HEAD C_P9\n P10        J_T4o      J_P1011    HEAD C_P10\n P11        J_T4o      J_P1011    HEAD C_P11\n P12        J_T6o      J_P12      HEAD C_P12\n\n[VALVES]\n;ID Node1 Node2 Diam Type Setting MinorLoss\n V3a        J_V3a      J_T1i      500 TCV 0 0\n V35b       J_V35b     J_T2i      400 TCV 0 0\n V1         J_V1u      J_V1d      350 FCV 2000 0\n V21a       J_V21a     J_T4i      450 TCV 0 0\n V33b       J_V33b     J_T6i      400 TCV 0 0\n V26b       J_V26b     J_T5i      350 TCV 0 0\n V3b        J_V3b      J_A0       400 TCV 0 0\n V5         J_V5       A1         250 PRV 32 0\n V8         J_V8       A2         250 PRV 32 0\n V9         J_V9       A3         250 PRV 32 0\n V10        J_V10      A4         250 PRV 32 0\n V35a       J_V35a     J_B0       400 TCV 0 0\n V11        J_V11      B3         250 PRV 32 0\n V12        J_V12      B2         250 PRV 32 0\n V13        J_V13      B1         250 PRV 32 0\n V7         J_V7       J_C0       400 TCV 0 0\n V14        J_V14      C1         250 PRV 32 0\n V15        J_V15      C2         250 PRV 32 0\n V16        J_V16      C3         250 PRV 32 0\n V17        J_V17      C4         250 PRV 32 0\n V21b       J_V21b     J_D0       400 TCV 0 0\n V18        J_V18      D1         250 PRV 32 0\n V19        J_V19      D2         250 PRV 32 0\n V20        J_V20      D3         250 PRV 32 0\n V26a       J_V26a     J_E0       400 TCV 0 0\n V22        J_V22      E1         250 PRV 32 0\n V23        J_V23      E2         250 PRV 32 0\n V24        J_V24      E3         250 PRV 32 0\n V33a       J_V33a     J_F0       400 TCV 0 0\n V32        J_V32      F1         250 PRV 32 0\n V31        J_V31      F2         250 PRV 32 0\n V30        J_V30      F3         250 PRV 32 0\n\n[CURVES]\n;ID Flow Head\n C_P1           3200.0     55.0\n C_P2           3200.0     55.0\n C_P3           3200.0     55.0\n C_P4           1900.0     20.0\n C_P5           1900.0     20.0\n C_P6           2400.0     52.0\n C_P7           2400.0     52.0\n C_P8           3200.0     52.0\n C_P9           3200.0     52.0\n C_P10          1900.0     26.0\n C_P11          1900.0     26.0\n C_P12          1500.0     24.0\n\n[STATUS]\n P1         Closed\n P2         Closed\n P3         Closed\n P4         Closed\n P5         Closed\n P6         Closed\n P7         Closed\n P8         Closed\n P9         Closed\n P10        Closed\n P11        Closed\n P12        Closed\n\n[ENERGY]\n Global Efficiency 75\n Global Price 0\n\n[TIMES]\n Duration 720:00\n Hydraulic Timestep 0:05\n Pattern Timestep 1:00\n Report Timestep 1:00\n Start ClockTime 12 am\n\n[OPTIONS]\n Units LPM\n Headloss H-W\n Trials 200\n Accuracy 0.001\n Demand Model PDA\n Minimum Pressure 0\n Required Pressure 15\n Pressure Exponent 0.5\n\n[REPORT]\n Status No\n Summary No\n\n[COORDINATES]\n;Node X Y\n W1             2000.0     1000.0\n J_W1           2100.0     1000.0\n J_P123         2400.0     1000.0\n T1             2800.0     1400.0\n J_T1o          2700.0     1700.0\n J_P45          2400.0     1900.0\n T2             1700.0     2100.0\n J_V1u          2000.0     2400.0\n J_V1d          2200.0     2600.0\n T3             2200.0     2800.0\n J_T3i          2250.0     2700.0\n W2             4800.0     2600.0\n J_W2a          4800.0     2700.0\n J_P89          4800.0     3100.0\n T4             4200.0     3400.0\n J_T4o          4200.0     3600.0\n J_P1011        3900.0     3900.0\n T5             3500.0     4200.0\n J_W2b          4700.0     2600.0\n J_P67          4300.0     2500.0\n T6             3200.0     2500.0\n J_T6o          3000.0     2550.0\n J_P12          2600.0     2650.0\n J_V3a          2600.0     1200.0\n J_T1i          2700.0     1300.0\n J_V35b         2000.0     2000.0\n J_T2i          1800.0     2050.0\n J_V21a         4500.0     3300.0\n J_T4i          4300.0     3350.0\n J_V33b         3700.0     2500.0\n J_T6i          3400.0     2500.0\n J_V26b         3700.0     4100.0\n J_T5i          3550.0     4150.0\n J_V3b          2900.0     1200.0\n J_A0           3000.0     1000.0\n J_A1           3450.0     1000.0\n A1             3570.0      840.0\n J_V5           3510.0      920.0\n J_A2           3900.0     1000.0\n A2             4020.0      840.0\n J_V8           3960.0      920.0\n J_A3           4350.0     1000.0\n A3             4470.0      840.0\n J_V9           4410.0      920.0\n J_A4           4800.0     1000.0\n A4             4920.0      840.0\n J_V10          4860.0      920.0\n J_V35a         1550.0     2200.0\n J_B0           1400.0     2300.0\n J_B3           1100.0     2300.0\n B3             1220.0     2140.0\n J_V11          1160.0     2220.0\n J_B2            800.0     2300.0\n B2              920.0     2140.0\n J_V12           860.0     2220.0\n J_B1            500.0     2300.0\n B1              620.0     2140.0\n J_V13           560.0     2220.0\n J_V7           2300.0     2950.0\n J_C0           2400.0     3100.0\n J_C1           2800.0     3100.0\n C1             2920.0     2940.0\n J_V14          2860.0     3020.0\n J_C2           3200.0     3100.0\n C2             3320.0     2940.0\n J_V15          3260.0     3020.0\n J_C3           3600.0     3100.0\n C3             3720.0     2940.0\n J_V16          3660.0     3020.0\n J_C4           4000.0     3100.0\n C4             4120.0     2940.0\n J_V17          4060.0     3020.0\n J_V21b         4250.0     3600.0\n J_D0           4300.0     3800.0\n J_D1           4300.0     4150.0\n D1             4420.0     3990.0\n J_V18          4360.0     4070.0\n J_D2           4300.0     4500.0\n D2             4420.0     4340.0\n J_V19          4360.0     4420.0\n J_D3           4300.0     4850.0\n D3             4420.0     4690.0\n J_V20          4360.0     4770.0\n J_V26a         3400.0     4350.0\n J_E0           3300.0     4500.0\n J_E1           2950.0     4500.0\n E1             3070.0     4340.0\n J_V22          3010.0     4420.0\n J_E2           2600.0     4500.0\n E2             2720.0     4340.0\n J_V23          2660.0     4420.0\n J_E3           2250.0     4500.0\n E3             2370.0     4340.0\n J_V24          2310.0     4420.0\n J_V33a         3050.0     2700.0\n J_F0           2900.0     2900.0\n J_F1           2850.0     3300.0\n F1             2970.0     3140.0\n J_V32          2910.0     3220.0\n J_F2           2800.0     3700.0\n F2             2920.0     3540.0\n J_V31          2860.0     3620.0\n J_F3           2750.0     4100.0\n F3             2870.0     3940.0\n J_V30          2810.0     4020.0\n\n[END]\n"
+  },
+  "rules": [
+    {
+      "id": "on_P1",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P1",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P2",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P2",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P2",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P2",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P3",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P3",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P3",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P3",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P4",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T2",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P4",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P4",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T2",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P4",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P5",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T2",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P5",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P5",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T2",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P5",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P8",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T4",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P8",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P8",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T4",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P8",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P9",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T4",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P9",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P9",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T4",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P9",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P6",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T6",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P6",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P6",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T6",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P6",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P7",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T6",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P7",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P7",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T6",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P7",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P10",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T5",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P10",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P10",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T5",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P10",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    },
+    {
+      "id": "on_P11",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T5",
+          "attr": "level",
+          "op": "below",
+          "value": 2.8
+        }
+      ],
+      "then": [
+        {
+          "comp": "P11",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    },
+    {
+      "id": "off_P11",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T5",
+          "attr": "level",
+          "op": "above",
+          "value": 6.3
+        }
+      ],
+      "then": [
+        {
+          "comp": "P11",
+          "kind": "pump",
+          "attr": "status",
+          "value": "closed"
+        }
+      ]
+    }
+  ],
+  "devices": [
+    {
+      "id": "PLC2",
+      "protocol": "modbus",
+      "ip": "10.0.0.1",
+      "backchannel": "172.16.0.1:9161",
+      "points": [
+        {
+          "id": "T1_LEV",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "T1",
+          "quantity": "level",
+          "ptype": "node"
+        },
+        {
+          "id": "P1_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P1",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P1_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P1",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P2_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P2",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P2_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P2",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P3_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P3",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P3_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P3",
+          "quantity": "flow",
+          "ptype": "link"
+        }
+      ]
+    },
+    {
+      "id": "PLC4",
+      "protocol": "modbus",
+      "ip": "10.0.0.2",
+      "backchannel": "172.16.0.2:9161",
+      "points": [
+        {
+          "id": "T2_LEV",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "T2",
+          "quantity": "level",
+          "ptype": "node"
+        },
+        {
+          "id": "P4_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P4",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P4_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P4",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P5_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P5",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P5_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P5",
+          "quantity": "flow",
+          "ptype": "link"
+        }
+      ]
+    },
+    {
+      "id": "PLC28",
+      "protocol": "modbus",
+      "ip": "10.0.0.3",
+      "backchannel": "172.16.0.3:9161",
+      "points": [
+        {
+          "id": "T4_LEV",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "T4",
+          "quantity": "level",
+          "ptype": "node"
+        },
+        {
+          "id": "P8_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P8",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P8_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P8",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P9_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P9",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P9_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P9",
+          "quantity": "flow",
+          "ptype": "link"
+        }
+      ]
+    },
+    {
+      "id": "PLC27",
+      "protocol": "modbus",
+      "ip": "10.0.0.4",
+      "backchannel": "172.16.0.4:9161",
+      "points": [
+        {
+          "id": "T6_LEV",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "T6",
+          "quantity": "level",
+          "ptype": "node"
+        },
+        {
+          "id": "P6_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P6",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P6_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P6",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P7_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P7",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P7_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P7",
+          "quantity": "flow",
+          "ptype": "link"
+        }
+      ]
+    },
+    {
+      "id": "PLC25",
+      "protocol": "modbus",
+      "ip": "10.0.0.5",
+      "backchannel": "172.16.0.5:9161",
+      "points": [
+        {
+          "id": "T5_LEV",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "T5",
+          "quantity": "level",
+          "ptype": "node"
+        },
+        {
+          "id": "P10_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P10",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P10_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P10",
+          "quantity": "flow",
+          "ptype": "link"
+        },
+        {
+          "id": "P11_CMD",
+          "role": "command",
+          "is_bool": true,
+          "element": "P11",
+          "quantity": "status",
+          "ptype": "link"
+        },
+        {
+          "id": "P11_FLOW",
+          "role": "measurement",
+          "is_bool": false,
+          "element": "P11",
+          "quantity": "flow",
+          "ptype": "link"
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "a": "PLC2",
+      "b": "MTU",
+      "delay_ms": 5
+    },
+    {
+      "a": "PLC4",
+      "b": "MTU",
+      "delay_ms": 5
+    },
+    {
+      "a": "PLC28",
+      "b": "MTU",
+      "delay_ms": 5
+    },
+    {
+      "a": "PLC27",
+      "b": "MTU",
+      "delay_ms": 5
+    },
+    {
+      "a": "PLC25",
+      "b": "MTU",
+      "delay_ms": 5
+    }
+  ],
+  "external_apps": [
+    {
+      "name": "wds",
+      "endpoint": "127.0.0.1:9000"
+    }
+  ],
+  "mapping": [
+    {
+      "point": "T1_LEV",
+      "device": "PLC2",
+      "role": "measurement",
+      "element": "T1",
+      "quantity": "level"
+    },
+    {
+      "point": "P1_CMD",
+      "device": "PLC2",
+      "role": "command",
+      "element": "P1",
+      "quantity": "status"
+    },
+    {
+      "point": "P1_FLOW",
+      "device": "PLC2",
+      "role": "measurement",
+      "element": "P1",
+      "quantity": "flow"
+    },
+    {
+      "point": "P2_CMD",
+      "device": "PLC2",
+      "role": "command",
+      "element": "P2",
+      "quantity": "status"
+    },
+    {
+      "point": "P2_FLOW",
+      "device": "PLC2",
+      "role": "measurement",
+      "element": "P2",
+      "quantity": "flow"
+    },
+    {
+      "point": "P3_CMD",
+      "device": "PLC2",
+      "role": "command",
+      "element": "P3",
+      "quantity": "status"
+    },
+    {
+      "point": "P3_FLOW",
+      "device": "PLC2",
+      "role": "measurement",
+      "element": "P3",
+      "quantity": "flow"
+    },
+    {
+      "point": "T2_LEV",
+      "device": "PLC4",
+      "role": "measurement",
+      "element": "T2",
+      "quantity": "level"
+    },
+    {
+      "point": "P4_CMD",
+      "device": "PLC4",
+      "role": "command",
+      "element": "P4",
+      "quantity": "status"
+    },
+    {
+      "point": "P4_FLOW",
+      "device": "PLC4",
+      "role": "measurement",
+      "element": "P4",
+      "quantity": "flow"
+    },
+    {
+      "point": "P5_CMD",
+      "device": "PLC4",
+      "role": "command",
+      "element": "P5",
+      "quantity": "status"
+    },
+    {
+      "point": "P5_FLOW",
+      "device": "PLC4",
+      "role": "measurement",
+      "element": "P5",
+      "quantity": "flow"
+    },
+    {
+      "point": "T4_LEV",
+      "device": "PLC28",
+      "role": "measurement",
+      "element": "T4",
+      "quantity": "level"
+    },
+    {
+      "point": "P8_CMD",
+      "device": "PLC28",
+      "role": "command",
+      "element": "P8",
+      "quantity": "status"
+    },
+    {
+      "point": "P8_FLOW",
+      "device": "PLC28",
+      "role": "measurement",
+      "element": "P8",
+      "quantity": "flow"
+    },
+    {
+      "point": "P9_CMD",
+      "device": "PLC28",
+      "role": "command",
+      "element": "P9",
+      "quantity": "status"
+    },
+    {
+      "point": "P9_FLOW",
+      "device": "PLC28",
+      "role": "measurement",
+      "element": "P9",
+      "quantity": "flow"
+    },
+    {
+      "point": "T6_LEV",
+      "device": "PLC27",
+      "role": "measurement",
+      "element": "T6",
+      "quantity": "level"
+    },
+    {
+      "point": "P6_CMD",
+      "device": "PLC27",
+      "role": "command",
+      "element": "P6",
+      "quantity": "status"
+    },
+    {
+      "point": "P6_FLOW",
+      "device": "PLC27",
+      "role": "measurement",
+      "element": "P6",
+      "quantity": "flow"
+    },
+    {
+      "point": "P7_CMD",
+      "device": "PLC27",
+      "role": "command",
+      "element": "P7",
+      "quantity": "status"
+    },
+    {
+      "point": "P7_FLOW",
+      "device": "PLC27",
+      "role": "measurement",
+      "element": "P7",
+      "quantity": "flow"
+    },
+    {
+      "point": "T5_LEV",
+      "device": "PLC25",
+      "role": "measurement",
+      "element": "T5",
+      "quantity": "level"
+    },
+    {
+      "point": "P10_CMD",
+      "device": "PLC25",
+      "role": "command",
+      "element": "P10",
+      "quantity": "status"
+    },
+    {
+      "point": "P10_FLOW",
+      "device": "PLC25",
+      "role": "measurement",
+      "element": "P10",
+      "quantity": "flow"
+    },
+    {
+      "point": "P11_CMD",
+      "device": "PLC25",
+      "role": "command",
+      "element": "P11",
+      "quantity": "status"
+    },
+    {
+      "point": "P11_FLOW",
+      "device": "PLC25",
+      "role": "measurement",
+      "element": "P11",
+      "quantity": "flow"
+    }
+  ],
+  "mtu": {
+    "id": "MTU",
+    "ip": "10.0.0.254"
+  }
+}
