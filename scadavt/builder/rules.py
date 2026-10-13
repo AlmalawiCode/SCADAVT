@@ -90,6 +90,18 @@ class RuleEngine:
     def from_json(cls, rules_json: list[dict]) -> "RuleEngine":
         return cls([Rule.from_json(d, i) for i, d in enumerate(rules_json)])
 
+    def referenced_reads(self) -> list[tuple]:
+        """Distinct ``(kind, comp, attr)`` the conditions read, so a live driver can
+        pre-fetch them (rule evaluation itself is synchronous)."""
+        seen = []
+        for r in self.rules:
+            for c in r.conditions:
+                if c.kind != "system":
+                    key = (c.kind, c.comp, c.attr)
+                    if key not in seen:
+                        seen.append(key)
+        return seen
+
     def _cond_true(self, c: Condition, read, sim_h: float) -> bool:
         if c.kind == "system":                       # SYSTEM TIME >= / < hours
             t = sim_h
