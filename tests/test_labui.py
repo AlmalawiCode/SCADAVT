@@ -168,6 +168,31 @@ def test_api_run_uses_real_epanet_engine():
     assert r2["summary"]["attack_window_cycles"] == 40    # window is schedule-based
 
 
+def test_networked_run_over_sockets():
+    """The full networked stack (device nodes + gateway + EPANET app + MTU over
+    Modbus) runs end to end over real sockets and drives the tank."""
+    import asyncio
+    from scadavt.labui.netrun import NetworkedRun
+
+    async def main():
+        res = await NetworkedRun(make_lab(1)).run(25)
+        assert res["engine"] == "networked" and "PLC1" in res["traces"]
+        lv = res["traces"]["PLC1"]
+        assert all(0.0 <= v <= 6.0 for v in lv) and min(lv) < max(lv)
+        # with a DoS window the schedule is recorded
+        nr = NetworkedRun(make_lab(1))
+        nr.add_attack("dos", "PLC1", 8, 20)
+        s = (await nr.run(25))["summary"]
+        assert s["attack_window_cycles"] == 12
+    asyncio.run(main())
+
+
+def test_api_netrun_endpoint():
+    cfg = make_lab(1)
+    r = client.post("/netrun", json={"config": cfg, "cycles": 20}).json()
+    assert r["engine"] == "networked" and "PLC1" in r["traces"]
+
+
 def test_api_live_session_inject_attack_from_terminal_path():
     cfg = make_lab(2)
     sid = client.post("/sessions", json={"config": cfg}).json()["id"]

@@ -125,6 +125,23 @@ def run(body: dict = Body(...)):
             lab.close()
 
 
+@app.post("/netrun")
+async def netrun(body: dict = Body(...)):
+    """Full networked run: the real device nodes + gateway + external EPANET app
+    + MTU control, wired over sockets (the CORE node software). Needs an EPANET
+    design in the config."""
+    cfg = body.get("config") or {}
+    if not cfg.get("epanet"):
+        raise HTTPException(400, "networked run needs an EPANET design")
+    issues = coregen.validate(cfg)
+    if issues:
+        raise HTTPException(400, {"issues": issues})
+    from .netrun import NetworkedRun
+    nr = NetworkedRun(cfg)
+    _apply_attacks(nr, body.get("attacks"))
+    return await nr.run(int(body.get("cycles", 60)))
+
+
 # ---------------------------------------------------------------- live sessions
 @app.post("/sessions")
 def create_session(body: dict = Body(...)):
