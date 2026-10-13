@@ -6,267 +6,244 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root{--bg:#f3f5f8;--surface:#fff;--sunken:#eef2f6;--ink:#15212e;--muted:#5b6b7b;--line:#d8e0e8;
- --brand:#0d5b6b;--brand2:#0e7c86;--on:#b4531f;--ok:#1c7d4d;--crit:#b0322a;
+ --brand:#0d5b6b;--brand2:#0e7c86;--on:#b4531f;--ok:#1c7d4d;--crit:#b0322a;--vio:#7a4fb0;
  --c0:#0e7c86;--c1:#b4531f;--c2:#3b6fb6;--c3:#8a4fb4;--c4:#1c7d4d;--c5:#b07d1f;
  --f:"IBM Plex Sans Arabic",system-ui,"Segoe UI",sans-serif;--m:"IBM Plex Mono",ui-monospace,monospace}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0c131a;--surface:#141e27;--sunken:#1a2630;
- --ink:#e7eef3;--muted:#93a4b4;--line:#283642;--brand:#3fb6c4;--brand2:#49c3cf;--on:#e5894f;--ok:#58c48b;--crit:#ef6a5a;
+ --ink:#e7eef3;--muted:#93a4b4;--line:#283642;--brand:#3fb6c4;--brand2:#49c3cf;--on:#e5894f;--ok:#58c48b;--crit:#ef6a5a;--vio:#b78fe0;
  --c0:#49c3cf;--c1:#e5894f;--c2:#6fa8e0;--c3:#b78fe0;--c4:#58c48b;--c5:#d9b45a;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);line-height:1.6}
-header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:14px 18px}
-header h1{margin:0;font-size:1.25rem}header p{margin:3px 0 0;font-size:.82rem;opacity:.92}
-.app{display:grid;grid-template-columns:230px 1fr 250px;gap:12px;padding:12px;align-items:start}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
-.panel h2{font-size:.95rem;margin:0 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}
-label{font-size:.82rem;color:var(--muted);display:block;margin:10px 0 3px}
-input,select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--sunken);
- color:var(--ink);font-family:var(--f);font-size:.9rem}
-.row{display:flex;gap:8px;align-items:center}.row input{text-align:center}
-button{font-family:var(--f);border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer;font-size:.88rem}
-.b{background:var(--sunken);color:var(--ink);border:1px solid var(--line)}
-.bp{background:var(--brand2);color:#fff}.bo{background:var(--on);color:#fff}
-.stepbtn{width:38px;background:var(--sunken);border:1px solid var(--line);color:var(--ink);font-size:1.1rem;font-weight:700}
-.stack{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:12px 16px}
+header h1{margin:0;font-size:1.2rem}header p{margin:2px 0 0;font-size:.8rem;opacity:.92}
+.app{display:grid;grid-template-columns:200px 1fr 250px;gap:10px;padding:10px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.panel h2{font-size:.9rem;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+label{font-size:.8rem;color:var(--muted);display:block;margin:9px 0 3px}
+input,select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--sunken);color:var(--ink);font-family:var(--f);font-size:.88rem}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tool{background:var(--sunken);border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:8px 4px;font-size:.8rem;font-weight:700;cursor:pointer;text-align:center}
+.tool.on{background:var(--brand2);color:#fff;border-color:var(--brand2)}
+button{font-family:var(--f);border:0;border-radius:9px;padding:9px 12px;font-weight:700;cursor:pointer;font-size:.86rem}
+.b{background:var(--sunken);color:var(--ink);border:1px solid var(--line)}.bp{background:var(--brand2);color:#fff}
+.stack{display:flex;flex-direction:column;gap:7px;margin-top:10px}
 svg{width:100%;height:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;touch-action:none}
-.node{cursor:grab}.node rect{transition:stroke-width .1s}.node.sel rect{stroke-width:3}
-.hint{font-size:.78rem;color:var(--muted);margin-top:8px}
-.chart{margin-top:12px}
-pre{background:#0f1b24;color:#e7eef3;border-radius:10px;padding:12px;overflow:auto;font-family:var(--m);font-size:.72rem;direction:ltr;text-align:left;max-height:260px}
-.msg{font-size:.82rem;padding:8px 10px;border-radius:8px;margin-top:8px}
+#cv{cursor:crosshair}.node{cursor:grab}
+.hint{font-size:.76rem;color:var(--muted);margin-top:8px}
+.msg{font-size:.8rem;padding:7px 9px;border-radius:8px;margin-top:8px}
 .msg.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
 .msg.err{background:color-mix(in srgb,var(--crit) 15%,transparent);color:var(--crit)}
-.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--muted);margin-top:8px}
-.leg i{display:inline-block;width:18px;border-top:3px solid;vertical-align:middle;margin-inline-end:5px}
-@media(max-width:820px){.app{grid-template-columns:1fr}}
+.leg{display:flex;flex-wrap:wrap;gap:10px;font-size:.74rem;color:var(--muted);margin-top:8px}
+.leg i{display:inline-block;width:16px;border-top:3px solid;vertical-align:middle;margin-inline-end:4px}
+svg text{fill:var(--ink)}
+.row{display:flex;gap:6px}
+@media(max-width:860px){.app{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><h1>باني مختبر SCADAVT</h1><p>اختر عدد الـPLC · رتّب المخطّط · اضبط الخصائص · شغّل وشاهد المحاكاة حيّة</p></header>
+<header><h1>باني مختبر SCADAVT — رسم شبكة EPANET</h1>
+<p>ارسم الشبكة الفيزيائية (خزّانات/مضخّات/صمّامات)، وصّلها، أسنِدها إلى PLC، ثم شغّل على EPANET الحقيقي.</p></header>
 <div class="app">
-  <!-- controls -->
+  <!-- palette -->
   <div class="panel">
-    <h2>الإعداد</h2>
-    <label>عدد الـPLC</label>
-    <div class="row">
-      <button class="stepbtn" onclick="setCount(state.count-1)">−</button>
-      <input id="count" type="number" min="1" max="12" value="3" onchange="setCount(+this.value)">
-      <button class="stepbtn" onclick="setCount(state.count+1)">+</button>
-    </div>
+    <h2>الأدوات</h2>
+    <div class="tools" id="tools"></div>
+    <div class="hint" id="toolhint">أداة المؤشّر: اسحب/اختر.</div>
     <label>التحكّم</label>
-    <select id="placement" onchange="state.placement=this.value;state.mtu=(this.value=='mtu');render()">
+    <select id="placement" onchange="state.placement=this.value;state.mtu=(this.value=='mtu')">
       <option value="mtu">مركزي (MTU)</option>
-      <option value="plc">محلّي داخل الـPLC (بلا MTU)</option>
-      <option value="distributed">موزّع (PLC↔PLC)</option>
-    </select>
-    <label>بروتوكول الحقل</label>
-    <select id="proto" onchange="setProto(this.value)">
-      <option value="modbus">Modbus/TCP</option>
-      <option value="simpletcp">simpletcp</option>
+      <option value="plc">محلّي (بلا MTU)</option>
+      <option value="distributed">موزّع</option>
     </select>
     <label>محاكاة هجوم (اختياري)</label>
-    <select id="atkkind">
-      <option value="">— بلا هجوم —</option>
-      <option value="dos">DoS (تجميد التحكّم)</option>
-      <option value="integrity">سلامة (إطفاء قسري)</option>
-    </select>
-    <div class="row" style="margin-top:6px"><select id="atktgt"></select></div>
+    <select id="atkkind"><option value="">— بلا —</option>
+      <option value="dos">DoS (تجميد)</option><option value="integrity">سلامة (إطفاء قسري)</option></select>
+    <select id="atktgt" style="margin-top:6px"></select>
     <div class="row" style="margin-top:6px">
-      <input id="atkstart" type="number" value="40" title="دورة البداية">
-      <input id="atkdur" type="number" value="40" title="المدّة (دورات)">
-    </div>
+      <input id="atkstart" type="number" value="40" title="بداية"><input id="atkdur" type="number" value="40" title="مدّة"></div>
     <div class="stack">
-      <button class="b" onclick="validateCfg()">تحقّق من الإعداد</button>
-      <button class="b" onclick="showConfig()">تصدير الإعداد (JSON)</button>
-      <button class="bp" onclick="run()">▶ تشغيل المحاكاة</button>
+      <button class="b" onclick="loadTemplate()">قالب (٣ PLC)</button>
+      <button class="b" onclick="clearAll()">مسح الكل</button>
+      <button class="b" onclick="delSel()">حذف المحدَّد</button>
+      <button class="bp" onclick="run()">▶ تشغيل على EPANET</button>
     </div>
     <div id="msg"></div>
-    <p class="hint">اسحب العقد بالفأرة لترتيب المخطّط. انقر عقدة لضبط خصائصها.</p>
   </div>
-
   <!-- canvas + chart -->
   <div class="panel">
-    <h2>المخطّط</h2>
-    <svg id="cv" viewBox="0 0 640 440" role="img" aria-label="مخطّط المختبر"></svg>
-    <div class="chart">
-      <h2 style="margin-top:14px">المحاكاة الحيّة — مستوى كل خزّان</h2>
-      <svg id="ch" viewBox="0 0 640 240" role="img" aria-label="المحاكاة الحيّة"></svg>
-      <div class="leg" id="leg"></div>
-    </div>
+    <h2>المخطّط الفيزيائي + الإسناد</h2>
+    <svg id="cv" viewBox="0 0 720 440" role="img" aria-label="لوحة الرسم"></svg>
+    <h2 style="margin-top:12px">المحاكاة الحيّة — مستوى الخزّانات</h2>
+    <svg id="ch" viewBox="0 0 720 220" role="img" aria-label="المحاكاة"></svg>
+    <div class="leg" id="leg"></div>
   </div>
-
-  <!-- property panel -->
-  <div class="panel">
-    <h2>خصائص العقدة</h2>
-    <div id="props"><p class="hint">انقر عقدة في المخطّط.</p></div>
-  </div>
+  <!-- properties -->
+  <div class="panel"><h2>الخصائص</h2><div id="props"><p class="hint">اختر عنصرًا، أو أضف عنصرًا من الأدوات.</p></div></div>
 </div>
-
 <script>
+const KINDS={reservoir:{t:'مصدر',node:1,col:'--on',p:{head:50}},
+ junction:{t:'تقاطع',node:1,col:'--muted',p:{demand:11,elev:0}},
+ tank:{t:'خزّان',node:1,col:'--brand2',p:{init:3.5,min:0.1,max:6,diam:6,elev:20}},
+ pump:{t:'مضخّة',node:0,col:'--ok',p:{power:11}},
+ valve:{t:'صمّام',node:0,col:'--vio',p:{vtype:'TCV',setting:5,diam:300}},
+ pipe:{t:'أنبوب',node:0,col:'--line',p:{diam:300}},
+ plc:{t:'PLC',node:1,col:'--brand',p:{}}};
+const PFX={reservoir:'R',junction:'J',tank:'T',pump:'P',valve:'V',pipe:'PI',plc:'PLC'};
 const C=['--c0','--c1','--c2','--c3','--c4','--c5'];
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state={count:3,mtu:true,placement:'mtu',proto:'modbus',pos:{},sel:null,ip:{}};
+const state={els:[],ctr:{},tool:'pointer',sel:null,pend:null,mtu:true,placement:'mtu',proto:'modbus'};
 
-function ids(){return Array.from({length:state.count},(_,i)=>'PLC'+(i+1));}
-function defaultPos(){
-  state.pos={}; const n=state.count;
-  ids().forEach((id,i)=>state.pos[id]={x:150,y:60+i*(Math.min(80,340/n))});
-  state.pos['MTU']={x:500,y:200}; state.pos['APP']={x:40,y:200}; state.pos['GW']={x:40,y:60};
-}
-function setCount(v){v=Math.max(1,Math.min(12,v|0));state.count=v;document.getElementById('count').value=v;
-  ids().forEach(id=>{if(!state.ip[id])state.ip[id]='10.0.0.'+id.slice(3)});
-  const tg=document.getElementById('atktgt');if(tg)tg.innerHTML=ids().map(id=>`<option>${id}</option>`).join('');
-  defaultPos();render();}
-function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)return [];
-  const s=+document.getElementById('atkstart').value,d=+document.getElementById('atkdur').value;
-  return [{kind:k,target:document.getElementById('atktgt').value,start:s,end:s+d}];}
-function setProto(v){state.proto=v;render();}
+// palette
+document.getElementById('tools').innerHTML=
+ `<div class="tool on" data-t="pointer">مؤشّر</div>`+
+ Object.keys(KINDS).map(k=>`<div class="tool" data-t="${k}">${KINDS[k].t}</div>`).join('');
+document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>{state.tool=b.dataset.t;state.pend=null;
+ document.querySelectorAll('.tool').forEach(x=>x.classList.toggle('on',x===b));
+ document.getElementById('toolhint').textContent=
+  b.dataset.t==='pointer'?'أداة المؤشّر: اسحب/اختر.':
+  (KINDS[b.dataset.t].node?'انقر اللوحة لوضع العنصر.':'انقر عقدتين لوصلهما بـ'+KINDS[b.dataset.t].t+'.');});
 
-// ---- build the coregen config from the visual model ----
-function buildConfig(){
-  const devices=ids().map(id=>({id,protocol:state.proto,ip:state.ip[id]||('10.0.0.'+id.slice(3)),
-    backchannel:'172.16.0.'+id.slice(3)+':9161',
-    points:[{id:'level'+id.slice(3),role:'measurement',is_bool:false},
-            {id:'pump'+id.slice(3),role:'command',is_bool:true}]}));
-  const cfg={name:'lab-'+state.count+'plc',control:{placement:state.placement},devices,
-    links:ids().map(id=>({a:id,b:state.mtu?'MTU':ids()[(ids().indexOf(id)+1)%state.count],delay_ms:5})),
-    external_apps:[{name:'wds',endpoint:'127.0.0.1:9000'}],
-    mapping:devices.flatMap(d=>[{point:d.points[0].id,device:d.id,role:'measurement'},
-                                {point:d.points[1].id,device:d.id,role:'command'}])};
-  if(state.mtu)cfg.mtu={id:'MTU',ip:'10.0.0.254'};
-  return cfg;
-}
+function nid(kind){state.ctr[kind]=(state.ctr[kind]||0)+1;return PFX[kind]+state.ctr[kind];}
+function el(id){return state.els.find(e=>e.id===id);}
+function nodes(){return state.els.filter(e=>KINDS[e.kind].node && e.kind!=='plc');}
+function plcs(){return state.els.filter(e=>e.kind==='plc');}
+function nodeAt(x,y){return state.els.filter(e=>KINDS[e.kind].node)
+  .find(e=>Math.hypot(e.x-x,e.y-y)<24);}
 
-// ---- render the topology ----
-function box(x,y,w,h,stroke,title,sub,cls,id){
-  return `<g class="node ${cls}" data-id="${id||''}" transform="translate(${x},${y})">
-    <rect width="${w}" height="${h}" rx="9" fill="var(--surface)" stroke="${stroke}"/>
-    <text x="${w/2}" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ink)">${title}</text>
-    ${sub?`<text x="${w/2}" y="36" text-anchor="middle" font-size="9.5" fill="var(--muted)">${sub}</text>`:''}</g>`;
-}
+function addNode(kind,x,y){const e={id:nid(kind),kind,x,y,props:{...KINDS[kind].p},plc:null};
+  state.els.push(e);select(e.id);render();}
+function addLink(kind,n1,n2){const e={id:nid(kind),kind,n1,n2,props:{...KINDS[kind].p},plc:null};
+  state.els.push(e);select(e.id);render();}
+
+// canvas events
+const cv=document.getElementById('cv');
+cv.addEventListener('pointerdown',ev=>{
+  const p=pt(ev),hit=nodeAt(p.x,p.y);
+  if(state.tool==='pointer'){
+    if(hit){select(hit.id);const p0={x:hit.x,y:hit.y},s=p;
+      const mv=e=>{const q=pt(e);hit.x=p0.x+(q.x-s.x);hit.y=p0.y+(q.y-s.y);render();};
+      const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);};
+      addEventListener('pointermove',mv);addEventListener('pointerup',up);}
+    else{select(null);} return;
+  }
+  const K=KINDS[state.tool];
+  if(K.node){addNode(state.tool,p.x,p.y);}
+  else{ if(!hit)return; // link: pick two nodes
+    if(!state.pend){state.pend=hit.id;select(hit.id);msg('اختر العقدة الثانية…',true);}
+    else if(state.pend!==hit.id){addLink(state.tool,state.pend,hit.id);state.pend=null;}}
+});
+function pt(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*720,y:(e.clientY-r.top)/r.height*440};}
+
+function select(id){state.sel=id;showProps();render();}
+function delSel(){if(!state.sel)return;const e=el(state.sel);
+  state.els=state.els.filter(x=>x!==e && !(x.n1===e.id||x.n2===e.id));state.sel=null;showProps();render();}
+function clearAll(){state.els=[];state.ctr={};state.sel=null;showProps();render();}
+
+// ---- render ----
 function render(){
-  const s=[];const P=state.pos;
-  // CORE box
-  s.push(`<rect x="110" y="20" width="520" height="400" rx="14" fill="none" stroke="var(--brand2)" stroke-dasharray="7 5"/>
-          <text x="370" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="var(--brand2)">شبكة CORE المُحاكاة</text>`);
-  // links first
-  ids().forEach(id=>{const a=P[id];const b=state.mtu?P['MTU']:P[ids()[(ids().indexOf(id)+1)%state.count]];
-    if(a&&b)s.push(`<line x1="${a.x+120}" y1="${a.y+24}" x2="${b.x}" y2="${b.y+28}" stroke="var(--brand2)" stroke-width="2"/>`);
-    // backchannel from gateway
-    const g=P['GW'];if(a&&g)s.push(`<line x1="${g.x+100}" y1="${g.y+24}" x2="${a.x}" y2="${a.y+24}" stroke="var(--on)" stroke-dasharray="4 4"/>`);
-  });
-  // app + gateway (outside CORE)
-  s.push(box(P['APP'].x,P['APP'].y,110,48,'var(--on)','تطبيق خارجي','المياه (API)','','APP'));
-  s.push(box(P['GW'].x,P['GW'].y,100,48,'var(--on)','البوّابة','','','GW'));
-  // PLCs
-  ids().forEach((id,i)=>s.push(box(P[id].x,P[id].y,120,48,'var(--brand)',id,
-    (state.proto)+' · '+(state.ip[id]||''), state.sel===id?'sel':'', id)));
-  // MTU
-  if(state.mtu)s.push(box(P['MTU'].x,P['MTU'].y,120,56,'var(--brand)','MTU','Master + تحكّم',state.sel==='MTU'?'sel':'','MTU'));
-  document.getElementById('cv').innerHTML=s.join('');
-  bindDrag();
+  const s=[];const P=id=>el(id);
+  // links
+  state.els.filter(e=>!KINDS[e.kind].node).forEach(e=>{const a=P(e.n1),b=P(e.n2);if(!a||!b)return;
+    const col=e.kind==='pipe'?'var(--line)':`var(${KINDS[e.kind].col})`;
+    s.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-width="${e.kind==='pipe'?2:3}" ${state.sel===e.id?'stroke-dasharray="2 3"':''}/>`);
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    if(e.kind!=='pipe'){s.push(`<circle cx="${mx}" cy="${my}" r="11" fill="var(--surface)" stroke="${col}" stroke-width="2"/><text x="${mx}" y="${my+3}" text-anchor="middle" font-size="8" font-weight="700">${e.kind==='pump'?'P':'V'}</text>`);}
+    s.push(`<text x="${mx}" y="${my-14}" text-anchor="middle" font-size="9" fill="var(--muted)">${e.id}${e.plc?' ['+e.plc+']':''}</text>`);});
+  // nodes
+  state.els.filter(e=>KINDS[e.kind].node).forEach(e=>{const col=`var(${KINDS[e.kind].col})`;
+    const sel=state.sel===e.id?'stroke-width="3.5"':'stroke-width="2"';
+    if(e.kind==='tank'){s.push(`<rect x="${e.x-16}" y="${e.y-16}" width="32" height="32" rx="4" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
+    else if(e.kind==='plc'){s.push(`<rect x="${e.x-20}" y="${e.y-14}" width="40" height="28" rx="6" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
+    else{s.push(`<circle cx="${e.x}" cy="${e.y}" r="16" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
+    s.push(`<text x="${e.x}" y="${e.y+4}" text-anchor="middle" font-size="9.5" font-weight="700">${e.id}</text>`);
+    if(e.plc&&e.kind!=='plc')s.push(`<text x="${e.x}" y="${e.y+26}" text-anchor="middle" font-size="8" fill="var(--brand)">[${e.plc}]</text>`);});
+  cv.innerHTML=s.join('');
+  // attack target list
+  const tg=document.getElementById('atktgt');const cur=tg.value;
+  tg.innerHTML=plcs().map(p=>`<option>${p.id}</option>`).join('')||'<option value="">—</option>';
+  if([...tg.options].some(o=>o.value===cur))tg.value=cur;
 }
 
-// ---- drag + select ----
-function bindDrag(){
-  const svg=document.getElementById('cv');
-  svg.querySelectorAll('.node').forEach(g=>{
-    g.addEventListener('pointerdown',e=>{
-      const id=g.dataset.id;if(!id)return;
-      state.sel=id;showProps(id);render();
-      const start=svgPt(e),p0={...state.pos[id]};
-      const move=ev=>{const p=svgPt(ev);state.pos[id]={x:p0.x+(p.x-start.x),y:p0.y+(p.y-start.y)};render();};
-      const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
-      window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
-      e.preventDefault();
-    });
-  });
-}
-function svgPt(e){const svg=document.getElementById('cv');const r=svg.getBoundingClientRect();
-  return {x:(e.clientX-r.left)/r.width*640,y:(e.clientY-r.top)/r.height*440};}
-
-function showProps(id){
-  const el=document.getElementById('props');
-  if(id==='MTU'||id==='APP'||id==='GW'){el.innerHTML=`<p class="hint">${id==='MTU'?'المتحكّم المركزي':id==='APP'?'التطبيق الخارجي يتّصل عبر واجهة التكامل':'البوّابة تنقل القياس/الأمر خارج النطاق'}.</p>`;return;}
-  const n=id.slice(3);
-  el.innerHTML=`<label>المعرّف</label><input value="${id}" disabled>
-    <label>عنوان IP</label><input id="pip" value="${state.ip[id]||''}" onchange="state.ip['${id}']=this.value;render()">
-    <label>السجلّات وربطها بـEPANET</label>
-    <div class="hint"><b>T${n}_LEV</b> (مدخل، Analog) ← مستوى الخزّان <b>T${n}</b> في EPANET<br>
-    <b>P${n}_CMD</b> (مخرج، Coil) → حالة المضخّة <b>P${n}</b> في EPANET</div>
-    <div class="hint" style="margin-top:8px">القاعدة: مستوى T${n} &lt; 2.5 ⟵ شغّل · &gt; 5.0 ⟵ أوقِف</div>`;
-}
-
-// ---- messages / config ----
+// ---- properties ----
+function showProps(){const e=el(state.sel);const d=document.getElementById('props');
+  if(!e){d.innerHTML='<p class="hint">اختر عنصرًا، أو أضف عنصرًا من الأدوات.</p>';return;}
+  let h=`<label>النوع</label><input value="${KINDS[e.kind].t} (${e.id})" disabled>`;
+  for(const k in e.props){h+=`<label>${k}</label><input value="${e.props[k]}" onchange="el('${e.id}').props['${k}']=this.value;">`;}
+  if(e.kind!=='plc'&&['tank','junction','reservoir','pump','valve'].includes(e.kind)){
+    h+=`<label>مُسنَد إلى PLC</label><select onchange="el('${e.id}').plc=this.value||null;render();showProps()">
+      <option value="">— بلا —</option>${plcs().map(p=>`<option ${e.plc===p.id?'selected':''}>${p.id}</option>`).join('')}</select>`;
+    const reg={tank:'LEV (مستوى، مدخل)',junction:'PRS (ضغط، مدخل)',reservoir:'HEAD (مدخل)',
+      pump:'CMD (حالة، مخرج) + FLOW',valve:'SET (ضبط، مخرج) + FLOW'}[e.kind];
+    if(reg)h+=`<div class="hint">السجلّ المُولَّد: <b>${e.id}_${reg}</b></div>`;}
+  d.innerHTML=h;}
 function msg(t,ok){document.getElementById('msg').innerHTML=`<div class="msg ${ok?'ok':'err'}">${t}</div>`;}
-async function validateCfg(){
-  const cfg=buildConfig();
-  try{const r=await fetch('validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
-    const j=await r.json();j.issues.length?msg('مشاكل: '+j.issues.join(' ؛ '),false):msg('الإعداد سليم ✔ ('+cfg.devices.length+' PLC)',true);
-  }catch(e){ // no backend (static): do a light client check
-    msg('الإعداد مبنيّ ✔ ('+cfg.devices.length+' PLC, تحكّم '+cfg.control.placement+'). للتحقّق الكامل شغّل الخادم.',true);}
-}
-function showConfig(){const el=document.getElementById('props');
-  el.innerHTML='<label>ملف الإعداد (coregen)</label><pre>'+JSON.stringify(buildConfig(),null,1)+'</pre>'+
-    '<button class="b" style="margin-top:8px;width:100%" onclick="copyCfg()">نسخ</button>';}
-function copyCfg(){navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(buildConfig(),null,2));msg('نُسخ الإعداد ✔',true);}
 
-// ---- run: backend if available, else client-side preview ----
+// ---- build design + run ----
+function buildDesign(){
+  const ns=nodes().map(e=>({id:e.id,kind:e.kind,x:Math.round(e.x/40),y:Math.round((440-e.y)/40),
+    ...num(e.props)}));
+  const ls=state.els.filter(e=>!KINDS[e.kind].node).map(e=>({id:e.id,kind:e.kind,n1:e.n1,n2:e.n2,...num(e.props)}));
+  const pl=plcs().map(p=>({id:p.id,elements:state.els.filter(e=>e.plc===p.id).map(e=>e.id)}));
+  return {design:{name:'drawn',hours:72,nodes:ns,links:ls},plcs:pl};
+}
+function num(o){const r={};for(const k in o){const v=o[k];r[k]=(v!==''&&!isNaN(+v))?+v:v;}return r;}
+function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)return[];
+  const s=+document.getElementById('atkstart').value,d=+document.getElementById('atkdur').value;
+  return[{kind:k,target:document.getElementById('atktgt').value,start:s,end:s+d}];}
+
 async function run(){
-  msg('جارٍ التشغيل…',true);
-  let cfg=buildConfig();const attacks=getAttacks();let traces=null;
-  // prefer the server's EPANET-backed config (single source of truth)
-  try{const m=await fetch('make?plcs='+state.count+'&mtu='+state.mtu+'&protocol='+state.proto);
-      if(m.ok)cfg=await m.json();}catch(e){}
-  try{const r=await fetch('run',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({config:cfg,cycles:120,attacks})});
-      if(r.ok){const j=await r.json();traces=j.traces;
-        msg((j.engine==='epanet'?'شُغّلت على محرّك EPANET الحقيقي ✔':'شُغّلت على الخادم ✔')
-            +(attacks.length?' (مع هجوم)':''),true);}}
-  catch(e){}
-  if(!traces){traces=simulate(buildConfig(),120,attacks);
-    msg('معاينة تقريبية في المتصفّح'+(attacks.length?' (مع هجوم)':'')+' — التشغيل الحقيقي على EPANET يحتاج الخادم.',true);}
-  animate(traces,attacks[0]);
+  if(nodes().filter(e=>e.kind==='tank').length===0){msg('أضِف خزّانًا واحدًا على الأقلّ.',false);return;}
+  msg('جارٍ التركيب والتشغيل…',true);
+  const {design,plcs}=buildDesign();const attacks=getAttacks();
+  try{
+    const cr=await fetch('compose',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({design,plcs,with_mtu:state.mtu,protocol:state.proto})});
+    if(!cr.ok)throw 0; const cj=await cr.json();
+    if(cj.issues.length){msg('مشاكل: '+cj.issues.join(' ؛ '),false);return;}
+    const rr=await fetch('run',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({config:cj.config,cycles:120,attacks})});
+    const j=await rr.json();
+    if(!Object.keys(j.traces||{}).length){msg('شُغّل، لكن لا خزّانات مُسنَدة لعرضها. أسنِد خزّانًا إلى PLC.',true);return;}
+    msg((j.engine==='epanet'?'EPANET الحقيقي ✔':'الخادم ✔')+(attacks.length?' (مع هجوم)':''),true);
+    animate(j.traces,attacks[0]);
+  }catch(e){msg('لا يوجد خادم. شغّل: python -m scadavt.labui ثم افتح الصفحة منه.',false);}
 }
-// client-side hysteresis preview (one integrator per PLC), honouring one attack
-function simulate(cfg,T,attacks){
-  const atk=(attacks||[])[0];const tr={};
-  cfg.devices.forEach((d,i)=>{
-    let x=1.0+0.4*i,on=0;const a=[];
-    for(let t=0;t<T;t++){
-      const under=atk&&atk.target===d.id&&t>=atk.start&&t<atk.end;
-      if(!(under&&atk.kind==='dos')){if(x<2.5)on=1;if(x>5.0)on=0;}   // dos freezes control
-      let cmd=on;if(under&&atk.kind==='integrity')cmd=0;             // integrity forces off
-      x+=(cmd?0.09:-0.035)-0.004*i;x=Math.max(0,Math.min(6,x));a.push(+x.toFixed(3));
-    }
-    tr[d.id]=a;});
-  return tr;
-}
+
+// ---- live chart ----
 let anim;
-function animate(traces,atk){
-  const ids=Object.keys(traces),T=traces[ids[0]].length;
-  const leg=document.getElementById('leg');
-  leg.innerHTML=ids.map((id,i)=>`<span><i style="border-color:${cssv(C[i%6])}"></i>${id}</span>`).join('');
+function animate(traces,atk){const ids=Object.keys(traces),T=traces[ids[0]].length;
+  document.getElementById('leg').innerHTML=ids.map((id,i)=>`<span><i style="border-color:${cssv(C[i%6])}"></i>${id}</span>`).join('');
   clearInterval(anim);let k=2;
-  const draw=()=>{
-    const W=640,H=240,ml=40,mr=14,mt=14,mb=28,iw=W-ml-mr,ih=H-mt-mb,ymax=6;
+  const draw=()=>{const W=720,H=220,ml=38,mr=12,mt=12,mb=24,iw=W-ml-mr,ih=H-mt-mb,ymax=6;
     const X=t=>ml+t/(T-1)*iw,Y=v=>mt+ih-v/ymax*ih;const s=[];
-    for(let v=0;v<=6;v+=2){s.push(`<line x1="${ml}" y1="${Y(v)}" x2="${W-mr}" y2="${Y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${Y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`);}
+    for(let v=0;v<=6;v+=2)s.push(`<line x1="${ml}" y1="${Y(v)}" x2="${W-mr}" y2="${Y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${Y(v)+4}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`);
     [2.5,5.0].forEach(th=>s.push(`<line x1="${ml}" y1="${Y(th)}" x2="${W-mr}" y2="${Y(th)}" stroke="var(--muted)" stroke-dasharray="6 5"/>`));
     if(atk){const xs=X(Math.min(atk.start,T-1)),xe=X(Math.min(atk.end,T-1));
-      s.push(`<line x1="${xs}" y1="${mt}" x2="${xs}" y2="${mt+ih}" stroke="var(--on)" stroke-width="2"/>`+
-             `<line x1="${xe}" y1="${mt}" x2="${xe}" y2="${mt+ih}" stroke="var(--on)" stroke-dasharray="3 3"/>`+
-             `<text x="${(xs+xe)/2}" y="${mt+10}" text-anchor="middle" font-size="10" fill="var(--on)">هجوم ${atk.kind} على ${atk.target}</text>`);}
+      s.push(`<line x1="${xs}" y1="${mt}" x2="${xs}" y2="${mt+ih}" stroke="var(--on)" stroke-width="2"/><line x1="${xe}" y1="${mt}" x2="${xe}" y2="${mt+ih}" stroke="var(--on)" stroke-dasharray="3 3"/><text x="${(xs+xe)/2}" y="${mt+9}" text-anchor="middle" font-size="9" fill="var(--on)">هجوم ${atk.kind}@${atk.target}</text>`);}
     ids.forEach((id,i)=>{const pts=traces[id].slice(0,k).map((v,t)=>`${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-      s.push(`<polyline points="${pts}" fill="none" stroke="${cssv(C[i%6])}" stroke-width="2.4"/>`);});
-    document.getElementById('ch').innerHTML=s.join('');
-    k+=2;if(k>T)clearInterval(anim);
-  };
-  anim=setInterval(draw,60);draw();
-}
+      s.push(`<polyline points="${pts}" fill="none" stroke="${cssv(C[i%6])}" stroke-width="2.3"/>`);});
+    document.getElementById('ch').innerHTML=s.join('');k+=2;if(k>T)clearInterval(anim);};
+  anim=setInterval(draw,55);draw();}
 
-// init
-['10.0.0.1','10.0.0.2','10.0.0.3'].forEach((ip,i)=>state.ip['PLC'+(i+1)]=ip);
-setCount(3);
+// ---- template from /make (so you can start from a ready lab and edit) ----
+async function loadTemplate(){
+  try{const r=await fetch('make?plcs=3&mtu=true');const cfg=await r.json();loadConfig(cfg);
+      msg('حُمّل قالب ٣ PLC. عدّله أو شغّله.',true);}
+  catch(e){msg('القالب يحتاج الخادم.',false);}
+}
+function loadConfig(cfg){
+  clearAll();const ep=cfg.epanet;const gx=e=>120+(e.x||0)*90, gy=e=>80+(e.y||0)*70;
+  const plcMap={};(ep.plcs||[]).forEach((p,i)=>{const e={id:p.id,kind:'plc',x:560,y:70+i*90,props:{},plc:null};
+    state.els.push(e);state.ctr.plc=Math.max(state.ctr.plc||0,i+1);});
+  (ep.nodes||[]).forEach(n=>{const e={id:n.id,kind:n.kind,x:gx(n),y:gy(n),props:{},plc:owner(ep,n.id)};
+    for(const k in n)if(!['id','kind','x','y'].includes(k))e.props[k]=n[k];bump(n.kind,n.id);state.els.push(e);});
+  (ep.links||[]).forEach(l=>{const e={id:l.id,kind:l.kind,n1:l.n1,n2:l.n2,props:{},plc:owner(ep,l.id)};
+    for(const k in l)if(!['id','kind','n1','n2'].includes(k))e.props[k]=l[k];bump(l.kind,l.id);state.els.push(e);});
+  render();showProps();
+}
+function owner(ep,id){const p=(ep.plcs||[]).find(p=>p.elements.includes(id));return p?p.id:null;}
+function bump(kind,id){const n=parseInt(String(id).replace(/\D/g,''))||0;state.ctr[kind]=Math.max(state.ctr[kind]||0,n);}
+
+render();
 </script>
 </body>
 </html>
