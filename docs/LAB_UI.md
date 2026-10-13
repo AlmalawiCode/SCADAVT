@@ -60,6 +60,17 @@ tank level from EPANET → the control engine decides → it writes the pump com
 back into EPANET → advances the hydraulic step. The browser-only preview (no
 server) is an approximation and is labelled as such; the server runs real EPANET.
 
+## Two run engines
+- **`/run`** — fast EPANET loop in one process (quick preview of the physics + control).
+- **`/netrun`** (and `cli netrun`) — the **full networked run**: the external
+  EPANET app, the field-device nodes (Modbus + I/O-modules back channel), the
+  gateway and an MTU control loop, all wired over **real sockets** — the exact
+  CORE node software. On a CORE host the same processes run inside nodes on
+  emulated links (netem + pcap, see the runbook); here they run over loopback.
+  ```bash
+  ./run.sh netrun lab.json --cycles 60 --attack dos:PLC1:20:40
+  ```
+
 ## Attack model
 On the shared timeline: `dos`/`delay` **freeze** a PLC's command (level over/under-
 shoots) and mark the attack window; `integrity` **forces the command off** and

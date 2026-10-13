@@ -102,6 +102,22 @@ def cmd_run(a):
             lab.close()
 
 
+def cmd_netrun(a):
+    import asyncio
+    from .netrun import NetworkedRun
+    cfg = _load(a.file)
+    issues = coregen.validate(cfg)
+    if issues:
+        raise SystemExit("invalid config:\n  " + "\n  ".join(issues))
+    if not cfg.get("epanet"):
+        raise SystemExit("networked run needs an EPANET design (make/import a lab)")
+    nr = NetworkedRun(cfg)
+    for atk in _parse_attacks(a.attack):
+        nr.add_attack(atk["kind"], atk["target"], atk["start"], atk["end"])
+    res = asyncio.run(nr.run(a.cycles))
+    print(json.dumps(res["summary"], indent=2))
+
+
 def cmd_serve(a):
     import uvicorn
     print(f"lab builder on http://{a.host}:{a.port}")
@@ -153,6 +169,11 @@ def main(argv=None):
     r.add_argument("--cycles", type=int, default=120)
     r.add_argument("--attack", action="append", help="kind:target:start:end")
     r.add_argument("-o", "--out"); r.set_defaults(fn=cmd_run)
+
+    nr = sub.add_parser("netrun", help="full networked run over sockets (CORE node software)")
+    nr.add_argument("file"); nr.add_argument("--cycles", type=int, default=60)
+    nr.add_argument("--attack", action="append", help="kind:target:start:end")
+    nr.set_defaults(fn=cmd_netrun)
 
     s = sub.add_parser("serve"); s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8000); s.set_defaults(fn=cmd_serve)
