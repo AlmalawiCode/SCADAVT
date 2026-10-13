@@ -20,6 +20,7 @@ Built-in fault kinds act on the network only, never on the SCADA programs:
     link_loss    100 % packet loss on the field-LAN interface of a node
                  (the control channel to that node is lost)
     link_rate    rate limit on the field-LAN interface of a node (``value``)
+    link_delay   one-way delay on the field-LAN interface of a node (``value``)
     router_stop  freeze a router container (a whole site loses its link)
     hook         run ``start_cmd`` at the start and ``end_cmd`` at the end
                  (shell commands supplied by the experimenter)
@@ -97,6 +98,10 @@ class Runner:
             res = sh(self.compose + ["exec", "-T", target, "sh", "-c", cmd], check=False)
         elif kind == "link_rate":
             cmd = (f"/opt/scadavt-net/shape.sh {LAN_IF} {f['value']}" if phase == "start"
+                   else f"tc qdisc del dev {LAN_IF} root")
+            res = sh(self.compose + ["exec", "-T", target, "sh", "-c", cmd], check=False)
+        elif kind == "link_delay":
+            cmd = (f"/opt/scadavt-net/shape.sh {LAN_IF} '' {f['value']}" if phase == "start"
                    else f"tc qdisc del dev {LAN_IF} root")
             res = sh(self.compose + ["exec", "-T", target, "sh", "-c", cmd], check=False)
         elif kind == "router_stop":

@@ -12,3 +12,5 @@ data/raw/
 out/
 build/
 data/legacy/
+# packet captures of networked runs (~100 MB each); regenerate with capture: true
+results/networked/*/pcap/

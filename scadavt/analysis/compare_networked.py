@@ -23,7 +23,10 @@ MEASURES = ["T2_hours_below", "T3_hours_below", "B_unmet_m3", "C_unmet_m3", "ene
 
 def process_match(summary: pd.DataFrame, run: dict) -> pd.Series | None:
     seed = int(run["deployment"].get("seed", 1))
-    targets = {f.get("target") for f in run.get("faults", [])}
+    # only faults that stop the commands have a process-level counterpart;
+    # a slowed link that still delivers them is compared with the fault-free run
+    targets = {f.get("target") for f in run.get("faults", [])
+               if f.get("kind") in ("link_loss", "router_stop")}
     if not targets:
         rows = summary[(summary.exp == "E1") & summary.control & (summary.seed == seed)]
     elif targets == {"plc6"}:
@@ -47,6 +50,8 @@ def main(argv=None):
         run = json.loads(f.read_text())
         if "metrics" not in run or run["deployment"].get("profile") == "validate":
             continue  # placeholder deployments carry no SCADA programs
+        if run.get("sim_hours", 0) < 167.9:
+            continue  # smoke tests are shorter than the week of the suite
         row = {"name": run["name"]}
         ref = process_match(summary, run)
         for m in MEASURES:

@@ -1,0 +1,4 @@
+name,networked_T2_hours_below,process_T2_hours_below,networked_T3_hours_below,process_T3_hours_below,networked_B_unmet_m3,process_B_unmet_m3,networked_C_unmet_m3,process_C_unmet_m3,networked_energy_kwh,process_energy_kwh
+e1_supervised,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,24350.8,24369.0
+e3_plc6_link,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,24349.1,24367.5
+e3_site_f_congested,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,24350.8,24367.5

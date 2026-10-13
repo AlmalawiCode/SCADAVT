@@ -1,0 +1,7 @@
+wall_time,sim_h,phase,kind,target,output
+1791861304.312,15.0,start,link_loss,plc6,
+1791861364.268,20.0,end,link_loss,plc6,
+1791861784.219,55.0,start,link_loss,plc6,
+1791861808.332,57.0,end,link_loss,plc6,
+1791862324.233,100.0,start,link_loss,plc6,
+1791862384.362,105.0,end,link_loss,plc6,

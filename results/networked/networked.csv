@@ -1,0 +1,6 @@
+case,run,connections,ok_outside,plc6_ok_in,plc6_session_ms,v1_follows,T2_hours_below,T3_hours_below,B_unmet_m3,C_unmet_m3,energy_kwh,process_energy_kwh
+No fault,e1_supervised,24168,100.0,,1.1,,0.0,0.0,0.0,0.0,24350.8,24369.0
+Link lost,e3_plc6_link,24192,99.99,0.0,,no,0.0,0.0,0.0,0.0,24349.1,24367.5
+Rate 8 kbit/s,e3_site_f_congested,24168,100.0,100.0,1.1,yes,0.0,0.0,0.0,0.0,24350.8,24369.0
+Delay 150 ms,e3_plc6_delay150,24180,100.0,100.0,300.8,yes,0.0,0.0,0.0,0.0,24350.8,24369.0
+Delay 300 ms,e3_plc6_delay300,24168,100.0,0.7,,yes,0.0,0.0,0.0,0.0,24350.8,24369.0

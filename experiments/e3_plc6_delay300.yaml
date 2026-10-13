@@ -1,0 +1,11 @@
+# Slow control link to PLC6 in the three windows of the paper: 300 ms one-way
+# delay on PLC6's field-LAN interface. A write session (connect + one request)
+# needs two round trips, so it misses the MTU's 450 ms deadline when the delay
+# exceeds about 225 ms.
+name: e3_plc6_delay300
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 168, step: 300, tick: 1.0,
+             period: "1.0", capture: false}
+faults:
+  - {start_h: 15, end_h: 20, kind: link_delay, target: plc6, value: 300ms}
+  - {start_h: 55, end_h: 57, kind: link_delay, target: plc6, value: 300ms}
+  - {start_h: 100, end_h: 105, kind: link_delay, target: plc6, value: 300ms}

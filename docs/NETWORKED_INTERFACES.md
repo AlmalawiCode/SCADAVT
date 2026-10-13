@@ -1,12 +1,14 @@
-# Networked mode: what is ready and what you must write
+# Networked mode: interfaces of the SCADA programs
 
 The networked testbed runs every node of the case study as a container on an
-emulated, routed network. Everything **around** the SCADA programs is ready and
-tested. Three programs remain to be written. This document is their contract:
-if a program follows it, it plugs into the deployment, the experiment runner and
-the analysis without further changes.
+emulated, routed network. Three SCADA programs run on the nodes: the field
+device (`scadavt/field/plc.py`), the MTU (`scadavt/master/mtu.py`) and the
+IOModuleGate with its meta-converter (`scadavt/gateway/bridge.py`). This
+document is their contract. A replacement program (for example a real PLC
+runtime such as OpenPLC, or your own MTU) that follows it plugs into the
+deployment, the experiment runner and the analysis without further changes.
 
-## 1. What is ready
+## 1. Parts of the networked mode
 
 | Part | Where | Tested how |
 |---|---|---|
@@ -17,7 +19,8 @@ the analysis without further changes.
 | Network check (paths, round-trip times, isolation, shaping, memory) | `scadavt/deploy/netcheck.py` | `results/network/` |
 | Conformance test of a field-device program | `scadavt/deploy/conformance.py` | run against your PLC program |
 | Experiment runner with network faults (link loss, rate limit, router freeze) and hooks | `scadavt/experiments/networked.py` | `experiments/smoke_validate.yaml` |
-| Message codecs: IOModules, WDS, Modbus/TCP client | `scadavt/protocols/` | `tests/test_core.py` |
+| Field device, MTU, IOModuleGate and meta-converter | `scadavt/field/plc.py`, `scadavt/master/mtu.py`, `scadavt/gateway/bridge.py` | conformance (421/421 checks), `tests/test_scada_programs.py`, `experiments/smoke_full.yaml` |
+| Message codecs: IOModules, WDS, Modbus/TCP client and slave | `scadavt/protocols/` | `tests/test_core.py` |
 | Supervisory logic of the MTU | `scadavt/master/control.py` (`Supervisor`) | `tests/test_core.py` |
 
 ## 2. Address plan and ports
@@ -59,7 +62,10 @@ Behaviour:
      if the MTU has **not yet written** that output, reply with transaction 0;
    * an unknown process ID, or a read of an `i` tag, gets transaction 0;
    * function 0 ends the session.
-4. Keep no control logic of its own (the original SCADAVT PLCs are passive).
+4. Until the gateway has delivered a sensor value, answer a Modbus read of it
+   with exception 6 (device busy), so that the MTU never takes the initial zero
+   of a register for a measurement.
+5. Keep no control logic of its own (the original SCADAVT PLCs are passive).
 
 Check it before deploying:
 
@@ -80,7 +86,9 @@ Behaviour, every `--period` wall seconds (one cycle):
 1. For every PLC that holds a tag in `Supervisor.required_reads()`, open a
    Modbus/TCP connection (`scadavt.protocols.modbus.ModbusClient`, connect
    timeout 5 s), read the tags, close. Poll the PLCs concurrently, so that one
-   unreachable PLC does not delay the others.
+   unreachable PLC does not delay the others. The supplied MTU abandons a
+   connection that has not finished within 0.45 of the period (the deadline)
+   and logs it as failed.
 2. Call `Supervisor.decide(values)` with only the values that were read; a
    missing value means "keep the previous decision" (already implemented).
 3. Write each returned `Command` to its PLC (coil for status tags, two holding
@@ -90,9 +98,11 @@ Behaviour, every `--period` wall seconds (one cycle):
    (`op` is `read` or `write`; `ok` is 1 or 0).
 5. Log every cycle to `historian.csv`: `wall_time, cycle`, one column per value
    read (`PLC1.T2_LVL`, …) and one per command (`cmd.PLC6.V1_SET_O`, …).
-6. Optional: an HMI server (Modbus/TCP slave on `--hmi`) that exposes the values
-   and accepts operator overrides, so that an HMI client on the host can connect
-   through the back channel (172.16.0.30:5020).
+6. Optional: an HMI server (Modbus/TCP slave on `--hmi`) that exposes the values,
+   so that an HMI client on the host can connect through the back channel
+   (172.16.0.30:5020). The supplied MTU serves the values read as float32 input
+   registers and the commands as float32 holding registers, in the order of the
+   historian columns; it does not accept operator overrides.
 
 ## 5. Program 3 — IOModuleGate and meta-converter (`scadavt.gateway.bridge`)
 

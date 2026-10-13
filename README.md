@@ -32,12 +32,17 @@ distribution plant* (manuscript prepared for *Internet of Things*, Elsevier).
 | Network check (paths, RTT, isolation, shaping, memory) | `scadavt/deploy/netcheck.py` | ✅ |
 | Conformance test for field-device programs | `scadavt/deploy/conformance.py` | ✅ |
 | Networked experiment runner (link loss, rate limit, router freeze, hooks) | `scadavt/experiments/networked.py` | ✅ |
-| SCADA programs of the networked mode: field device, MTU, IOModuleGate/meta-converter | specified in [`docs/NETWORKED_INTERFACES.md`](docs/NETWORKED_INTERFACES.md) | ⏳ to be written |
+| SCADA programs of the networked mode: field device (Modbus/TCP + I/O modules), MTU (polling, supervision, historian, HMI server), IOModuleGate and meta-converter | `scadavt/field/plc.py`, `scadavt/master/mtu.py`, `scadavt/gateway/bridge.py` ([contract](docs/NETWORKED_INTERFACES.md)) | ✅ |
 
-All experiments in the paper use the **process-level mode**: the supervisory
-logic reads the plant and applies its commands directly every control period.
-Faults are modelled by their physical consequence (a valve that keeps its last
-setting; pumps commanded off), not by packet-level attacks.
+The testbed has two modes that share the plant, the scenario and the
+supervisory logic. In the **process-level mode** the supervisory logic reads
+the plant and applies its commands directly every control period; faults are
+modelled by their physical consequence (a valve that keeps its last setting;
+pumps commanded off). It runs one simulated week in under a second and
+produces the 160 runs of the paper. In the **networked mode** every PLC, the
+MTU, the routers, the gateway and the plant run as 51 containers, the MTU
+polls the PLCs over real Modbus/TCP through the routed network, and faults are
+injected into the network (link loss, rate limits, frozen routers).
 
 ## Quick start
 
@@ -45,7 +50,7 @@ setting; pumps commanded off), not by packet-level attacks.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.lock && pip install --no-deps -e .
 python tools/fetch_consumption.py          # Melbourne Water weekly use per person
-pytest -q tests                            # 13 tests
+pytest -q tests                            # 15 tests
 python -m scadavt.experiments.suite --out results          # 160 runs, ~10 s on 12 cores
 python -m scadavt.analysis.make_figures --results results --out paper
 python -m scadavt.analysis.diagrams --out paper/figures
@@ -63,12 +68,34 @@ python -m scadavt.deploy.compose --out build/town --profile validate
 docker compose -f build/town/docker-compose.yml up -d    # explore the network yourself
 ```
 
-Once the three SCADA programs exist (see `docs/NETWORKED_INTERFACES.md`):
+Run the whole lab (plant, 33 PLCs, MTU, gateway, 15 routers):
 
 ```bash
+python -m scadavt.experiments.networked experiments/smoke_full.yaml   # 6 h, ~2 min
+python -m scadavt.experiments.networked experiments/e1_supervised.yaml   # 1 week, ~35 min
 python -m scadavt.experiments.networked experiments/e3_plc6_link.yaml
 python -m scadavt.analysis.compare_networked --results results
 ```
+
+### Results of the networked mode (experiment E6)
+
+One week of the case study (seed 1) in 51 containers, 300x real time, one MTU
+cycle per second (`results/networked/networked.csv`, from
+`python -m scadavt.analysis.networked_table`):
+
+| Case (link of PLC6, windows of E3) | MTU sessions OK outside windows | PLC6 sessions OK in windows | V1 follows the MTU | Pump energy, networked / process-level |
+|---|---|---|---|---|
+| No fault | 100 % | – | – | 24,351 / 24,369 kWh |
+| Link lost (100 % loss) | 99.99 % | 0 % | no (held) | 24,349 / 24,368 kWh |
+| Rate 8 kbit/s | 100 % | 100 % | yes | 24,351 / 24,369 kWh |
+| Delay 150 ms | 100 % | 100 % (≈300 ms each) | yes | 24,351 / 24,369 kWh |
+| Delay 300 ms | 100 % | 0.7 % | **yes** | 24,351 / 24,369 kWh |
+
+The networked mode reproduces the process-level outcome. With 300 ms of delay
+the MTU abandons its sessions with PLC6 at the deadline and logs them as
+failed, yet the commands have already arrived and V1 follows them: the
+operator's view and the plant's state disagree. Packet captures are not in the
+repository (about 100 MB per run); set `capture: true` to record them.
 
 ### Docker (exact reproduction)
 
