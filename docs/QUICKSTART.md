@@ -49,24 +49,46 @@ python -m scadavt.webui            # http://127.0.0.1:8000
 This is the **process-level live mode** (no containers), scientifically
 equivalent to `python -m scadavt.experiments.offline` but real-time.
 
-## 4. Running a controlled attack (Phase 2)
+## 4. Running a controlled attack — from the browser (Phase 2–4)
 
-Attacks are declared in a normal networked experiment file under an `attacks:`
-list and run on the containerised deployment. Example
-(`experiments/a1_fdi_t2.yaml`): a False Data Injection that makes the MTU read a
-constant falsified T2 level while the true tank diverges.
+Build the testbed images once, then run the lab backend on the host so it can
+orchestrate the containers:
 
 ```bash
-# builds the images once, then runs the 51-container town + an isolated attacker
 docker build -t scadavt:2.0 . && docker build -t scadavt-net:2.0 -f deploy/Dockerfile.net .
+pip install -e ".[webui]" && scadavt-lab          # open http://127.0.0.1:8000
+```
+
+Then, entirely in the browser (no commands):
+
+1. In **Attack builder**, click a component to prefill the target (or type a
+   PLC/tag), choose a kind and window, and **Add attack**.
+2. **Run on testbed** — the lab launches the 51-container town plus an isolated
+   attacker and streams the live readout: the **true** value vs. what the
+   **MTU sees** (falsified while the attack window is open), and whether the
+   attack is active.
+3. When it finishes, **Export dataset** downloads the labelled bundle.
+4. **Saved runs** lists every run; **↻ reproduce** re-runs one from its saved
+   files (deterministic for the same seed).
+
+The same thing from the command line (the GUI drives exactly this):
+
+```bash
 python -m scadavt.attacks.runner experiments/a1_fdi_t2.yaml
 ```
 
-Results land in `results/attacks/<name>/`: `ground_truth.csv` (true plant),
-`historian.csv` (what the MTU saw — falsified in-window), `faults.csv` (the
-attack labels with wall and simulated time), and `attacks/<id>.csv` (attacker
-actions). Each attacker is confined to one field network and cannot reach the
-plant's ground-truth back channel or the Internet.
+Results land in `results/attacks/<name>/` (or `runs/attacks/<name>/out/` for GUI
+runs): `ground_truth.csv` (true plant), `historian.csv` (what the MTU saw —
+falsified in-window), `faults.csv` (attack labels with wall and simulated time),
+and `attacks/<id>.csv` (attacker actions). Each attacker is confined to one
+field network and cannot reach the plant's ground-truth back channel or the
+Internet.
+
+> **FDI needs a polled sensor.** The MTU reads tank levels and a few flows, so
+> FDI/replay target those (e.g. `PLC1.T2_LVL`). An actuator node such as PLC6
+> (the V1 valve) is not polled by the MTU — its matching attack is `command`
+> (altering the setpoint the MTU writes). The attack builder validates this for
+> you.
 
 Attack kinds (`experiments/a1…a4`):
 

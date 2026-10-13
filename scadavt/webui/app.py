@@ -15,10 +15,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
+
+from pathlib import Path as _Path
+
+import yaml as _yaml
 
 from .. import scenario as sc
 from . import authoring, topology
+from .jobs import manager as attack_jobs
 from .live import ROOT, manager
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -30,6 +35,8 @@ async def _lifespan(app: FastAPI):
     yield
     if manager.proc is not None:
         await manager.stop()
+    if attack_jobs.proc is not None:
+        await attack_jobs.stop()
 
 
 def create_app() -> FastAPI:
@@ -112,6 +119,66 @@ def create_app() -> FastAPI:
                                                body.get("deployment"))
         return PlainTextResponse(text, headers={
             "Content-Disposition": f'attachment; filename="{name}.yaml"'})
+
+    # ----------------------------------- attack execution from the GUI (P4+)
+    @app.post("/api/attacks/run")
+    async def attacks_run(body: dict):
+        try:
+            return await attack_jobs.run(body.get("experiment") or body)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=409)
+
+    @app.get("/api/attacks/run")
+    async def attacks_run_status():
+        return attack_jobs.status()
+
+    @app.post("/api/attacks/run/stop")
+    async def attacks_run_stop():
+        return await attack_jobs.stop()
+
+    @app.get("/api/attacks/results")
+    async def attacks_results():
+        return {"results": attack_jobs.list_results()}
+
+    @app.post("/api/attacks/reproduce")
+    async def attacks_reproduce(body: dict):
+        name = body.get("name")
+        expfile = ROOT / "runs" / "attacks" / str(name) / "experiment.yaml"
+        if not expfile.exists():
+            return JSONResponse({"error": f"no saved experiment {name!r}"}, status_code=404)
+        exp = _yaml.safe_load(expfile.read_text())
+        try:
+            return await attack_jobs.run(exp)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=409)
+
+    @app.post("/api/attacks/dataset")
+    async def attacks_dataset():
+        try:
+            return attack_jobs.build_dataset()
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    @app.get("/api/attacks/dataset/download")
+    async def attacks_dataset_download(name: str):
+        zip_path = ROOT / "runs" / "datasets" / f"{_Path(name).name}.zip"
+        if not zip_path.exists():
+            return JSONResponse({"error": "dataset not built"}, status_code=404)
+        return FileResponse(str(zip_path), media_type="application/zip",
+                            filename=f"{_Path(name).name}.zip")
+
+    @app.websocket("/ws/attack")
+    async def ws_attack(ws: WebSocket):
+        await ws.accept()
+        attack_jobs.register(ws)
+        try:
+            await ws.send_json({"type": "attack_status", **attack_jobs.status()})
+            while True:
+                await ws.receive_text()
+        except WebSocketDisconnect:
+            pass
+        finally:
+            attack_jobs.unregister(ws)
 
     @app.websocket("/ws/live")
     async def ws_live(ws: WebSocket):

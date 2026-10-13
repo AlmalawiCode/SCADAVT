@@ -42,6 +42,12 @@ async function init() {
   $("btn-save-layout").onclick = saveLayout;
   $("btn-atk-add").onclick = addAttack;
   $("btn-atk-export").onclick = exportExperiment;
+  $("btn-atk-run").onclick = runAttack;
+  $("btn-atk-stop").onclick = () => fetch("api/attacks/run/stop", { method: "POST" });
+  $("btn-atk-dataset").onclick = exportDataset;
+  $("btn-results").onclick = loadResults;
+  connectAttackWS();
+  loadResults();
 }
 
 function svgSpace() {
@@ -356,7 +362,6 @@ function addAttack() {
     ATTACKS.push(spec);
     renderAttacks();
     m.textContent = `added ${spec.id} (victim ${res.resolved.victim_ip})`; m.className = "msg dim";
-    $("btn-atk-export").disabled = false;
   });
 }
 
@@ -369,10 +374,104 @@ function renderAttacks() {
     li.innerHTML = `<span>${a.kind} ${a.target}${detail} [${a.start_h}–${a.end_h}h]</span>`;
     const x = document.createElement("a");
     x.textContent = " ✕"; x.href = "#"; x.style.color = "var(--crit)";
-    x.onclick = (e) => { e.preventDefault(); ATTACKS.splice(i, 1); renderAttacks(); $("btn-atk-export").disabled = !ATTACKS.length; };
+    x.onclick = (e) => { e.preventDefault(); ATTACKS.splice(i, 1); renderAttacks(); };
     li.appendChild(x);
     ul.appendChild(li);
   });
+  const has = ATTACKS.length > 0;
+  $("btn-atk-export").disabled = !has;
+  $("btn-atk-run").disabled = !has;
+}
+
+function attackDeployment() {
+  return {
+    profile: "full", seed: +$("p-seed").value, start: "2025-01-23",
+    hours: +$("p-hours").value, step: +$("p-step").value,
+    tick: +$("p-tick").value, period: String($("p-tick").value), capture: true,
+  };
+}
+
+async function runAttack() {
+  const name = `gui_${Date.now().toString().slice(-6)}`;
+  const experiment = { name, deployment: attackDeployment(), attacks: ATTACKS };
+  const r = await fetch("api/attacks/run", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ experiment }),
+  });
+  const s = await r.json();
+  const m = $("atk-msg");
+  if (s.error) { m.textContent = s.error; m.className = "msg err"; return; }
+  m.textContent = `running ${name} on the testbed…`; m.className = "msg dim";
+}
+
+let ATTACK_WS = null;
+function connectAttackWS() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ATTACK_WS = new WebSocket(`${proto}://${location.host}/ws/attack`);
+  ATTACK_WS.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "attack_frame") renderAttackLive(msg);
+    else if (msg.type === "attack_status") onAttackStatus(msg);
+  };
+  ATTACK_WS.onclose = () => setTimeout(connectAttackWS, 1500);
+}
+
+function renderAttackLive(f) {
+  const live = $("atk-live");
+  const diff = (f.true != null && f.mtu_seen != null) ? Math.abs(f.true - f.mtu_seen) : null;
+  live.innerHTML = `
+    <table>
+      <tr><td>sim time</td><td>${f.sim_h != null ? f.sim_h.toFixed(2) + " h" : "—"}</td></tr>
+      <tr><td>attack</td><td style="color:${f.attack_active ? "var(--crit)" : "var(--dim)"}">${f.attack_active ? "ACTIVE" : "idle"}</td></tr>
+      <tr><td>true reading</td><td>${f.true != null ? f.true.toFixed(2) : "—"}</td></tr>
+      <tr><td>MTU sees</td><td style="color:${diff > 0.05 ? "var(--crit)" : "var(--ink)"}">${f.mtu_seen != null ? f.mtu_seen.toFixed(2) : "—"}</td></tr>
+    </table>`;
+}
+
+function onAttackStatus(s) {
+  const run = s.state === "running";
+  $("btn-atk-run").disabled = run || !ATTACKS.length;
+  $("btn-atk-stop").disabled = !run;
+  $("btn-atk-dataset").disabled = s.state !== "done";
+  const m = $("atk-msg");
+  if (s.state === "done") { m.textContent = "run finished ✓ — Export dataset, or reproduce from Saved runs."; m.className = "msg dim"; loadResults(); }
+  else if (s.state === "error") { m.textContent = "run failed: " + (s.error || ""); m.className = "msg err"; }
+}
+
+async function exportDataset() {
+  $("atk-msg").textContent = "building dataset…";
+  const r = await fetch("api/attacks/dataset", { method: "POST" });
+  const d = await r.json();
+  if (d.error) { $("atk-msg").textContent = d.error; $("atk-msg").className = "msg err"; return; }
+  window.location = `api/attacks/dataset/download?name=${encodeURIComponent(d.name)}`;
+  $("atk-msg").textContent = `dataset ${d.name}: ${d.rows} rows, labels ${JSON.stringify(d.labels)}`;
+}
+
+async function loadResults() {
+  const r = await (await fetch("api/attacks/results")).json();
+  const ul = $("results-list");
+  ul.innerHTML = "";
+  if (!r.results.length) { ul.innerHTML = '<li class="dim">No runs yet.</li>'; return; }
+  for (const run of r.results) {
+    const li = document.createElement("li");
+    const atk = run.attacks.map((a) => a[0] + "→" + a[1]).join(", ");
+    li.innerHTML = `<span>${run.name} <span class="dim">(${atk})${run.finished ? " ✓" : ""}</span></span>`;
+    const rep = document.createElement("a");
+    rep.textContent = " ↻ reproduce"; rep.href = "#"; rep.style.color = "var(--accent2)";
+    rep.onclick = (e) => { e.preventDefault(); reproduce(run.name); };
+    li.appendChild(rep);
+    ul.appendChild(li);
+  }
+}
+
+async function reproduce(name) {
+  const r = await fetch("api/attacks/reproduce", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const s = await r.json();
+  $("atk-msg").textContent = s.error ? s.error : `reproducing ${name} from saved files…`;
+  $("atk-msg").className = s.error ? "msg err" : "msg dim";
 }
 
 async function exportExperiment() {

@@ -292,6 +292,29 @@ adding, removing or rewiring components and their hydraulic links — is the
 natural next extension; the validity-check infrastructure (a real solve on every
 save, with revert) is already in place to keep such edits sound.
 
+**GUI-driven execution (`scadavt/webui/jobs.py`).** So the researcher never
+touches the command line, the lab also *runs* attacks and *exports* datasets
+from the browser: **Run on testbed** launches the networked attack runner as a
+background job and streams the victim tag's true vs. MTU-observed value live;
+**Export dataset** builds and downloads the labelled bundle; **Saved runs**
+lists past runs and reproduces one from its saved files. The lab backend runs on
+the host (with Docker) and orchestrates the containers; a re-run first clears the
+previous run's root-owned logs with a throwaway container so reproduction never
+fails on permissions.
+
+**End-to-end usage trial (2026-10-13).** The full researcher workflow was
+exercised through the API the GUI buttons call, with no manual commands:
+open → compose an FDI on `PLC1.T2_LVL` (plus a `command` on PLC6) → run on the
+testbed → watch the live readout (true level falling 3.3→1.3 m while the MTU
+reads a constant 6.5 m) → export the dataset (labels normal/fdi/command) → close
+the lab → reopen and reproduce from saved files → fresh-clone install in a clean
+virtualenv. Reproduction is deterministic: the plant ground truth came back
+bit-identical (max difference 0.0 across 126 columns) with identical labels and
+metrics; only wall-clock stamps differ. The one modelling nuance surfaced and
+documented: FDI only affects values the MTU actually polls (tank levels and a
+few flows), so an actuator node like PLC6 is attacked with `command`, not FDI —
+the catalogue gate enforces this.
+
 ---
 
 ## 8. Scientific-integrity checklist

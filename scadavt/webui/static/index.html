@@ -91,9 +91,21 @@
         </div>
         <ul id="atk-list" class="legend"></ul>
         <div class="row">
-          <button id="btn-atk-export" class="ghost" disabled>Export experiment</button>
+          <button id="btn-atk-run" disabled>Run on testbed</button>
+          <button id="btn-atk-stop" class="ghost" disabled>Stop</button>
         </div>
-        <div id="atk-msg" class="msg dim">Click a component to prefill the target. Export a ready-to-run <code>experiment.yaml</code>.</div>
+        <div class="row">
+          <button id="btn-atk-export" class="ghost" disabled>Export YAML</button>
+          <button id="btn-atk-dataset" class="ghost" disabled>Export dataset</button>
+        </div>
+        <div id="atk-live"></div>
+        <div id="atk-msg" class="msg dim">Click a component to prefill the target, Add, then Run on the containerised testbed. Needs Docker on the host.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Saved runs</h2>
+        <div class="row"><button id="btn-results" class="ghost">Refresh</button></div>
+        <ul id="results-list" class="legend"><li class="dim">No runs yet.</li></ul>
       </div>
 
       <div class="panel">

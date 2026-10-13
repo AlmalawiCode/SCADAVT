@@ -120,6 +120,29 @@ def test_authoring_api():
     assert exp.status_code == 200 and "kind: dos" in exp.text
 
 
+# ---------------------------------------------- attack execution from GUI (P4+)
+def test_victim_view_mapping():
+    import scadavt.scenario as sc
+    from scadavt.webui import jobs
+    scen = sc.load()
+    v = jobs._victim_view(scen, [{"kind": "fdi", "target": "PLC1", "tag": "T2_LVL"}])
+    assert v["gt_col"] == "T2_level" and v["mtu_col"] == "PLC1.T2_LVL"
+
+
+def test_attack_jobs_api_shape():
+    c = TestClient(create_app())
+    st = c.get("/api/attacks/run").json()
+    assert st["state"] == "idle"
+    assert c.get("/api/attacks/results").json() == {"results": []} or \
+        "results" in c.get("/api/attacks/results").json()
+    # launching with no attacks is rejected
+    assert c.post("/api/attacks/run", json={"experiment": {"name": "x", "attacks": []}}).status_code == 409
+    # reproduce of a missing run is a clean 404
+    assert c.post("/api/attacks/reproduce", json={"name": "nope"}).status_code == 404
+    # dataset with nothing finished is a clean 400
+    assert c.post("/api/attacks/dataset").status_code == 400
+
+
 # ------------------------------------------------------- live run (process)
 class _FakeWS:
     def __init__(self):
