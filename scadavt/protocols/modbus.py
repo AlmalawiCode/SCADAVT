@@ -137,3 +137,105 @@ class ModbusClient:
         data = pack_bits(values)
         await self.request(struct.pack(">BHHB", WRITE_MULTIPLE_COILS, address,
                                        len(values), len(data)) + data)
+
+
+# ------------------------------------------------------------------ server
+ILLEGAL_FUNCTION = 1
+ILLEGAL_ADDRESS = 2
+ILLEGAL_VALUE = 3
+DEVICE_BUSY = 6
+
+
+class DataBank:
+    """The four Modbus tables of a slave, with a record of what clients wrote.
+
+    ``written`` holds ``("C", address)`` and ``("H", address)`` for every coil
+    and holding register that a client has written at least once, so that the
+    owner can tell a command from the initial zero of the table.
+
+    With ``guard_inputs`` a read of an input register or discrete input that
+    the owner has never set (``mark_input``) is answered with exception 6
+    (device busy), so that a master never takes the initial zero of a sensor
+    for a measurement.
+    """
+
+    def __init__(self, coils: int = 0, discrete: int = 0, holding: int = 0, inputs: int = 0,
+                 guard_inputs: bool = False):
+        self.tables = {"C": [False] * coils, "D": [False] * discrete,
+                       "H": [0] * holding, "A": [0] * inputs}
+        self.written: set[tuple[str, int]] = set()
+        self.guard_inputs = guard_inputs
+        self.inputs_set: set[tuple[str, int]] = set()
+
+    def mark_input(self, table: str, address: int, count: int = 1) -> None:
+        self.inputs_set.update((table, address + i) for i in range(count))
+
+    def _range(self, table: str, address: int, count: int) -> bool:
+        return count >= 1 and address >= 0 and address + count <= len(self.tables[table])
+
+    def handle(self, pdu: bytes) -> bytes:
+        """Answer one request PDU with a response or exception PDU."""
+        fc = pdu[0] if pdu else 0
+        try:
+            if fc in (READ_COILS, READ_DISCRETE_INPUTS, READ_HOLDING_REGISTERS,
+                      READ_INPUT_REGISTERS):
+                address, count = struct.unpack(">HH", pdu[1:5])
+                table = {READ_COILS: "C", READ_DISCRETE_INPUTS: "D",
+                         READ_HOLDING_REGISTERS: "H", READ_INPUT_REGISTERS: "A"}[fc]
+                if not self._range(table, address, count):
+                    return bytes([fc | 0x80, ILLEGAL_ADDRESS])
+                if self.guard_inputs and table in "AD" and any(
+                        (table, address + i) not in self.inputs_set for i in range(count)):
+                    return bytes([fc | 0x80, DEVICE_BUSY])
+                values = self.tables[table][address:address + count]
+                if table in "CD":
+                    data = pack_bits(values)
+                else:
+                    data = struct.pack(f">{count}H", *values)
+                return bytes([fc, len(data)]) + data
+            if fc == WRITE_SINGLE_COIL:
+                address, value = struct.unpack(">HH", pdu[1:5])
+                if value not in (0x0000, 0xFF00):
+                    return bytes([fc | 0x80, ILLEGAL_VALUE])
+                if not self._range("C", address, 1):
+                    return bytes([fc | 0x80, ILLEGAL_ADDRESS])
+                self.tables["C"][address] = value == 0xFF00
+                self.written.add(("C", address))
+                return pdu[:5]
+            if fc == WRITE_SINGLE_REGISTER:
+                address, value = struct.unpack(">HH", pdu[1:5])
+                if not self._range("H", address, 1):
+                    return bytes([fc | 0x80, ILLEGAL_ADDRESS])
+                self.tables["H"][address] = value
+                self.written.add(("H", address))
+                return pdu[:5]
+            if fc == WRITE_MULTIPLE_COILS:
+                address, count, n = struct.unpack(">HHB", pdu[1:6])
+                if not self._range("C", address, count) or n != (count + 7) // 8:
+                    return bytes([fc | 0x80, ILLEGAL_ADDRESS])
+                for i, b in enumerate(unpack_bits(pdu[6:6 + n], count)):
+                    self.tables["C"][address + i] = b
+                    self.written.add(("C", address + i))
+                return pdu[:5]
+            if fc == WRITE_MULTIPLE_REGISTERS:
+                address, count, n = struct.unpack(">HHB", pdu[1:6])
+                if not self._range("H", address, count) or n != 2 * count:
+                    return bytes([fc | 0x80, ILLEGAL_ADDRESS])
+                for i, v in enumerate(struct.unpack(f">{count}H", pdu[6:6 + n])):
+                    self.tables["H"][address + i] = v
+                    self.written.add(("H", address + i))
+                return pdu[:5]
+        except struct.error:
+            return bytes([fc | 0x80, ILLEGAL_VALUE])
+        return bytes([(fc | 0x80) & 0xFF, ILLEGAL_FUNCTION])
+
+    async def serve(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Serve one Modbus/TCP connection until the client closes it."""
+        try:
+            while (frame := await read_frame(reader)) is not None:
+                writer.write(Frame(frame.transaction, frame.unit, self.handle(frame.pdu)).pack())
+                await writer.drain()
+        except (ConnectionError, OSError):
+            pass
+        finally:
+            writer.close()

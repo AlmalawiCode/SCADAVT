@@ -1,0 +1,8 @@
+# Smoke test of the full lab: the three SCADA programs, 6 simulated hours at
+# 1200x real time (about 18 s of wall time per hour), one 1-hour loss of
+# PLC6's link. Checks that the closed loop runs before a week-long experiment.
+name: smoke_full
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 6, step: 300, tick: 0.25,
+             period: "0.25"}
+faults:
+  - {start_h: 2, end_h: 3, kind: link_loss, target: plc6}
