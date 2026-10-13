@@ -77,8 +77,12 @@ def compose(body: dict = Body(...)):
     assignments (+ optional rules). The register bindings and auto rules are
     derived here, so the drag-and-draw UI only sends the drawing."""
     from .config import compose_lab
+    rules = body.get("rules")
+    if body.get("rules_text"):          # per-PLC instructions in the thesis RULES grammar
+        from ..builder.rules import parse_rules_txt
+        rules = parse_rules_txt(body["rules_text"])
     cfg = compose_lab(body.get("design") or {}, body.get("plcs") or [],
-                      rules=body.get("rules"), with_mtu=body.get("with_mtu", True),
+                      rules=rules, with_mtu=body.get("with_mtu", True),
                       protocol=body.get("protocol", "modbus"), name=body.get("name"))
     return {"config": cfg, "issues": coregen.validate(cfg)}
 
@@ -119,6 +123,7 @@ def run(body: dict = Body(...)):
         _apply_attacks(lab, body.get("attacks"))
         lab.run(int(body.get("cycles", 120)))
         return {"traces": lab.traces(), "summary": lab.summary(), "engine": engine,
+                "frames": lab.frames() if hasattr(lab, "frames") else [],
                 "placement": cfg.get("control", {}).get("placement", "mtu")}
     finally:
         if hasattr(lab, "close"):

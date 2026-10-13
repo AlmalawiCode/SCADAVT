@@ -134,6 +134,25 @@ def test_design_app_serves_any_design_over_integration_api():
     asyncio.run(main())
 
 
+def test_compose_with_per_plc_rules_text_and_run_frames():
+    """Per-PLC instructions in the natural RULES grammar are parsed, and /run
+    returns per-cycle frames (tank levels + pump states) for the live diagram."""
+    cfg = make_lab(1)
+    rt = ("IF TANK T1 LEVEL BELOW 2.5 THEN PUMP P1 STATUS IS OPEN\n"
+          "IF TANK T1 LEVEL ABOVE 5.0 THEN PUMP P1 STATUS IS CLOSED")
+    comp = client.post("/compose", json={"design": cfg["epanet"],
+                                         "plcs": cfg["epanet"]["plcs"],
+                                         "rules_text": rt}).json()
+    assert comp["issues"] == [] and len(comp["config"]["rules"]) == 2
+    r = client.post("/run", json={"config": comp["config"], "cycles": 20}).json()
+    assert len(r["frames"]) == 20
+    f0 = r["frames"][0]
+    assert "T1" in f0["tanks"] and "P1" in f0["pumps"]
+    # the tank level moves over the run (rise/fall), driven by EPANET + the rule
+    levels = [f["tanks"]["T1"] for f in r["frames"]]
+    assert min(levels) < max(levels)
+
+
 def test_api_compose_then_run_on_epanet():
     plcs = [{"id": "PLC1", "elements": ["T1", "P1"]}]
     comp = client.post("/compose", json={"design": _drawn_design(), "plcs": plcs}).json()

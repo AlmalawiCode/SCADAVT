@@ -49,7 +49,11 @@ svg text{fill:var(--ink)}
     <label>ارفع ملف ‎.inp‎ (صُنع في EPANET)</label>
     <input type="file" accept=".inp,.txt" id="inpfile"
            onchange="if(this.files[0])uploadInp(this.files[0])">
-    <div class="hint">ابنِ الشبكة في EPANET وصدّرها، ثم ارفعها هنا فتُرسَم تلقائيًّا. بعدها أضِف PLC وأسنِد العناصر.</div>
+    <div class="hint">ابنِ الشبكة في EPANET وصدّرها، ثم ارفعها هنا فتُرسَم ويُولَّد الإعداد تلقائيًّا.</div>
+    <label>أو ارفع ملف إعداد جاهز (‎.json‎)</label>
+    <input type="file" accept=".json" id="cfgfile"
+           onchange="if(this.files[0])uploadCfg(this.files[0])">
+    <div class="hint">يُشغَّل الإعداد كما هو (شبكة + PLC + قواعد التحكّم).</div>
     <h2 style="margin-top:12px">الأدوات</h2>
     <div class="tools" id="tools"></div>
     <div class="hint" id="toolhint">أداة المؤشّر: اسحب/اختر.</div>
@@ -96,7 +100,9 @@ const KINDS={reservoir:{t:'مصدر',node:1,col:'--on',p:{head:50}},
 const PFX={reservoir:'R',junction:'J',tank:'T',pump:'P',valve:'V',pipe:'PI',plc:'PLC'};
 const C=['--c0','--c1','--c2','--c3','--c4','--c5'];
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state={els:[],ctr:{},tool:'pointer',sel:null,pend:null,mtu:true,placement:'mtu',proto:'modbus'};
+const state={els:[],ctr:{},tool:'pointer',sel:null,pend:null,mtu:true,placement:'mtu',
+ proto:'modbus',loadedCfg:null,levels:{},pumpOn:{}};
+function dirty(){state.loadedCfg=null;}   // any edit => rebuild config from the canvas
 
 // palette
 document.getElementById('tools').innerHTML=
@@ -115,9 +121,9 @@ function plcs(){return state.els.filter(e=>e.kind==='plc');}
 function nodeAt(x,y){return state.els.filter(e=>KINDS[e.kind].node)
   .find(e=>Math.hypot(e.x-x,e.y-y)<24);}
 
-function addNode(kind,x,y){const e={id:nid(kind),kind,x,y,props:{...KINDS[kind].p},plc:null};
+function addNode(kind,x,y){dirty();const e={id:nid(kind),kind,x,y,props:{...KINDS[kind].p},plc:null,rulesText:''};
   state.els.push(e);select(e.id);render();}
-function addLink(kind,n1,n2){const e={id:nid(kind),kind,n1,n2,props:{...KINDS[kind].p},plc:null};
+function addLink(kind,n1,n2){dirty();const e={id:nid(kind),kind,n1,n2,props:{...KINDS[kind].p},plc:null};
   state.els.push(e);select(e.id);render();}
 
 // canvas events
@@ -140,7 +146,7 @@ cv.addEventListener('pointerdown',ev=>{
 function pt(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*720,y:(e.clientY-r.top)/r.height*440};}
 
 function select(id){state.sel=id;showProps();render();}
-function delSel(){if(!state.sel)return;const e=el(state.sel);
+function delSel(){if(!state.sel)return;dirty();const e=el(state.sel);
   state.els=state.els.filter(x=>x!==e && !(x.n1===e.id||x.n2===e.id));state.sel=null;showProps();render();}
 function clearAll(){state.els=[];state.ctr={};state.sel=null;state.inpText=null;showProps();render();}
 
@@ -152,12 +158,17 @@ function render(){
     const col=e.kind==='pipe'?'var(--line)':`var(${KINDS[e.kind].col})`;
     s.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}" stroke-width="${e.kind==='pipe'?2:3}" ${state.sel===e.id?'stroke-dasharray="2 3"':''}/>`);
     const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
-    if(e.kind!=='pipe'){s.push(`<circle cx="${mx}" cy="${my}" r="11" fill="var(--surface)" stroke="${col}" stroke-width="2"/><text x="${mx}" y="${my+3}" text-anchor="middle" font-size="8" font-weight="700">${e.kind==='pump'?'P':'V'}</text>`);}
+    if(e.kind!=='pipe'){const on=(state.pumpOn||{})[e.id];
+      const fill=(e.kind==='pump'&&on)?'var(--ok)':'var(--surface)';
+      s.push(`<circle cx="${mx}" cy="${my}" r="11" fill="${fill}" stroke="${col}" stroke-width="2"/><text x="${mx}" y="${my+3}" text-anchor="middle" font-size="8" font-weight="700" fill="${(e.kind==='pump'&&on)?'#fff':'var(--ink)'}">${e.kind==='pump'?'P':'V'}</text>`);}
     s.push(`<text x="${mx}" y="${my-14}" text-anchor="middle" font-size="9" fill="var(--muted)">${e.id}${e.plc?' ['+e.plc+']':''}</text>`);});
   // nodes
   state.els.filter(e=>KINDS[e.kind].node).forEach(e=>{const col=`var(${KINDS[e.kind].col})`;
     const sel=state.sel===e.id?'stroke-width="3.5"':'stroke-width="2"';
-    if(e.kind==='tank'){s.push(`<rect x="${e.x-16}" y="${e.y-16}" width="32" height="32" rx="4" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
+    if(e.kind==='tank'){s.push(`<rect x="${e.x-16}" y="${e.y-16}" width="32" height="32" rx="4" fill="var(--surface)" stroke="${col}" ${sel}/>`);
+      const lv=(state.levels||{})[e.id],mx=(+e.props.max||6);
+      if(lv!=null){const h=Math.max(0,Math.min(1,lv/mx))*30;
+        s.push(`<rect x="${e.x-15}" y="${e.y+15-h}" width="30" height="${h.toFixed(1)}" rx="2" fill="var(--brand2)" fill-opacity="0.55"/>`);}}
     else if(e.kind==='plc'){s.push(`<rect x="${e.x-20}" y="${e.y-14}" width="40" height="28" rx="6" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
     else{s.push(`<circle cx="${e.x}" cy="${e.y}" r="16" fill="var(--surface)" stroke="${col}" ${sel}/>`);}
     s.push(`<text x="${e.x}" y="${e.y+4}" text-anchor="middle" font-size="9.5" font-weight="700">${e.id}</text>`);
@@ -173,9 +184,16 @@ function render(){
 function showProps(){const e=el(state.sel);const d=document.getElementById('props');
   if(!e){d.innerHTML='<p class="hint">اختر عنصرًا، أو أضف عنصرًا من الأدوات.</p>';return;}
   let h=`<label>النوع</label><input value="${KINDS[e.kind].t} (${e.id})" disabled>`;
-  for(const k in e.props){h+=`<label>${k}</label><input value="${e.props[k]}" onchange="el('${e.id}').props['${k}']=this.value;">`;}
-  if(e.kind!=='plc'&&['tank','junction','reservoir','pump','valve'].includes(e.kind)){
-    h+=`<label>مُسنَد إلى PLC</label><select onchange="el('${e.id}').plc=this.value||null;render();showProps()">
+  for(const k in e.props){h+=`<label>${k}</label><input value="${e.props[k]}" onchange="el('${e.id}').props['${k}']=this.value;dirty()">`;}
+  if(e.kind==='plc'){
+    const owned=state.els.filter(x=>x.plc===e.id).map(x=>x.id).join('، ')||'—';
+    h+=`<label>العناصر المُسنَدة</label><div class="hint">${owned}</div>
+      <label>تعليمات التحكّم (قواعد هذا الـPLC)</label>
+      <textarea style="width:100%;height:120px;background:var(--sunken);color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--m);font-size:.78rem;direction:ltr;text-align:left;padding:6px"
+        onchange="el('${e.id}').rulesText=this.value;dirty()">${e.rulesText||''}</textarea>
+      <div class="hint">مثال: IF TANK T1 LEVEL BELOW 2.5 THEN PUMP P1 STATUS IS OPEN</div>`;
+  } else if(['tank','junction','reservoir','pump','valve'].includes(e.kind)){
+    h+=`<label>مُسنَد إلى PLC</label><select onchange="el('${e.id}').plc=this.value||null;dirty();render();showProps()">
       <option value="">— بلا —</option>${plcs().map(p=>`<option ${e.plc===p.id?'selected':''}>${p.id}</option>`).join('')}</select>`;
     const reg={tank:'LEV (مستوى، مدخل)',junction:'PRS (ضغط، مدخل)',reservoir:'HEAD (مدخل)',
       pump:'CMD (حالة، مخرج) + FLOW',valve:'SET (ضبط، مخرج) + FLOW'}[e.kind];
@@ -191,7 +209,8 @@ function buildDesign(){
   const pl=plcs().map(p=>({id:p.id,elements:state.els.filter(e=>e.plc===p.id).map(e=>e.id)}));
   const design={name:'drawn',hours:72,nodes:ns,links:ls};
   if(state.inpText)design.inp_text=state.inpText;   // run the uploaded EPANET file authoritatively
-  return {design,plcs:pl};
+  const rules_text=plcs().map(p=>p.rulesText||'').filter(Boolean).join('\n');
+  return {design,plcs:pl,rules_text};
 }
 
 // upload an EPANET .inp -> parse on the server -> draw it here
@@ -200,7 +219,7 @@ async function uploadInp(file){
   try{const r=await fetch('import_inp',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({inp:text})});
       if(!r.ok)throw 0; const j=await r.json(); loadDesign(j.design);
-      msg('رُسِمت الشبكة من الملف ✔ — '+JSON.stringify(j.summary.by_kind).replace(/[{}"]/g,''),true);}
+      msg('رُسِمت الشبكة وأُنشئ الإعداد تلقائيًّا ✔ ('+JSON.stringify(j.summary.by_kind).replace(/[{}"]/g,'')+') — اضغط ▶ تشغيل، وشاهد.',true);}
   catch(e){msg('رفع الملف يحتاج الخادم: شغّل python -m scadavt.labui وافتح الصفحة منه.',false);}
 }
 function loadDesign(design){
@@ -212,7 +231,7 @@ function loadDesign(design){
     for(const k in n)if(!['id','kind','x','y'].includes(k))e.props[k]=n[k];bump(n.kind,n.id);state.els.push(e);});
   (design.links||[]).forEach(l=>{const e={id:l.id,kind:l.kind,n1:l.n1,n2:l.n2,props:{},plc:null};
     for(const k in l)if(!['id','kind','n1','n2'].includes(k))e.props[k]=l[k];bump(l.kind,l.id);state.els.push(e);});
-  render();showProps();
+  autoAssign();            // configuration (PLCs + register bindings + rules) is generated automatically
 }
 function num(o){const r={};for(const k in o){const v=o[k];r[k]=(v!==''&&!isNaN(+v))?+v:v;}return r;}
 function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)return[];
@@ -220,7 +239,11 @@ function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)ret
   return[{kind:k,target:document.getElementById('atktgt').value,start:s,end:s+d}];}
 
 // create a PLC per tank and bind nearby pumps/valves (one-click runnable lab)
+function rulesFor(T,P){return (T&&P)?
+  `IF TANK ${T} LEVEL BELOW 2.5 THEN PUMP ${P} STATUS IS OPEN\n`+
+  `IF TANK ${T} LEVEL ABOVE 5.0 THEN PUMP ${P} STATUS IS CLOSED`:'';}
 function autoAssign(){
+  dirty();
   state.els=state.els.filter(e=>e.kind!=='plc');
   state.els.forEach(e=>{if(e.kind!=='plc')e.plc=null;});
   const tanks=state.els.filter(e=>e.kind==='tank');
@@ -237,45 +260,79 @@ function autoAssign(){
     while(q.length){const c=q.shift();const nd=el(c);if(nd&&nd.kind==='tank'){found=c;break;}
       (adj[c]||[]).forEach(x=>{if(!seen.has(x)){seen.add(x);q.push(x);}});}
     l.plc=plcOfTank[found]||plcOfTank[tanks[0].id];});
+  plcs().forEach(p=>{const T=state.els.find(e=>e.kind==='tank'&&e.plc===p.id);
+    const P=state.els.find(e=>e.kind==='pump'&&e.plc===p.id);
+    p.rulesText=rulesFor(T&&T.id,P&&P.id);});
   render();showProps();
-  msg('أُسنِدت '+tanks.length+' PLC تلقائيًّا (خزّان+مضخّة لكلٍّ). يمكنك التعديل ثم التشغيل.',true);
+  msg('أُسنِدت '+tanks.length+' PLC تلقائيًّا، وكُتبت تعليمات التحكّم لكلٍّ. عدّلها إن شئت ثم شغّل.',true);
 }
 
 async function run(){
   if(nodes().filter(e=>e.kind==='tank').length===0){msg('ارفع شبكة EPANET فيها خزّان أولًا.',false);return;}
-  if(plcs().length===0){msg('لم تُضِف PLC. اضغط «إسناد PLC تلقائيًّا»، أو أضِف PLC من الأدوات وأسنِد إليه عناصر.',false);return;}
-  if(!state.els.some(e=>e.plc&&e.kind!=='plc')){msg('أسنِد عنصرًا إلى PLC: اختره ثم اختر الـPLC في الخصائص (أو «إسناد تلقائي»).',false);return;}
-  msg('جارٍ التركيب والتشغيل…',true);
-  const {design,plcs}=buildDesign();const attacks=getAttacks();
+  const attacks=getAttacks();
+  let cfg=state.loadedCfg;           // uploaded configuration runs as-is
   try{
-    const cr=await fetch('compose',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({design,plcs,with_mtu:state.mtu,protocol:state.proto})});
-    if(!cr.ok)throw 0; const cj=await cr.json();
-    if(cj.issues.length){msg('مشاكل: '+cj.issues.join(' ؛ '),false);return;}
+    if(!cfg){
+      if(plcs().length===0){msg('اضغط «إسناد PLC تلقائيًّا»، أو أضِف PLC وأسنِد إليه عناصر.',false);return;}
+      if(!state.els.some(e=>e.plc&&e.kind!=='plc')){msg('أسنِد عنصرًا إلى PLC (أو «إسناد تلقائي»).',false);return;}
+      msg('جارٍ التركيب والتشغيل…',true);
+      const {design,plcs,rules_text}=buildDesign();
+      const cr=await fetch('compose',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({design,plcs,rules_text,with_mtu:state.mtu,protocol:state.proto})});
+      if(!cr.ok)throw 0; const cj=await cr.json();
+      if(cj.issues.length){msg('مشاكل: '+cj.issues.join(' ؛ '),false);return;}
+      cfg=cj.config;
+    } else {msg('جارٍ تشغيل الإعداد المرفوع…',true);}
     const rr=await fetch('run',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({config:cj.config,cycles:120,attacks})});
+      body:JSON.stringify({config:cfg,cycles:120,attacks})});
     const j=await rr.json();
-    if(!Object.keys(j.traces||{}).length){msg('شُغّل، لكن لا خزّانات مُسنَدة لعرضها. أسنِد خزّانًا إلى PLC.',true);return;}
-    msg((j.engine==='epanet'?'EPANET الحقيقي ✔':'الخادم ✔')+(attacks.length?' (مع هجوم)':''),true);
-    animate(j.traces,attacks[0]);
+    if(!Object.keys(j.traces||{}).length){msg('شُغّل، لكن لا خزّان مُسنَد لعرضه.',true);return;}
+    msg((j.engine==='epanet'?'EPANET الحقيقي ✔':'الخادم ✔')+(attacks.length?' (مع هجوم)':'')+' — شاهد الخزّان والمضخّة.',true);
+    animate(j,attacks[0]);
   }catch(e){msg('لا يوجد خادم. شغّل: python -m scadavt.labui ثم افتح الصفحة منه.',false);}
 }
 
-// ---- live chart ----
+// ---- live animation: tanks fill/drain + pumps toggle on the diagram + chart ----
 let anim;
-function animate(traces,atk){const ids=Object.keys(traces),T=traces[ids[0]].length;
-  document.getElementById('leg').innerHTML=ids.map((id,i)=>`<span><i style="border-color:${cssv(C[i%6])}"></i>${id}</span>`).join('');
-  clearInterval(anim);let k=2;
-  const draw=()=>{const W=720,H=220,ml=38,mr=12,mt=12,mb=24,iw=W-ml-mr,ih=H-mt-mb,ymax=6;
-    const X=t=>ml+t/(T-1)*iw,Y=v=>mt+ih-v/ymax*ih;const s=[];
-    for(let v=0;v<=6;v+=2)s.push(`<line x1="${ml}" y1="${Y(v)}" x2="${W-mr}" y2="${Y(v)}" stroke="var(--line)"/><text x="${ml-6}" y="${Y(v)+4}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`);
+function animate(resp,atk){
+  const frames=resp.frames||[],traces=resp.traces||{};
+  const ids=frames.length?Object.keys(frames[0].tanks):Object.keys(traces);
+  const ser=id=>frames.length?frames.map(f=>f.tanks[id]):(traces[id]||[]);
+  const T=frames.length?frames.length:(traces[ids[0]]||[]).length;
+  let ymax=6; ids.forEach(id=>ser(id).forEach(v=>{if(v>ymax)ymax=Math.ceil(v);}));
+  document.getElementById('leg').innerHTML=ids.map((id,i)=>`<span><i style="border-color:${cssv(C[i%6])}"></i>${id}</span>`).join('')
+    +'  <span>الخزّان يمتلئ أزرق · المضخّة تضيء أخضر عند التشغيل</span>';
+  clearInterval(anim);let k=1;
+  const draw=()=>{
+    if(frames.length){const f=frames[Math.min(k-1,frames.length-1)];
+      state.levels=f.tanks;state.pumpOn=f.pumps;render();}
+    const W=720,H=220,ml=38,mr=12,mt=12,mb=24,iw=W-ml-mr,ih=H-mt-mb;
+    const X=t=>ml+t/((T-1)||1)*iw,Y=v=>mt+ih-(v/ymax)*ih;const s=[];
+    for(let g=0;g<=ymax;g+=Math.max(1,Math.round(ymax/3)))s.push(`<line x1="${ml}" y1="${Y(g)}" x2="${W-mr}" y2="${Y(g)}" stroke="var(--line)"/><text x="${ml-6}" y="${Y(g)+4}" text-anchor="end" font-size="9" fill="var(--muted)">${g}</text>`);
     [2.5,5.0].forEach(th=>s.push(`<line x1="${ml}" y1="${Y(th)}" x2="${W-mr}" y2="${Y(th)}" stroke="var(--muted)" stroke-dasharray="6 5"/>`));
     if(atk){const xs=X(Math.min(atk.start,T-1)),xe=X(Math.min(atk.end,T-1));
       s.push(`<line x1="${xs}" y1="${mt}" x2="${xs}" y2="${mt+ih}" stroke="var(--on)" stroke-width="2"/><line x1="${xe}" y1="${mt}" x2="${xe}" y2="${mt+ih}" stroke="var(--on)" stroke-dasharray="3 3"/><text x="${(xs+xe)/2}" y="${mt+9}" text-anchor="middle" font-size="9" fill="var(--on)">هجوم ${atk.kind}@${atk.target}</text>`);}
-    ids.forEach((id,i)=>{const pts=traces[id].slice(0,k).map((v,t)=>`${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
-      s.push(`<polyline points="${pts}" fill="none" stroke="${cssv(C[i%6])}" stroke-width="2.3"/>`);});
-    document.getElementById('ch').innerHTML=s.join('');k+=2;if(k>T)clearInterval(anim);};
-  anim=setInterval(draw,55);draw();}
+    ids.forEach((id,i)=>{const d=ser(id).slice(0,k).map((v,t)=>`${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+      s.push(`<polyline points="${d}" fill="none" stroke="${cssv(C[i%6])}" stroke-width="2.3"/>`);});
+    document.getElementById('ch').innerHTML=s.join('');k+=1;if(k>T)clearInterval(anim);};
+  anim=setInterval(draw,70);draw();}
+
+// ---- upload a ready configuration (.json) and run it as-is ----
+async function uploadCfg(file){
+  try{const cfg=JSON.parse(await file.text());
+    if(!cfg.epanet){msg('ملف الإعداد يجب أن يحوي قسم epanet.',false);return;}
+    loadConfig(cfg);state.loadedCfg=cfg;
+    msg('حُمّل الإعداد (شبكة + PLC + قواعد). اضغط ▶ تشغيل.',true);}
+  catch(e){msg('تعذّر قراءة ملف الإعداد (JSON غير صالح).',false);}
+}
+function fmtRule(r){
+  const c=r.if.map(x=>x.kind==='system'?`SYSTEM TIME ${x.op} ${x.value}`:
+    x.kind==='tank'?`TANK ${x.comp} LEVEL ${String(x.op).toUpperCase()} ${x.value}`:
+    `${x.kind.toUpperCase()} ${x.comp} ${String(x.attr).toUpperCase()} IS ${String(x.value).toUpperCase()}`).join(' AND ');
+  const a=r.then.map(x=>x.attr==='status'?`${x.kind.toUpperCase()} ${x.comp} STATUS IS ${String(x.value).toUpperCase()}`:
+    `${x.kind.toUpperCase()} ${x.comp} SETTING IS ${x.value}`).join(' AND ');
+  return `IF ${c} THEN ${a}`;
+}
 
 // ---- template from /make (so you can start from a ready lab and edit) ----
 async function loadTemplate(){
@@ -291,6 +348,10 @@ function loadConfig(cfg){
     for(const k in n)if(!['id','kind','x','y'].includes(k))e.props[k]=n[k];bump(n.kind,n.id);state.els.push(e);});
   (ep.links||[]).forEach(l=>{const e={id:l.id,kind:l.kind,n1:l.n1,n2:l.n2,props:{},plc:owner(ep,l.id)};
     for(const k in l)if(!['id','kind','n1','n2'].includes(k))e.props[k]=l[k];bump(l.kind,l.id);state.els.push(e);});
+  // populate each PLC's editable control instructions from the config's rules
+  const byPlc={};(ep.rules||[]).forEach(r=>{const comp=r.then&&r.then[0]&&r.then[0].comp;
+    const p=comp?owner(ep,comp):null;if(p)(byPlc[p]=byPlc[p]||[]).push(fmtRule(r));});
+  plcs().forEach(p=>p.rulesText=(byPlc[p.id]||[]).join('\n'));
   render();showProps();
 }
 function owner(ep,id){const p=(ep.plcs||[]).find(p=>p.elements.includes(id));return p?p.id:null;}

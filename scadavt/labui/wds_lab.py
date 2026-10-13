@@ -105,6 +105,11 @@ class WdsLab:
                 rec[f"{plc}_pump"] = int(self.plant.net.get(
                     self.pump_of[plc], wp.PT_LINK, wp.DT_STATUS) >= 0.5)
             rec[f"{plc}_attack"] = self._active(plc) is not None
+        # element-keyed snapshot, for the live diagram (tanks fill, pumps toggle)
+        rec["tanks"] = {t: round(self.plant.net.get(t, wp.PT_NODE, wp.DT_LEVEL), 3)
+                        for t in self.plant.net.tanks}
+        rec["pumps"] = {p: int(self.plant.net.get(p, wp.PT_LINK, wp.DT_STATUS) >= 0.5)
+                        for p in self.plant.net.pumps}
         self.trace.append(rec)
         return rec
 
@@ -116,6 +121,11 @@ class WdsLab:
     def traces(self) -> dict:
         return {plc: [r.get(f"{plc}_level") for r in self.trace]
                 for plc in self.plcs if plc in self.tank_of}
+
+    def frames(self) -> list:
+        """Per-cycle element snapshot for the live diagram."""
+        return [{"t": r["t"], "tanks": r.get("tanks", {}), "pumps": r.get("pumps", {})}
+                for r in self.trace]
 
     def summary(self) -> dict:
         win = sum(r["attack_window"] for r in self.trace)
