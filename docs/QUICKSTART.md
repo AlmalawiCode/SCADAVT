@@ -90,11 +90,23 @@ multiclass, aligned by `sim_h`), and `manifest.json` — which pins the seed,
 scenario/EPANET SHA-256, Docker image digest and git commit so the dataset
 reproduces deterministically.
 
-## 6. What is coming
+## 6. Authoring and the attack builder (Phase 4)
 
-| Phase | Capability |
-|---|---|
-| P4 | Drag-and-drop network authoring with live hydraulic validity checks; attack panel in the GUI |
+In the browser:
+
+- **Layout authoring** — tick *Edit layout* and drag tanks, junctions and
+  reservoirs to reposition them. **Save layout** writes the coordinates to a
+  private workspace copy of the scenario and checks it with a real EPANET solve;
+  an edit that would break the hydraulics is rejected, not saved. The packaged
+  scenario is never modified.
+- **Attack builder** — click a component to prefill the target, pick a kind and
+  window, **Add attack** (validated live against the scenario), then **Export
+  experiment** to download a ready-to-run `experiment.yaml`:
+
+  ```bash
+  python -m scadavt.attacks.runner <downloaded>.yaml
+  python -m scadavt.attacks.dataset --result results/attacks/<name> --out datasets/<name>
+  ```
 
 ## 7. Tests
 

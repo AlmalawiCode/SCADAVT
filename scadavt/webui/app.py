@@ -15,8 +15,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from fastapi.responses import PlainTextResponse
+
 from .. import scenario as sc
-from . import topology
+from . import authoring, topology
 from .live import ROOT, manager
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -75,6 +77,41 @@ def create_app() -> FastAPI:
     @app.post("/api/stop")
     async def run_stop():
         return await manager.stop()
+
+    # ----------------------------------------------------- authoring (P4)
+    @app.post("/api/workspace")
+    async def workspace():
+        path = authoring.ensure_workspace()
+        return {"path": str(path)}
+
+    @app.post("/api/validate")
+    async def validate(body: dict):
+        path = body.get("path") or str(sc.DEFAULT_SCENARIO)
+        return authoring.check_validity(path)
+
+    @app.post("/api/scenario/coordinates")
+    async def save_coords(body: dict):
+        path = body.get("path")
+        if not path:
+            return JSONResponse({"error": "path required (init a workspace first)"},
+                                status_code=400)
+        try:
+            return authoring.save_coordinates(path, body.get("coords", {}))
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    @app.post("/api/attacks/validate")
+    async def attacks_validate(body: dict):
+        path = body.get("path") or str(sc.DEFAULT_SCENARIO)
+        return {"results": authoring.validate_attacks(path, body.get("attacks", []))}
+
+    @app.post("/api/attacks/experiment")
+    async def attacks_experiment(body: dict):
+        name = body.get("name", "custom_attack")
+        text = authoring.build_experiment_yaml(name, body.get("attacks", []),
+                                               body.get("deployment"))
+        return PlainTextResponse(text, headers={
+            "Content-Disposition": f'attachment; filename="{name}.yaml"'})
 
     @app.websocket("/ws/live")
     async def ws_live(ws: WebSocket):

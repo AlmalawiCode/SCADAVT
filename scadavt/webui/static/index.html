@@ -51,6 +51,52 @@
       </div>
 
       <div class="panel">
+        <h2>Layout authoring</h2>
+        <label class="check"><input id="edit-mode" type="checkbox"> Edit layout (drag nodes)</label>
+        <div class="row">
+          <button id="btn-save-layout" class="ghost" disabled>Save layout</button>
+        </div>
+        <div id="layout-msg" class="msg dim">Editing works on a private copy of the scenario; saves are validated by a real EPANET solve.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Attack builder</h2>
+        <label>Kind
+          <select id="atk-kind">
+            <option value="fdi">fdi — falsify sensor</option>
+            <option value="replay">replay — recorded readings</option>
+            <option value="command">command — alter actuator</option>
+            <option value="dos">dos — link loss</option>
+          </select>
+        </label>
+        <div class="row">
+          <label>Target PLC <input id="atk-plc" placeholder="PLC1"></label>
+          <label>Tag <input id="atk-tag" placeholder="T2_LVL"></label>
+        </div>
+        <div class="row">
+          <label>Mode
+            <select id="atk-mode">
+              <option value="const">const</option><option value="offset">offset</option>
+              <option value="freeze">freeze</option>
+            </select>
+          </label>
+          <label>Value <input id="atk-value" type="number" value="0" step="0.1"></label>
+        </div>
+        <div class="row">
+          <label>Start (h) <input id="atk-start" type="number" value="8" step="1"></label>
+          <label>End (h) <input id="atk-end" type="number" value="16" step="1"></label>
+        </div>
+        <div class="row">
+          <button id="btn-atk-add">Add attack</button>
+        </div>
+        <ul id="atk-list" class="legend"></ul>
+        <div class="row">
+          <button id="btn-atk-export" class="ghost" disabled>Export experiment</button>
+        </div>
+        <div id="atk-msg" class="msg dim">Click a component to prefill the target. Export a ready-to-run <code>experiment.yaml</code>.</div>
+      </div>
+
+      <div class="panel">
         <h2>Legend</h2>
         <ul class="legend">
           <li><span class="sw tank"></span> tank (fill = level)</li>

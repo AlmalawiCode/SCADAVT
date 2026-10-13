@@ -230,7 +230,7 @@ Each phase is validated (tests + an example run) before the next begins.
 | **P1** | FastAPI backend + web viewer of the `town` scenario; live tags; run / stop via the existing `Runner`; single-command Docker launch | backend unit tests; GUI loads topology; a short run streams live data | ✅ done |
 | **P2** | `scadavt/attacks/` catalogue + isolated attacker container; **FDI** end-to-end | FDI measurably perturbs the victim tag; window logged to `faults.csv`; isolation verified | ✅ done |
 | **P3** | Replay, command-manipulation, DoS; labeller + provenance manifest; dataset export | labelled dataset reproduces deterministically from its manifest; label/window alignment test | ✅ done |
-| **P4** | Drag-and-drop **authoring** with live EPANET validity check; attack panel in the GUI | edited scenario round-trips to valid `scada.yaml` + `.inp`; hydraulic solve succeeds | next |
+| **P4** | Drag-and-drop **authoring** with live EPANET validity check; attack panel in the GUI | edited scenario round-trips to valid `scada.yaml` + `.inp`; hydraulic solve succeeds | ✅ done |
 
 **P2 result.** A False Data Injection against `PLC1.T2_LVL` (`mode=const`,
 6.5 m, window 8–16 h) was run on the full 51-container town: inside the window
@@ -269,6 +269,28 @@ Topology *authoring* (P4) is deliberately last: keeping edits hydraulically
 valid is the one genuinely hard part, whereas P1–P3 already deliver the full
 research workflow — visual monitoring, controlled attacks, and reproducible
 labelled datasets.
+
+**P4 result.** Authoring and the attack panel were added to the GUI and the
+backend (`scadavt/webui/authoring.py`):
+
+- **Layout authoring** — nodes are draggable on the canvas (edit mode); edits
+  apply to a private workspace copy of the scenario (`runs/workspace/`, so the
+  packaged scenario is never mutated) and are written back to the EPANET
+  `.inp`. Every save is followed by a **real EPANET solve**; an edit that would
+  not solve is reverted. Verified: moving a tank saves and the model still
+  solves; a model that fails to open is reported, not persisted.
+- **Attack-builder panel** — compose attacks visually (click a component to
+  prefill the target), validated live through the same catalogue gate as the
+  runner (`/api/attacks/validate`), and exported as a ready-to-run
+  `experiment.yaml` (`/api/attacks/experiment`). Consistent with the four-plane
+  principle, the GUI *authors* the declarative experiment; the headless
+  `scadavt.attacks.runner` *executes* it reproducibly.
+
+The dependency-free SVG frontend carries the drag interaction (pointer events +
+`getScreenCTM`), so no build toolchain is required. Structural authoring —
+adding, removing or rewiring components and their hydraulic links — is the
+natural next extension; the validity-check infrastructure (a real solve on every
+save, with revert) is already in place to keep such edits sound.
 
 ---
 

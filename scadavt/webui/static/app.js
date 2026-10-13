@@ -14,20 +14,34 @@ let SELECTED = null;    // selected element id
 let CHART = { h: [], T: {} };  // time series
 let MAXL = 7, CRIT = 1.05;
 let WS = null;
+let EDIT = false;       // layout-edit mode
+let SCEN_PATH = null;   // writable workspace scenario path (when editing)
+let MOVED = new Set();  // node ids whose coordinates changed
+let ATTACKS = [];       // composed attack specs
 
-async function init() {
-  const r = await fetch("api/scenario");
+async function loadTopology() {
+  const url = SCEN_PATH ? `api/scenario?path=${encodeURIComponent(SCEN_PATH)}` : "api/scenario";
+  const r = await fetch(url);
   TOPO = await r.json();
-  if (TOPO.error) { $("run-msg").textContent = TOPO.error; return; }
+  if (TOPO.error) { $("run-msg").textContent = TOPO.error; return false; }
   $("scenario-name").value = TOPO.scenario;
   const maxv = Object.values(TOPO.tank_max_level || {});
   if (maxv.length) MAXL = Math.max(...maxv);
   CRIT = 0.15 * MAXL;
   drawNetwork();
+  return true;
+}
+
+async function init() {
+  if (!await loadTopology()) return;
   await refreshStatus();
   connectWS();
   $("btn-start").onclick = startRun;
   $("btn-stop").onclick = stopRun;
+  $("edit-mode").onchange = toggleEdit;
+  $("btn-save-layout").onclick = saveLayout;
+  $("btn-atk-add").onclick = addAttack;
+  $("btn-atk-export").onclick = exportExperiment;
 }
 
 function svgSpace() {
@@ -88,11 +102,16 @@ function drawNetwork() {
       net.appendChild(box); net.appendChild(fill);
       net.appendChild(label(n.id, p.x, p.y - s - R * 0.6));
       REF[n.id] = { level: fill, tankTop: p.y - s, tankH: 2 * s };
+      if (EDIT) { makeDraggable(box, n.id); makeDraggable(fill, n.id); }
     } else if (n.kind === "reservoir") {
-      net.appendChild(el("circle", { cx: p.x, cy: p.y, r: R * 1.6, fill: "#1f6f5c", stroke: "#0d1219", "stroke-width": R * 0.2 }));
+      const c = el("circle", { cx: p.x, cy: p.y, r: R * 1.6, fill: "#1f6f5c", stroke: "#0d1219", "stroke-width": R * 0.2 });
+      net.appendChild(c);
       net.appendChild(label(n.id, p.x, p.y - R * 2.2));
+      if (EDIT) makeDraggable(c, n.id);
     } else {
-      net.appendChild(el("circle", { cx: p.x, cy: p.y, r: R * 0.45, fill: "#64748b" }));
+      const c = el("circle", { cx: p.x, cy: p.y, r: EDIT ? R * 0.9 : R * 0.45, fill: EDIT ? "#8899aa" : "#64748b" });
+      net.appendChild(c);
+      if (EDIT) makeDraggable(c, n.id);
     }
   }
 }
@@ -101,6 +120,36 @@ function label(txt, x, y) {
   const t = el("text", { x, y, "text-anchor": "middle", class: "nlabel" });
   t.textContent = txt;
   return t;
+}
+
+function screenToEpanet(evt) {
+  const svg = $("net");
+  const pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const b = TOPO.bbox;
+  return { x: p.x, y: b.ymin + b.ymax - p.y };  // un-flip y back to EPANET space
+}
+
+function makeDraggable(elem, id) {
+  elem.style.cursor = "move";
+  elem.addEventListener("pointerdown", (e) => {
+    if (!EDIT) return;
+    e.stopPropagation(); e.preventDefault();
+    const move = (ev) => {
+      const p = screenToEpanet(ev);
+      const n = TOPO.nodes.find((n) => n.id === id);
+      if (!n) return;
+      n.x = p.x; n.y = p.y; MOVED.add(id);
+      drawNetwork();
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
 }
 
 function applyFrame(row) {
@@ -169,6 +218,14 @@ function drawChart() {
 function select(id) {
   SELECTED = id;
   renderSelection(/* latest */ null);
+  const sup = TOPO.supervised[id];   // prefill the attack builder from the click
+  if (sup) {
+    $("atk-plc").value = sup.plc;
+    const k = $("atk-kind").value;
+    const want = k === "command" ? "o" : "i";
+    const t = sup.tags.find((t) => t.direction === want) || sup.tags[0];
+    if (t) $("atk-tag").value = t.name;
+  }
 }
 function renderSelection(row) {
   const id = SELECTED, box = $("sel");
@@ -242,6 +299,94 @@ async function startRun() {
 async function stopRun() {
   const s = await (await fetch("api/stop", { method: "POST" })).json();
   setState(s);
+}
+
+// ------------------------------------------------------------ layout editing
+async function toggleEdit(e) {
+  EDIT = e.target.checked;
+  $("btn-save-layout").disabled = !EDIT;
+  const msg = $("layout-msg");
+  if (EDIT && !SCEN_PATH) {
+    msg.textContent = "preparing a writable workspace…";
+    const r = await fetch("api/workspace", { method: "POST" });
+    SCEN_PATH = (await r.json()).path;
+    await loadTopology();
+    msg.textContent = "drag tanks/junctions/reservoirs to reposition, then Save layout.";
+  } else {
+    drawNetwork();
+    msg.textContent = EDIT ? "drag nodes, then Save layout." :
+      "editing off. Saved edits persist in the workspace scenario.";
+  }
+}
+
+async function saveLayout() {
+  if (!SCEN_PATH || !MOVED.size) { $("layout-msg").textContent = "nothing moved."; return; }
+  const coords = {};
+  for (const id of MOVED) {
+    const n = TOPO.nodes.find((n) => n.id === id);
+    if (n) coords[id] = [n.x, n.y];
+  }
+  const r = await fetch("api/scenario/coordinates", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: SCEN_PATH, coords }),
+  });
+  const res = await r.json();
+  const m = $("layout-msg");
+  if (res.ok) { m.textContent = `saved ${res.saved} node(s); model still solves ✓`; m.className = "msg dim"; MOVED.clear(); }
+  else { m.textContent = `rejected (model would not solve): ${res.error}`; m.className = "msg err"; }
+}
+
+// ------------------------------------------------------------ attack builder
+function addAttack() {
+  const spec = {
+    id: `a${ATTACKS.length + 1}`,
+    kind: $("atk-kind").value,
+    target: $("atk-plc").value.trim(),
+    start_h: +$("atk-start").value, end_h: +$("atk-end").value,
+  };
+  if (spec.kind !== "dos") { spec.tag = $("atk-tag").value.trim(); spec.mode = $("atk-mode").value; spec.value = +$("atk-value").value; }
+  const path = SCEN_PATH;
+  fetch("api/attacks/validate", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, attacks: [spec] }),
+  }).then((r) => r.json()).then((v) => {
+    const res = v.results[0];
+    const m = $("atk-msg");
+    if (!res.ok) { m.textContent = `invalid: ${res.error}`; m.className = "msg err"; return; }
+    ATTACKS.push(spec);
+    renderAttacks();
+    m.textContent = `added ${spec.id} (victim ${res.resolved.victim_ip})`; m.className = "msg dim";
+    $("btn-atk-export").disabled = false;
+  });
+}
+
+function renderAttacks() {
+  const ul = $("atk-list");
+  ul.innerHTML = "";
+  ATTACKS.forEach((a, i) => {
+    const li = document.createElement("li");
+    const detail = a.kind === "dos" ? "" : ` ${a.tag} ${a.mode}=${a.value}`;
+    li.innerHTML = `<span>${a.kind} ${a.target}${detail} [${a.start_h}–${a.end_h}h]</span>`;
+    const x = document.createElement("a");
+    x.textContent = " ✕"; x.href = "#"; x.style.color = "var(--crit)";
+    x.onclick = (e) => { e.preventDefault(); ATTACKS.splice(i, 1); renderAttacks(); $("btn-atk-export").disabled = !ATTACKS.length; };
+    li.appendChild(x);
+    ul.appendChild(li);
+  });
+}
+
+async function exportExperiment() {
+  const name = `custom_${Date.now().toString().slice(-6)}`;
+  const r = await fetch("api/attacks/experiment", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, attacks: ATTACKS }),
+  });
+  const text = await r.text();
+  const blob = new Blob([text], { type: "text/yaml" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `${name}.yaml`; a.click();
+  URL.revokeObjectURL(a.href);
+  $("atk-msg").textContent = `exported ${name}.yaml — run: python -m scadavt.attacks.runner ${name}.yaml`;
 }
 
 init();

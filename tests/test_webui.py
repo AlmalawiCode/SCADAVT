@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from scadavt.webui import epanet_topo, topology  # noqa: E402
+from scadavt.webui import authoring, epanet_topo, topology  # noqa: E402
 from scadavt.webui.app import create_app  # noqa: E402
 from scadavt.webui.live import RunManager  # noqa: E402
 
@@ -63,6 +63,61 @@ def test_bad_scenario_is_400():
     r = c.get("/api/scenario", params={"path": "/no/such/scenario.yaml"})
     assert r.status_code == 400
     assert "error" in r.json()
+
+
+# ------------------------------------------------------------ authoring (P4)
+def test_check_validity_good_model():
+    pytest.importorskip("epanet")
+    import scadavt.scenario as sc
+    r = authoring.check_validity(sc.DEFAULT_SCENARIO)
+    assert r["ok"] is True and r["error"] is None
+
+
+def test_save_coordinates_roundtrip_and_validity():
+    pytest.importorskip("epanet")
+    ws = authoring.ensure_workspace("town_test")
+    t = topology.build(ws)
+    tank = next(n for n in t["nodes"] if n["kind"] == "tank")
+    newx, newy = tank["x"] + 123.0, tank["y"] - 45.0
+    res = authoring.save_coordinates(ws, {tank["id"]: [newx, newy]})
+    assert res["ok"] is True and res.get("saved") == 1
+    t2 = topology.build(ws)
+    moved = next(n for n in t2["nodes"] if n["id"] == tank["id"])
+    assert abs(moved["x"] - newx) < 0.5 and abs(moved["y"] - newy) < 0.5
+
+
+def test_validate_attacks_gate():
+    import scadavt.scenario as sc
+    res = authoring.validate_attacks(sc.DEFAULT_SCENARIO, [
+        {"id": "ok1", "kind": "fdi", "target": "PLC1", "tag": "T2_LVL",
+         "mode": "const", "value": 6.5, "start_h": 8, "end_h": 16},
+        {"id": "bad1", "kind": "fdi", "target": "PLC1", "tag": "NOPE",
+         "start_h": 1, "end_h": 2}])
+    by = {r["id"]: r for r in res}
+    assert by["ok1"]["ok"] is True and "victim_ip" in by["ok1"]["resolved"]
+    assert by["bad1"]["ok"] is False
+
+
+def test_build_experiment_yaml():
+    import yaml as _yaml
+    text = authoring.build_experiment_yaml("myexp", [
+        {"id": "a1", "kind": "dos", "target": "PLC1", "start_h": 2, "end_h": 5}])
+    doc = _yaml.safe_load(text)
+    assert doc["name"] == "myexp" and doc["attacks"][0]["kind"] == "dos"
+    assert "deployment" in doc
+
+
+def test_authoring_api():
+    c = TestClient(create_app())
+    ws = c.post("/api/workspace").json()["path"]
+    assert c.post("/api/validate", json={"path": ws}).json()["ok"] is True
+    av = c.post("/api/attacks/validate", json={"path": ws, "attacks": [
+        {"kind": "command", "target": "PLC6", "tag": "V1_SET_O", "mode": "const",
+         "value": 0, "start_h": 1, "end_h": 2}]}).json()
+    assert av["results"][0]["ok"] is True
+    exp = c.post("/api/attacks/experiment", json={"name": "e", "attacks": [
+        {"kind": "dos", "target": "PLC1", "start_h": 1, "end_h": 2}]})
+    assert exp.status_code == 200 and "kind: dos" in exp.text
 
 
 # ------------------------------------------------------- live run (process)
