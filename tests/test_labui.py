@@ -81,6 +81,59 @@ def test_compose_derives_bindings_and_rules():
     assert [r["id"] for r in cfg["rules"]] == ["on_P1", "off_P1"]   # auto: tank+pump only
 
 
+def test_import_inp_parses_and_draws_and_runs_authoritatively():
+    # pretend this .inp was built and exported from EPANET
+    from scadavt.builder import generate
+    from scadavt.labui.config import compose_lab
+    from scadavt.labui.inp import parse_inp
+    inp_text = generate.generate_inp({"name": "epa", "nodes": [
+        {"id": "R1", "kind": "reservoir", "x": 0, "y": 0, "head": 50},
+        {"id": "J1", "kind": "junction", "x": 40, "y": 0, "elev": 0, "demand": 11},
+        {"id": "T1", "kind": "tank", "x": 80, "y": 0, "elev": 20, "init": 3.5,
+         "min": 0.1, "max": 6, "diam": 6}],
+        "links": [{"id": "P1", "kind": "pump", "n1": "R1", "n2": "J1", "power": 11},
+                  {"id": "PI1", "kind": "pipe", "n1": "J1", "n2": "T1", "diam": 300}]})
+    # upload -> parse (drawn elements + coordinates kept, raw text kept)
+    r = client.post("/import_inp", json={"inp": inp_text}).json()
+    d = r["design"]
+    assert r["summary"]["by_kind"] == {"reservoir": 1, "junction": 1, "tank": 1,
+                                       "pipe": 1, "pump": 1}
+    assert all("x" in n and "y" in n for n in d["nodes"])        # coordinates for drawing
+    assert d["inp_text"] == inp_text                              # authoritative text kept
+    # assign a PLC and run ON THE UPLOADED FILE
+    cfg = compose_lab(d, [{"id": "PLC1", "elements": ["T1", "P1"]}])
+    assert cfg["epanet"]["inp_text"] == inp_text                  # run uses the uploaded .inp
+    rr = client.post("/run", json={"config": cfg, "cycles": 30}).json()
+    assert rr["engine"] == "epanet" and "PLC1" in rr["traces"]
+
+
+def test_design_app_serves_any_design_over_integration_api():
+    """The generic external app exposes a config's EPANET design over the public
+    API (the external program a CORE/networked run connects to)."""
+    import asyncio
+    from scadavt.core import integration as ig
+    from scadavt.examples.design_app import DesignApp
+
+    cfg = make_lab(1)
+
+    async def main():
+        app = DesignApp(cfg["epanet"], cfg["mapping"])
+        server = await app.serve()
+        c = ig.IntegrationClient("127.0.0.1", server.sockets[0].getsockname()[1])
+        try:
+            await c.hello()
+            pts = {p.id for p in await c.list_points()}
+            assert "T1_LEV" in pts and "P1_CMD" in pts
+            r = await c.acquire("T1_LEV")
+            assert r.quality == ig.OK and 0.0 <= r.value <= 6.0   # real EPANET level
+            assert await c.control("P1_CMD", 1.0)                  # command accepted
+        finally:
+            await c.close()
+            server.close()
+            app.close()
+    asyncio.run(main())
+
+
 def test_api_compose_then_run_on_epanet():
     plcs = [{"id": "PLC1", "elements": ["T1", "P1"]}]
     comp = client.post("/compose", json={"design": _drawn_design(), "plcs": plcs}).json()

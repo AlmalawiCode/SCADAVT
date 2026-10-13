@@ -45,7 +45,12 @@ svg text{fill:var(--ink)}
 <div class="app">
   <!-- palette -->
   <div class="panel">
-    <h2>الأدوات</h2>
+    <h2>شبكة EPANET</h2>
+    <label>ارفع ملف ‎.inp‎ (صُنع في EPANET)</label>
+    <input type="file" accept=".inp,.txt" id="inpfile"
+           onchange="if(this.files[0])uploadInp(this.files[0])">
+    <div class="hint">ابنِ الشبكة في EPANET وصدّرها، ثم ارفعها هنا فتُرسَم تلقائيًّا. بعدها أضِف PLC وأسنِد العناصر.</div>
+    <h2 style="margin-top:12px">الأدوات</h2>
     <div class="tools" id="tools"></div>
     <div class="hint" id="toolhint">أداة المؤشّر: اسحب/اختر.</div>
     <label>التحكّم</label>
@@ -136,7 +141,7 @@ function pt(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.
 function select(id){state.sel=id;showProps();render();}
 function delSel(){if(!state.sel)return;const e=el(state.sel);
   state.els=state.els.filter(x=>x!==e && !(x.n1===e.id||x.n2===e.id));state.sel=null;showProps();render();}
-function clearAll(){state.els=[];state.ctr={};state.sel=null;showProps();render();}
+function clearAll(){state.els=[];state.ctr={};state.sel=null;state.inpText=null;showProps();render();}
 
 // ---- render ----
 function render(){
@@ -183,7 +188,30 @@ function buildDesign(){
     ...num(e.props)}));
   const ls=state.els.filter(e=>!KINDS[e.kind].node).map(e=>({id:e.id,kind:e.kind,n1:e.n1,n2:e.n2,...num(e.props)}));
   const pl=plcs().map(p=>({id:p.id,elements:state.els.filter(e=>e.plc===p.id).map(e=>e.id)}));
-  return {design:{name:'drawn',hours:72,nodes:ns,links:ls},plcs:pl};
+  const design={name:'drawn',hours:72,nodes:ns,links:ls};
+  if(state.inpText)design.inp_text=state.inpText;   // run the uploaded EPANET file authoritatively
+  return {design,plcs:pl};
+}
+
+// upload an EPANET .inp -> parse on the server -> draw it here
+async function uploadInp(file){
+  const text=await file.text();
+  try{const r=await fetch('import_inp',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({inp:text})});
+      if(!r.ok)throw 0; const j=await r.json(); loadDesign(j.design);
+      msg('رُسِمت الشبكة من الملف ✔ — '+JSON.stringify(j.summary.by_kind).replace(/[{}"]/g,''),true);}
+  catch(e){msg('رفع الملف يحتاج الخادم: شغّل python -m scadavt.labui وافتح الصفحة منه.',false);}
+}
+function loadDesign(design){
+  clearAll(); state.inpText=design.inp_text||null;
+  const ns=design.nodes||[],xs=ns.map(n=>n.x||0),ys=ns.map(n=>n.y||0);
+  const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
+  const sx=v=>70+((v-mnx)/((mxx-mnx)||1))*580, sy=v=>380-((v-mny)/((mxy-mny)||1))*300;
+  ns.forEach(n=>{const e={id:n.id,kind:n.kind,x:sx(n.x||0),y:sy(n.y||0),props:{},plc:null};
+    for(const k in n)if(!['id','kind','x','y'].includes(k))e.props[k]=n[k];bump(n.kind,n.id);state.els.push(e);});
+  (design.links||[]).forEach(l=>{const e={id:l.id,kind:l.kind,n1:l.n1,n2:l.n2,props:{},plc:null};
+    for(const k in l)if(!['id','kind','n1','n2'].includes(k))e.props[k]=l[k];bump(l.kind,l.id);state.els.push(e);});
+  render();showProps();
 }
 function num(o){const r={};for(const k in o){const v=o[k];r[k]=(v!==''&&!isNaN(+v))?+v:v;}return r;}
 function getAttacks(){const k=document.getElementById('atkkind').value;if(!k)return[];

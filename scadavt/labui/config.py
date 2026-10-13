@@ -100,6 +100,8 @@ def compose_lab(design: dict, plcs: list, rules: list | None = None,
     epanet = {"name": nm, "hours": design.get("hours", 72),
               "nodes": design.get("nodes", []), "links": design.get("links", []),
               "plcs": plcs, "rules": rules}
+    if design.get("inp_text"):           # run the researcher's authoritative EPANET file
+        epanet["inp_text"] = design["inp_text"]
     ids = [d["id"] for d in devices]
     cfg = {
         "name": nm, "control": {"placement": "mtu" if with_mtu else "plc"},

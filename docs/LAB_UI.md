@@ -42,6 +42,14 @@ python -m scadavt.labui.cli session attack <id> --kind dos --target PLC1
 python -m scadavt.labui.cli session step   <id> --n 40
 ```
 
+## Bring your own EPANET network (upload a `.inp`)
+Build the water network in EPANET itself and export its `.inp`, then **upload it**
+in the builder (or `POST /import_inp`). It is parsed into drawable elements (with
+coordinates) and the raw file is kept verbatim; the lab then **runs on that
+authoritative `.inp`**, not a regenerated one. You only add PLCs and assign each
+element to one (register binding). `DesignApp` serves any such design over the
+Integration API (the external program a CORE/networked run connects to).
+
 ## The run engine is real EPANET
 A lab config is **EPANET-backed**: `make_lab(n)` builds a real physical network
 (a reservoir plus one tank/pump loop per PLC under `config["epanet"]`), the
