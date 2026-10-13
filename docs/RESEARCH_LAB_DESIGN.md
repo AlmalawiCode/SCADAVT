@@ -136,9 +136,19 @@ therefore derived, never hand-annotated.
 ### 4.4 Isolation guarantee
 
 Attacker containers live only in the generated lab network namespaces. The
-backend refuses any attack whose `target` is not a node of the generated
-topology, and the attacker image has no route off the emulated WAN. No attack
-primitive accepts an external address.
+catalogue refuses any attack whose `target` is not a real tag of a real device
+in the generated topology (`catalog.resolve`), and each attacker is attached to
+exactly one field network — never the back channel or the control LAN.
+
+The attack runner additionally marks every lab network except the back channel
+as Docker-`internal`, so no node (the attacker included) can egress to the
+Internet through a router's host NAT. This is verified: from the attacker, the
+victim PLC is reachable, lateral movement across the emulated SCADA network is
+possible (the intended threat model — a foothold on one field LAN can route to
+the MTU and other sites), but the plant's out-of-band ground-truth back channel
+is unreachable and the Internet is unreachable. The back channel stays
+host-reachable only so the runner can follow the simulated clock and collect the
+ground truth. No attack primitive accepts an external address.
 
 ---
 
@@ -215,12 +225,23 @@ deploy/
 
 Each phase is validated (tests + an example run) before the next begins.
 
-| Phase | Deliverable | Validation |
-|---|---|---|
-| **P1** | FastAPI backend + web viewer of the `town` scenario; live tags; run / stop via the existing `Runner`; single-command Docker launch | backend unit tests; GUI loads topology; a short run streams live data |
-| **P2** | `scadavt/attacks/` catalogue + attacker image in the generator; **FDI** end-to-end; attack panel in the GUI | FDI measurably perturbs the victim tag; window logged to `faults.csv`; isolation test |
-| **P3** | Replay, command-manipulation, DoS; labeller + provenance manifest; dataset export | labelled dataset reproduces deterministically from its manifest; label/window alignment test |
-| **P4** | Drag-and-drop **authoring** with live EPANET validity check | edited scenario round-trips to valid `scada.yaml` + `.inp`; hydraulic solve succeeds |
+| Phase | Deliverable | Validation | Status |
+|---|---|---|---|
+| **P1** | FastAPI backend + web viewer of the `town` scenario; live tags; run / stop via the existing `Runner`; single-command Docker launch | backend unit tests; GUI loads topology; a short run streams live data | ✅ done |
+| **P2** | `scadavt/attacks/` catalogue + isolated attacker container; **FDI** end-to-end | FDI measurably perturbs the victim tag; window logged to `faults.csv`; isolation verified | ✅ done |
+| **P3** | Replay, command-manipulation, DoS; labeller + provenance manifest; dataset export | labelled dataset reproduces deterministically from its manifest; label/window alignment test | next |
+| **P4** | Drag-and-drop **authoring** with live EPANET validity check; attack panel in the GUI | edited scenario round-trips to valid `scada.yaml` + `.inp`; hydraulic solve succeeds | planned |
+
+**P2 result.** A False Data Injection against `PLC1.T2_LVL` (`mode=const`,
+6.5 m, window 8–16 h) was run on the full 51-container town: inside the window
+the MTU historian records a constant 6.5 m while the true tank level diverges
+(the supervisor throttles inflow believing the tank is full); outside it the
+MTU-seen value matches ground truth. The window is logged to `faults.csv` with
+wall and simulated time. Isolation was probed at runtime (Internet and back
+channel unreachable from the attacker; victim and SCADA lateral movement
+reachable). Delivered modules: `scadavt/attacks/{catalog,proxy,handlers,arp,
+mitm,deploy,runner}.py`, example `experiments/a1_fdi_t2.yaml`,
+`tests/test_attacks.py` (unit + Docker-gated end-to-end).
 
 Topology *authoring* (P4) is deliberately last: keeping edits hydraulically
 valid is the one genuinely hard part, whereas P1–P3 already deliver the full

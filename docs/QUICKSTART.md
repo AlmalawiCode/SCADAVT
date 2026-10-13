@@ -49,16 +49,39 @@ python -m scadavt.webui            # http://127.0.0.1:8000
 This is the **process-level live mode** (no containers), scientifically
 equivalent to `python -m scadavt.experiments.offline` but real-time.
 
-## 4. What is coming
+## 4. Running a controlled attack (Phase 2)
+
+Attacks are declared in a normal networked experiment file under an `attacks:`
+list and run on the containerised deployment. Example
+(`experiments/a1_fdi_t2.yaml`): a False Data Injection that makes the MTU read a
+constant falsified T2 level while the true tank diverges.
+
+```bash
+# builds the images once, then runs the 51-container town + an isolated attacker
+docker build -t scadavt:2.0 . && docker build -t scadavt-net:2.0 -f deploy/Dockerfile.net .
+python -m scadavt.attacks.runner experiments/a1_fdi_t2.yaml
+```
+
+Results land in `results/attacks/<name>/`: `ground_truth.csv` (true plant),
+`historian.csv` (what the MTU saw — falsified in-window), `faults.csv` (the
+attack labels with wall and simulated time), and `attacks/<id>.csv` (attacker
+actions). Each attacker is confined to one field network and cannot reach the
+plant's ground-truth back channel or the Internet.
+
+FDI modes: `const` (report a fixed value), `offset` (true + value), `freeze`
+(hold the first true value seen).
+
+## 5. What is coming
 
 | Phase | Capability |
 |---|---|
-| P2 | Attack catalogue + isolated attacker container; False Data Injection |
 | P3 | Replay, command manipulation, DoS; automatic labelling; reproducible dataset export |
-| P4 | Drag-and-drop network authoring with live hydraulic validity checks |
+| P4 | Drag-and-drop network authoring with live hydraulic validity checks; attack panel in the GUI |
 
-## 5. Tests
+## 6. Tests
 
 ```bash
-python -m pytest -q tests/test_webui.py
+python -m pytest -q tests/test_webui.py tests/test_attacks.py
+# end-to-end MITM test (needs Docker + the scadavt-net:2.0 image):
+SCADAVT_DOCKER_TESTS=1 python -m pytest -q tests/test_attacks.py::test_mitm_end_to_end
 ```

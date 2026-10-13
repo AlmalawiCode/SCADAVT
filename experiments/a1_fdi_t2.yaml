@@ -1,0 +1,9 @@
+name: a1_fdi_t2
+# False Data Injection against the T2 level sensor (PLC1): while the window is
+# open the MTU reads a constant falsified level of 6.5 m, so its supervisory
+# logic acts on a tank it believes is nearly full while the true tank diverges.
+deployment: {profile: full, seed: 1, start: 2025-01-23, hours: 24,
+             step: 300, tick: 1.0, period: "1.0", capture: true}
+attacks:
+  - {id: a1, kind: fdi, target: PLC1, tag: T2_LVL, mode: const, value: 6.5,
+     start_h: 8, end_h: 16}
