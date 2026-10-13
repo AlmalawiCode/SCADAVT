@@ -9,7 +9,7 @@ measurement and control data between the two worlds.
 This repository is the open rebuild of the plant layer of SCADAVT
 (Almalawi et al., IEEE LCN 2013), described in the paper
 *SCADAVT: a reproducible SCADA security testbed with a data-driven water
-distribution plant* (submitted to *Internet of Things*, Elsevier).
+distribution plant* (manuscript prepared for *Internet of Things*, Elsevier).
 
 ![architecture](docs/img/fig_architecture.png)
 
@@ -45,7 +45,7 @@ setting; pumps commanded off), not by packet-level attacks.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.lock && pip install --no-deps -e .
 python tools/fetch_consumption.py          # Melbourne Water weekly use per person
-pytest -q tests                            # 10 tests
+pytest -q tests                            # 13 tests
 python -m scadavt.experiments.suite --out results          # 160 runs, ~10 s on 12 cores
 python -m scadavt.analysis.make_figures --results results --out paper
 python -m scadavt.analysis.diagrams --out paper/figures
