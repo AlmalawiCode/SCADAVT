@@ -17,3 +17,6 @@ results/networked/*/pcap/
 
 # research lab run outputs
 runs/
+
+# live CORE integration-test output (written to a temp dir now; never commit)
+_core_it_*/
