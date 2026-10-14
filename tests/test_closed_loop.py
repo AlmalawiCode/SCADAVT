@@ -179,3 +179,26 @@ def test_closed_loop_reports_no_control_conflicts_for_clean_scenario():
     from scadavt.labui.netrun import NetworkedRun
     out = asyncio.run(NetworkedRun(_cfg(), step_seconds=120.0).run(5))
     assert out["control_conflicts"] == []
+
+
+def test_modbus_injection_overwrites_command_register_over_the_wire():
+    """The attacker's real Modbus writes overwrite a device command register
+    (what runs on the SCADA network in the live CORE experiment)."""
+    from scadavt.core.device import run_node
+    from scadavt.attacks.modbus_inject import inject
+
+    async def main():
+        node = {"id": "PLC1", "role": "field-device", "protocol": "modbus", "ip": "127.0.0.1",
+                "points": [{"id": "P1_SPD", "role": "command", "is_bool": False}]}
+        dev, fb_srv, io_srv = await run_node(node, ("127.0.0.1", 0), ("127.0.0.1", 0))
+        port = _port(fb_srv)
+        dev.set_output("P1_SPD", 0.7)                       # legitimate value in the register
+        session = {"nodes": [dict(node, port=port)]}
+        try:
+            n = await inject(session, "PLC1", "P1_SPD", 0.0, hz=100, seconds=0.4,
+                             host="127.0.0.1", port=port)
+            return n, dev.get_output("P1_SPD")
+        finally:
+            fb_srv.close(); io_srv.close()
+    n, after = _run(main())
+    assert n > 0 and after == 0.0                           # attacker forced the register to 0
