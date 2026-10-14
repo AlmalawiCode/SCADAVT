@@ -32,9 +32,16 @@ from . import integration as ig
 
 
 def device_from_node(node: dict) -> fb.Device:
-    """Build a neutral :class:`Device` from a session node descriptor."""
-    points = [fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)))
-              for p in node.get("points", [])]
+    """Build a neutral :class:`Device` from a session node descriptor.
+
+    A point may pin its Modbus address in configuration (``"address": 10``); the
+    table is still fixed by role, so the declared register map is honoured while
+    the semantics stay a real passive slave's."""
+    points = []
+    for p in node.get("points", []):
+        pinned = "address" in p
+        points.append(fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)),
+                                     address=int(p.get("address", 0)), pinned=pinned))
     return fb.Device(node["id"], points)
 
 
@@ -89,6 +96,11 @@ async def _main(a) -> None:
     node = next(n for n in session["nodes"] if n["id"] == a.node)
     device, fb_server, io_server = await run_node(
         node, hostport(a.modbus, 502), hostport(a.io, 9161))
+    for pair in (a.seed or []):               # seed input registers (stand-in sensor values)
+        pid, _, val = pair.partition("=")
+        if pid in device.by_id:
+            device.set_input(pid.strip(), float(val))
+            log.info("%s: seeded %s=%s", a.node, pid.strip(), val)
     log.info("%s: field-bus %s, I/O modules %s, %d points", a.node,
              fb_server.sockets[0].getsockname(), io_server.sockets[0].getsockname(),
              len(device.points))
@@ -103,6 +115,8 @@ def main(argv=None):
     ap.add_argument("--node", required=True)
     ap.add_argument("--modbus", default="0.0.0.0:502")
     ap.add_argument("--io", default="0.0.0.0:9161")
+    ap.add_argument("--seed", action="append", metavar="POINT=VALUE",
+                    help="seed an input register (stand-in sensor value); repeatable")
     asyncio.run(_main(ap.parse_args(argv)))
 
 

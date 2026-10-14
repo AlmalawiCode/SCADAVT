@@ -26,6 +26,23 @@ class DevicePoint:
     is_bool: bool        # discrete (coil/discrete-input) vs float (register pair)
     address: int = 0
     reg_type: str = ""   # 'A' input reg, 'D' discrete in, 'H' holding, 'C' coil
+    pinned: bool = False  # True: ``address`` is fixed by configuration, not auto-assigned
+
+
+# Modbus table <-> role, and the conventional 5-digit reference base of each table.
+# A point's TABLE is fixed by its role (the passive-slave convention): a sensor
+# reading is an input register / discrete input; an actuator command is a holding
+# register / coil. Only the ADDRESS within that table may be pinned in config.
+_TABLE_NAME = {"A": "input_register", "D": "discrete_input",
+               "H": "holding_register", "C": "coil"}
+_REF_BASE = {"C": 1, "D": 10001, "A": 30001, "H": 40001}
+
+
+def _table_for(role: str, is_bool: bool) -> str:
+    is_input = role in (ig.MEASUREMENT, ig.STATE)
+    if is_bool:
+        return "D" if is_input else "C"
+    return "A" if is_input else "H"
 
 
 class Device:
@@ -48,15 +65,37 @@ class Device:
         self.by_id = {p.id: p for p in points}
 
     def _assign(self) -> None:
+        """Place each point in its Modbus table. The table is fixed by role; the
+        address is honoured when the configuration pinned it, otherwise packed in
+        after any pinned ranges, so a real register map can be declared in config
+        (sensor -> input register 30001) yet never clashes with auto points."""
         c = {"A": 0, "H": 0, "D": 0, "C": 0}
         for p in self.points:
-            is_input = p.role in (ig.MEASUREMENT, ig.STATE)
-            if p.is_bool:
-                p.reg_type = "D" if is_input else "C"
-            else:
-                p.reg_type = "A" if is_input else "H"
+            p.reg_type = _table_for(p.role, p.is_bool)
+            if p.pinned:
+                c[p.reg_type] = max(c[p.reg_type], p.address + (1 if p.is_bool else 2))
+        for p in self.points:
+            if p.pinned:
+                continue
             p.address = c[p.reg_type]
             c[p.reg_type] += 1 if p.is_bool else 2
+
+    def register_map(self) -> list[dict]:
+        """The device's Modbus register map: where each point actually lives, so a
+        configuration (and a human) can see sensor/actuator <-> register exactly as
+        on a real PLC. ``ref`` is the conventional 5-digit Modbus reference."""
+        rows = []
+        for p in self.points:
+            width = 1 if p.is_bool else 2
+            rows.append({
+                "point": p.id, "role": p.role,
+                "table": _TABLE_NAME[p.reg_type],
+                "access": "read-only" if p.reg_type in "AD" else "read/write",
+                "address": p.address, "count": width,
+                "ref": _REF_BASE[p.reg_type] + p.address,
+                "data_type": "bool" if p.is_bool else "float32",
+            })
+        return rows
 
     # -- gateway side: write a measurement/state in, read a command out ------
     def set_input(self, point_id: str, value: float) -> None:

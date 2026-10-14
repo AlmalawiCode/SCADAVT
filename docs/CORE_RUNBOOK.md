@@ -32,28 +32,46 @@ coregen.write_session(cfg, "run/")      # -> run/session.json, gate_*.ini,
 ```
 
 ## 2. Start the emulated SCADA network in CORE
-Either open `run/core_session.py` against the daemon (it uses `core.api.grpc`):
+`core_session.py` builds the topology the way CORE itself models it
+(`core.api.grpc`, CORE 9.x):
+
+- each PLC/RTU/MTU is a **Linux-namespace node** (`model="PC"`) with an
+  **explicit IP on its interface** — `wrappers.Interface(id, ip4=..., ip4_mask=24)`,
+  taken straight from the config, so *every node has its own IP*;
+- a **SWITCH** node makes a **LAN**: all nodes linked to it share a subnet and
+  reach each other directly (e.g. `MTU 10.0.0.254` ↔ `PLC1 10.0.0.1`);
+- a **router** node joins two subnets into a **WAN**
+  (e.g. `PLC1 10.0.0.0/24` ↔ router ↔ `PLC2 10.0.1.0/24`); the script also brings
+  routing up explicitly — IP forwarding on the router and a default route on each
+  endpoint to its subnet's router leg — so reachability does not depend on OSPF
+  convergence (verified on live CORE: see `tools/live_core_integration.py`);
+- per-link delay/loss/bandwidth are real **`netem`** via `LinkOptions`.
+
+Point the script at the repo (shared node filesystem) and run it against the
+daemon:
 
 ```bash
+export SCADAVT_DIR=/path/to/scadavt        # repo root, reachable inside nodes
 cd run && python core_session.py           # creates + starts nodes and links
 ```
 
-or import the topology in the CORE GUI (`core-gui`) if you prefer a canvas. The
-script sets per-link `delay`/`loss` from the config, and prints, per field node,
-the **startup command** to run inside that node.
+`coregen.address_plan(cfg)` prints the full IP plan (which node has which IP on
+which LAN) before you run.
 
-## 3. Launch each field device *inside* its node
-Each PLC/RTU node runs the config-driven device runner (Modbus slave on the
-SCADA net + I/O-modules server on the back channel). Run it inside the node's
-namespace (via the node's shell, `vcmd`, or a CORE service that executes):
+## 3. The node programs start *inside* their namespaces automatically
+After `start_session`, the script launches each node's own program **in-namespace**
+with `node_command` — no manual step:
 
-```bash
-python -m scadavt.core.device --session session.json --node PLC1 \
-    --modbus <node-ip>:502 --io 0.0.0.0:9161
-```
+- every field node runs the device runner (`scadavt.core.device`): a Modbus
+  slave on the SCADA net + an I/O-modules server on the back channel;
+- the MTU node runs the master (`scadavt.core.master`): it reads each PLC's
+  measurement registers over Modbus, runs the rule engine, and writes the
+  command registers back — the centralized control loop, node to node.
 
-`run_devices.sh` lists the exact command for every device. In CORE you normally
-attach these as **node services** so they start with the session.
+Logs land in `/tmp/<NODE>.log` inside the nodes. `run_devices.sh` lists the exact
+commands if you prefer to launch them by hand (or attach them as CORE services).
+To run a program in a node yourself: `core.node_command(session.id, node.id, cmd)`
+(gRPC) or the node's shell via `vcmd`.
 
 ## 4. Start your external application (outside CORE)
 Any program that speaks the Integration API. The water example:

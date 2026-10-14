@@ -104,7 +104,10 @@ def generate(config: dict = Body(...)):
         "run_devices.sh": coregen.run_script(config),
         "gate_endpoints.ini": ep,
         "gate_points.ini": pts,
-    }}
+    },
+        # the real-PLC and real-network views: register map per device, IP plan per node
+        "registers": coregen.register_maps(config),
+        "addresses": coregen.address_plan(config)}
 
 
 def _apply_attacks(lab, attacks: list) -> None:

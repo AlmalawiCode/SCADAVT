@@ -119,12 +119,21 @@ def test_generator_three_configurations(tmp_path):
         assert set(files) >= {"session.json", "gate_endpoints.ini", "gate_points.ini",
                               "core_session.py", "run_devices.sh"}
         s = json.loads((out / "session.json").read_text())
-        # every field device has a startup command and appears in the build script
+        # every field device has a startup command (and the MTU, when centralized)
         cmds = coregen.service_commands(cfg)
-        assert set(cmds) == {d["id"] for d in cfg["devices"]}
+        assert {d["id"] for d in cfg["devices"]} <= set(cmds)
+        if cfg.get("mtu") and cfg.get("control", {}).get("placement", "mtu") == "mtu":
+            assert cfg["mtu"]["id"] in cmds              # MTU runs the master on-node
         script = (out / "core_session.py").read_text()
         for n in s["nodes"]:
             assert repr(n["id"]) in script
+        # the build script assigns each addressable node a real interface IP and
+        # launches each program inside its namespace (not just comments)
+        for n in s["nodes"]:
+            if n.get("ip"):
+                assert f"ip4={n['ip']!r}" in script
+            if n["id"] in cmds:
+                assert f"node_command(session.id, nodes[{n['id']!r}].id" in script
         # run script launches one device runner per field device
         runsh = (out / "run_devices.sh").read_text()
         assert all(f"--node {d['id']}" in runsh for d in cfg["devices"])
@@ -174,3 +183,206 @@ def test_disturbance_measured_at_communication_layer():
         # (we deliberately do NOT assert any physical-process deviation)
         return b, d
     _run(main())
+
+
+# ------------------------------------------------- explicit Modbus register map
+def test_register_map_role_fixes_table_and_ref():
+    """A PLC's register map is explicit: role fixes the Modbus table (sensor ->
+    input register / discrete input; command -> holding register / coil) and the
+    5-digit reference follows the convention."""
+    dev = Device("PLC1", [
+        DevicePoint("level", ig.MEASUREMENT, is_bool=False),
+        DevicePoint("run", ig.STATE, is_bool=True),
+        DevicePoint("pump", ig.COMMAND, is_bool=True),
+        DevicePoint("setpoint", ig.COMMAND, is_bool=False),
+    ])
+    m = {r["point"]: r for r in dev.register_map()}
+    assert m["level"]["table"] == "input_register" and m["level"]["ref"] == 30001
+    assert m["level"]["data_type"] == "float32" and m["level"]["access"] == "read-only"
+    assert m["run"]["table"] == "discrete_input" and m["run"]["ref"] == 10001
+    assert m["pump"]["table"] == "coil" and m["pump"]["ref"] == 1
+    assert m["pump"]["access"] == "read/write"
+    assert m["setpoint"]["table"] == "holding_register" and m["setpoint"]["ref"] == 40001
+
+
+def test_register_address_can_be_pinned_in_config():
+    """A configuration can pin a point's address; auto-assigned points pack in
+    after the pinned range without clashing."""
+    dev = Device("PLC1", [
+        DevicePoint("level", ig.MEASUREMENT, is_bool=False),                  # auto
+        DevicePoint("flow", ig.MEASUREMENT, is_bool=False, address=10, pinned=True),
+    ])
+    m = {r["point"]: r for r in dev.register_map()}
+    assert m["flow"]["address"] == 10 and m["flow"]["ref"] == 30011     # pinned
+    assert m["level"]["address"] == 12                                  # packed after
+    # addresses never collide
+    assert m["level"]["address"] != m["flow"]["address"]
+
+
+def test_coregen_register_maps_bind_element_to_register():
+    """The config-level view ties each register to the physical element it reads
+    or drives (the real-PLC configuration the researcher works against)."""
+    cfg = {
+        "name": "t", "control": {"placement": "mtu"}, "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+        "devices": [{"id": "PLC2", "protocol": "modbus", "ip": "10.0.0.2",
+                     "points": [{"id": "level", "role": "measurement", "is_bool": False},
+                                {"id": "pump", "role": "command", "is_bool": True}]}],
+        "mapping": [{"point": "level", "device": "PLC2", "role": "measurement", "element": "T2"},
+                    {"point": "pump", "device": "PLC2", "role": "command", "element": "P4"}],
+    }
+    assert coregen.validate(cfg) == []
+    rm = coregen.register_maps(cfg)["PLC2"]
+    by_point = {r["point"]: r for r in rm}
+    assert by_point["level"]["element"] == "T2" and by_point["level"]["table"] == "input_register"
+    assert by_point["pump"]["element"] == "P4" and by_point["pump"]["table"] == "coil"
+
+
+# ------------------------------------------------- CORE topology: IPs, LAN, WAN
+def test_build_script_assigns_real_ips_and_switch_lan():
+    """A switched config generates a valid CORE script with explicit per-interface
+    IPs, a SWITCH node, and bare (IP-less) switch interfaces — CORE's own LAN
+    pattern — not IPs hidden in comments."""
+    import ast
+    cfg = _cfg_switched_many()
+    cfg["mtu"]["ip"] = "10.0.0.254"
+    for i, d in enumerate(cfg["devices"], 1):
+        d["ip"] = f"10.0.0.{i}"
+    assert coregen.validate(cfg) == []
+    script = coregen.core_build_script(cfg)
+    ast.parse(script)                                    # valid Python
+    assert "NodeType.SWITCH" in script
+    assert "ip4='10.0.0.1'" in script and "ip4_mask=24" in script
+    assert "wrappers.Interface(0)" in script             # a bare switch-side interface
+
+
+def test_build_script_router_makes_wan_with_netem():
+    """Two subnets joined by a model='router' node across an impaired link = WAN."""
+    import ast
+    cfg = {"name": "wan", "control": {"placement": "mtu"}, "netmask": 24,
+           "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "lvl", "role": "measurement", "is_bool": False}]},
+                       {"id": "PLC2", "ip": "10.0.1.1",
+                        "points": [{"id": "lvl", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW_A"}, {"id": "SW_B"}], "routers": [{"id": "R1"}],
+           "links": [{"a": "PLC1", "b": "SW_A"}, {"a": "MTU", "b": "SW_A"},
+                     {"a": "PLC2", "b": "SW_B"},
+                     {"a": "R1", "b": "SW_A", "a_ip": "10.0.0.250"},
+                     {"a": "R1", "b": "SW_B", "a_ip": "10.0.1.250",
+                      "delay_ms": 20, "loss": 0.5, "bw": 10_000_000}]}
+    assert coregen.validate(cfg) == []
+    script = coregen.core_build_script(cfg)
+    ast.parse(script)
+    assert "model='router'" in script
+    assert "ip4='10.0.0.250'" in script and "ip4='10.0.1.250'" in script  # a leg per subnet
+    assert "LinkOptions(delay=20000, loss=0.5, bandwidth=10000000)" in script
+
+
+def test_router_without_ip_is_rejected():
+    cfg = {"name": "w", "control": {"placement": "plc"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW"}], "routers": [{"id": "R1"}],
+           "links": [{"a": "PLC1", "b": "SW"}, {"a": "R1", "b": "SW"}]}  # R1 has no IP
+    assert any("router" in i and "needs an IP" in i for i in coregen.validate(cfg))
+
+
+def test_master_node_drives_device_over_modbus():
+    """The on-node MTU master reads a device's measurement register over Modbus,
+    runs the rule engine, and writes the command register back — node to node."""
+    from scadavt.core.device import run_node
+    from scadavt.core.master import run_master
+
+    async def main():
+        node = {"id": "PLC1", "role": "field-device", "protocol": "modbus", "ip": "127.0.0.1",
+                "points": [{"id": "lvl", "role": "measurement", "is_bool": False},
+                           {"id": "pmp", "role": "command", "is_bool": True}]}
+        dev, fb_srv, io_srv = await run_node(node, ("127.0.0.1", 0), ("127.0.0.1", 0))
+        port = _port(fb_srv)
+        dev.set_input("lvl", 2.0)                        # low -> rule opens pump
+        session = {"nodes": [dict(node, port=port)],
+                   "mapping": [{"point": "lvl", "device": "PLC1", "role": "measurement", "element": "T1"},
+                               {"point": "pmp", "device": "PLC1", "role": "command", "element": "P1"}],
+                   "rules": [{"id": "on",
+                              "if": [{"kind": "tank", "comp": "T1", "attr": "level",
+                                      "op": "below", "value": 3.0}],
+                              "then": [{"comp": "P1", "kind": "pump", "attr": "status",
+                                        "value": "open"}]}]}
+        try:
+            await run_master(session, step_seconds=0.0, cycles=3)
+            return dev.get_output("pmp")
+        finally:
+            fb_srv.close(); io_srv.close()
+    assert _run(main()) == 1.0
+
+
+# ------------------------------------------------- one-shot Modbus probe + seed
+def test_probe_reads_and_writes_points_over_modbus(tmp_path):
+    """The probe tool (used by the live CORE test) reads a seeded measurement and
+    writes/reads back a command point over real Modbus, and fails (nonzero) when
+    the target is unreachable."""
+    import argparse
+    from scadavt.core.device import run_node
+    from scadavt.core import probe
+
+    def ns(**kw):
+        d = dict(session=None, node="PLC1", point="lvl", write=None,
+                 host=None, port=None, timeout=2.0)
+        d.update(kw)
+        return argparse.Namespace(**d)
+
+    async def main():
+        node = {"id": "PLC1", "role": "field-device", "protocol": "modbus", "ip": "127.0.0.1",
+                "points": [{"id": "lvl", "role": "measurement", "is_bool": False},
+                           {"id": "pmp", "role": "command", "is_bool": True}]}
+        dev, fb_srv, io_srv = await run_node(node, ("127.0.0.1", 0), ("127.0.0.1", 0))
+        port = _port(fb_srv)
+        dev.set_input("lvl", 4.2)                        # stand-in sensor (what --seed does)
+        p = tmp_path / "session.json"
+        p.write_text(json.dumps({"nodes": [dict(node, port=port)]}))
+        try:
+            r_read = await probe._run(ns(session=str(p), point="lvl"))
+            r_write = await probe._run(ns(session=str(p), point="pmp", write="1"))
+            r_back = await probe._run(ns(session=str(p), point="pmp"))
+            r_bad = await probe._run(ns(session=str(p), point="lvl", host="127.0.0.1",
+                                        port=1, timeout=0.3))
+            return r_read, r_write, r_back, r_bad, dev.get_output("pmp")
+        finally:
+            fb_srv.close(); io_srv.close()
+    r_read, r_write, r_back, r_bad, pump = _run(main())
+    assert r_read == 0 and r_write == 0 and r_back == 0      # real reads/writes succeed
+    assert r_bad != 0                                        # unreachable -> nonzero
+    assert pump == 1.0                                       # the write landed
+
+
+def test_build_script_brings_up_wan_routing():
+    """A routed (WAN) config emits explicit routing bring-up: IP forwarding on the
+    router and a default route on each endpoint to its subnet's router leg. A pure
+    LAN emits none."""
+    wan = {"name": "wan", "control": {"placement": "mtu"}, "netmask": 24,
+           "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]},
+                       {"id": "PLC2", "ip": "10.0.1.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW_A"}, {"id": "SW_B"}], "routers": [{"id": "R1"}],
+           "links": [{"a": "PLC1", "b": "SW_A"}, {"a": "MTU", "b": "SW_A"},
+                     {"a": "PLC2", "b": "SW_B"},
+                     {"a": "R1", "b": "SW_A", "a_ip": "10.0.0.250"},
+                     {"a": "R1", "b": "SW_B", "a_ip": "10.0.1.250"}]}
+    rids, gw = coregen.routing_plan(coregen.session(wan), 24)
+    assert rids == ["R1"]
+    assert gw["MTU"] == "10.0.0.250" and gw["PLC1"] == "10.0.0.250"
+    assert gw["PLC2"] == "10.0.1.250"                 # the leg in PLC2's own subnet
+    script = coregen.core_build_script(wan)
+    assert "net.ipv4.ip_forward=1" in script
+    assert "ip route replace default via 10.0.1.250" in script
+
+    lan = {"name": "lan", "control": {"placement": "mtu"}, "netmask": 24,
+           "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW1"}],
+           "links": [{"a": "PLC1", "b": "SW1"}, {"a": "MTU", "b": "SW1"}]}
+    assert coregen.routing_plan(coregen.session(lan), 24) == ([], {})
+    assert "ip_forward" not in coregen.core_build_script(lan)
