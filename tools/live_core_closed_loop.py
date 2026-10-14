@@ -75,6 +75,19 @@ def launch(core, sid, node, module_args, logname):
          f">/tmp/{logname}.log 2>&1 </dev/null &'", wait=False)
 
 
+def read_level(core, sid, node, app_hp, point="T1_LEV"):
+    """Read a point from the EPANET app over the Integration API, from inside a
+    node. Single-line python -c (robust through node_command). Returns float|None."""
+    one = ("import asyncio,sys;from scadavt.core import integration as ig;"
+           f"r=asyncio.run(ig.IntegrationClient('{app_hp[0]}',{app_hp[1]}).acquire('{point}'));"
+           "print(r.value)")
+    rc, out = nrun(core, sid, node, f'{PREFIX} && {NODE_PY} -c "{one}"')
+    try:
+        return float((out or "").strip().splitlines()[-1])
+    except Exception:
+        return None
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -138,15 +151,7 @@ def main(argv=None) -> int:
         time.sleep(4.0)
 
         # physical baseline read over the Integration API (from the APP node itself)
-        rc, out = nrun(core, sid, appn,
-                       f"{PREFIX} && {NODE_PY} -c \""
-                       f"import asyncio; from scadavt.core import integration as ig;\n"
-                       f"c=ig.IntegrationClient('172.16.0.254',9000);\n"
-                       f"print(asyncio.run(c.acquire('T1_LEV')).value)\"")
-        try:
-            level0 = float(out.strip().splitlines()[-1])
-        except Exception:
-            level0 = None
+        level0 = read_level(core, sid, appn, ("172.16.0.254", 9000))
         check("EPANET app answers Integration API (ACQUIRE level)", level0 is not None,
               f"level0={level0}")
 
@@ -163,18 +168,39 @@ def main(argv=None) -> int:
         time.sleep(max(8.0, a.cycles * 0.25))        # let the closed loop run
 
         # physical evidence: tank level moved under SCADA control
-        rc, out = nrun(core, sid, appn,
-                       f"{PREFIX} && {NODE_PY} -c \""
-                       f"import asyncio; from scadavt.core import integration as ig;\n"
-                       f"c=ig.IntegrationClient('172.16.0.254',9000);\n"
-                       f"print(asyncio.run(c.acquire('T1_LEV')).value)\"")
-        try:
-            level1 = float(out.strip().splitlines()[-1])
-        except Exception:
-            level1 = None
+        level1 = read_level(core, sid, appn, ("172.16.0.254", 9000))
         moved = (level0 is not None and level1 is not None and abs(level1 - level0) > 0.3)
         check("tank level changed under SCADA control (physical evidence)", moved,
               f"level {level0} -> {level1}")
+
+        # three stages captured INDEPENDENTLY, each at its own node:
+        #   commanded  <- the master's own decision log (MTU node)
+        #   received   <- the PLC command register, read over Modbus (MTU node)
+        #   applied    <- EPANET's actual pump setting, over the Integration API (APP node)
+        _, cmdout = nrun(core, sid, mtu, "grep CMD /tmp/MTU.log | tail -1")
+        commanded = None
+        if "{" in (cmdout or ""):
+            try:
+                commanded = json.loads(cmdout[cmdout.index("{"):].strip()).get("P1")
+            except Exception:
+                commanded = None
+        _, prout = nrun(core, sid, mtu, f'{PREFIX} && {NODE_PY} -m scadavt.core.probe '
+                                        f'--session {sess} --node PLC1 --point P1_SPD')
+        try:
+            received = float(prout.strip().split("=")[-1].split("@")[0])
+        except Exception:
+            received = None
+        applied = read_level(core, sid, appn, ("172.16.0.254", 9000), point="P1_SET")
+        check("three stages captured independently (commanded / received / applied)",
+              None not in (commanded, received, applied),
+              f"commanded={commanded} received={received} applied={applied}")
+        check("benign run: commanded == received (SCADA command path intact, no tamper)",
+              commanded is not None and received is not None
+              and abs(commanded - received) < 1e-3,
+              f"{commanded} vs {received}")
+        check("benign run: applied setting matches the PLC-received command",
+              received is not None and applied is not None and abs(applied - received) < 1e-3,
+              f"applied={applied} received={received}")
 
         # stop capture, confirm Modbus packets
         nrun(core, sid, plc, "pkill -f 'tcpdump -i eth0' || true")
