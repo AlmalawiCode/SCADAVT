@@ -301,6 +301,7 @@ def core_build_script(cfg: dict) -> str:
                  f"iface1={iface(a, lk, 'a')}, iface2={iface(b, lk, 'b')}{tail})")
 
     L += ["", "ok, warnings = core.start_session(session)",
+          "print(f'session {session.id} started ok={ok} warnings={warnings}')",
           "", "# launch each node's program INSIDE its namespace (the PLC/master runs in-node)"]
     for n in s["nodes"]:
         if n["id"] in cmds:

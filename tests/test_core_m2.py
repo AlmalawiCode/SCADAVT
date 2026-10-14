@@ -314,3 +314,42 @@ def test_master_node_drives_device_over_modbus():
         finally:
             fb_srv.close(); io_srv.close()
     assert _run(main()) == 1.0
+
+
+# ------------------------------------------------- one-shot Modbus probe + seed
+def test_probe_reads_and_writes_points_over_modbus(tmp_path):
+    """The probe tool (used by the live CORE test) reads a seeded measurement and
+    writes/reads back a command point over real Modbus, and fails (nonzero) when
+    the target is unreachable."""
+    import argparse
+    from scadavt.core.device import run_node
+    from scadavt.core import probe
+
+    def ns(**kw):
+        d = dict(session=None, node="PLC1", point="lvl", write=None,
+                 host=None, port=None, timeout=2.0)
+        d.update(kw)
+        return argparse.Namespace(**d)
+
+    async def main():
+        node = {"id": "PLC1", "role": "field-device", "protocol": "modbus", "ip": "127.0.0.1",
+                "points": [{"id": "lvl", "role": "measurement", "is_bool": False},
+                           {"id": "pmp", "role": "command", "is_bool": True}]}
+        dev, fb_srv, io_srv = await run_node(node, ("127.0.0.1", 0), ("127.0.0.1", 0))
+        port = _port(fb_srv)
+        dev.set_input("lvl", 4.2)                        # stand-in sensor (what --seed does)
+        p = tmp_path / "session.json"
+        p.write_text(json.dumps({"nodes": [dict(node, port=port)]}))
+        try:
+            r_read = await probe._run(ns(session=str(p), point="lvl"))
+            r_write = await probe._run(ns(session=str(p), point="pmp", write="1"))
+            r_back = await probe._run(ns(session=str(p), point="pmp"))
+            r_bad = await probe._run(ns(session=str(p), point="lvl", host="127.0.0.1",
+                                        port=1, timeout=0.3))
+            return r_read, r_write, r_back, r_bad, dev.get_output("pmp")
+        finally:
+            fb_srv.close(); io_srv.close()
+    r_read, r_write, r_back, r_bad, pump = _run(main())
+    assert r_read == 0 and r_write == 0 and r_back == 0      # real reads/writes succeed
+    assert r_bad != 0                                        # unreachable -> nonzero
+    assert pump == 1.0                                       # the write landed
