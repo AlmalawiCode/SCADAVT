@@ -70,3 +70,33 @@ def summary(design: dict) -> dict:
         kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
     return {"nodes": len(design.get("nodes", [])), "links": len(design.get("links", [])),
             "by_kind": kinds}
+
+
+def internal_control_targets(inp_text: str) -> set:
+    """Link ids that the EPANET file controls *internally* via [CONTROLS] or
+    [RULES]. These are actuators EPANET will drive on its own, every hydraulic
+    step, overriding any external SCADA command — so for a SCADA testbed they
+    must not overlap the PLC-controlled actuators.
+
+    [CONTROLS]: ``LINK <id> <status/setting> ...``
+    [RULES]:    any ``LINK <id>`` token inside a rule clause.
+    """
+    targets: set = set()
+    for sec, t in _rows(inp_text):
+        if sec == "CONTROLS" and len(t) >= 2 and t[0].upper() == "LINK":
+            targets.add(t[1])
+        elif sec == "RULES":
+            for i in range(len(t) - 1):
+                if t[i].upper() == "LINK":
+                    targets.add(t[i + 1])
+    return targets
+
+
+def scada_control_conflicts(inp_text: str, scada_links) -> list:
+    """Problems where EPANET's own automation would fight external SCADA control:
+    one message per actuator that is both SCADA-controlled and driven by an
+    internal [CONTROLS]/[RULES] clause. Empty list = SCADA has full authority."""
+    internal = internal_control_targets(inp_text)
+    return [f"actuator {lk!r} is controlled by EPANET-internal [CONTROLS]/[RULES]; "
+            f"remove it so the SCADA command is authoritative"
+            for lk in scada_links if lk in internal]
