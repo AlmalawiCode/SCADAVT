@@ -77,6 +77,11 @@
           "id": "P1_SPD",
           "role": "command",
           "is_bool": false
+        },
+        {
+          "id": "P1_SET",
+          "role": "measurement",
+          "is_bool": false
         }
       ]
     }
@@ -93,6 +98,13 @@
       "point": "P1_SPD",
       "device": "PLC1",
       "role": "command",
+      "element": "P1",
+      "quantity": "setting"
+    },
+    {
+      "point": "P1_SET",
+      "device": "PLC1",
+      "role": "measurement",
       "element": "P1",
       "quantity": "setting"
     }

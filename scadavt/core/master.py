@@ -77,15 +77,19 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
                     pass
             read = lambda kind, comp, attr: values.get(comp)
             sim_h = (time.time() - t0) / 3600.0
+            commanded = {}
             for c in engine.evaluate(read, sim_h):      # DECIDE, then WRITE command registers
                 tgt = cmd_of.get(c["comp"])
                 if tgt is None:
                     continue
+                commanded[c["comp"]] = c["value"]       # the control DECISION (commanded stage)
                 dev_id, point = tgt
                 try:
                     await clients[dev_id].write(point, c["value"])
                 except Exception:
                     pass
+            if log and commanded:                        # independent record of the commanded stage
+                log.info("CMD t=%d %s", i, json.dumps(commanded))
             i += 1
             if cycles is None or i < cycles:
                 await asyncio.sleep(step_seconds)
