@@ -1,0 +1,39 @@
+[TITLE]
+Minimal closed-loop: low reservoir -> pump lifts -> elevated tank -> gravity demand
+
+[JUNCTIONS]
+;ID   Elev  Demand
+ J1   45    30
+
+[RESERVOIRS]
+;ID   Head
+ R1   10
+
+[TANKS]
+;ID   Elev  InitLvl  MinLvl  MaxLvl  Diam
+ T1   50    3.0      0       7       5
+
+[PIPES]
+;ID    Node1  Node2  Length  Diam  Rough
+ PIPE1 T1     J1     300     250   100
+
+[PUMPS]
+;ID   Node1  Node2  Params
+ P1   R1     T1     POWER 25
+
+[TIMES]
+ DURATION           240:00
+ HYDRAULIC TIMESTEP 0:05
+ REPORT TIMESTEP    0:05
+
+[OPTIONS]
+ UNITS            LPS
+ HEADLOSS         H-W
+ QUALITY          NONE
+
+[COORDINATES]
+ R1    0     0
+ T1    100   0
+ J1    200   0
+
+[END]

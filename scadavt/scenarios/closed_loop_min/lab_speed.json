@@ -1,0 +1,156 @@
+{
+  "name": "mini-speed",
+  "control": {
+    "placement": "mtu"
+  },
+  "mtu": {
+    "id": "MTU",
+    "ip": "10.0.0.254"
+  },
+  "epanet": {
+    "name": "mini-speed",
+    "hours": 72,
+    "nodes": [
+      {
+        "id": "J1",
+        "kind": "junction",
+        "elev": 45.0,
+        "demand": 30.0,
+        "x": 200.0,
+        "y": 0.0
+      },
+      {
+        "id": "R1",
+        "kind": "reservoir",
+        "head": 10.0,
+        "x": 0.0,
+        "y": 0.0
+      },
+      {
+        "id": "T1",
+        "kind": "tank",
+        "elev": 50.0,
+        "init": 3.0,
+        "min": 0.0,
+        "max": 7.0,
+        "diam": 5.0,
+        "x": 100.0,
+        "y": 0.0
+      }
+    ],
+    "links": [
+      {
+        "id": "PIPE1",
+        "kind": "pipe",
+        "n1": "T1",
+        "n2": "J1"
+      },
+      {
+        "id": "P1",
+        "kind": "pump",
+        "n1": "R1",
+        "n2": "T1"
+      }
+    ],
+    "inp_text": "[TITLE]\nMinimal closed-loop: low reservoir -> pump lifts -> elevated tank -> gravity demand\n\n[JUNCTIONS]\n;ID   Elev  Demand\n J1   45    30\n\n[RESERVOIRS]\n;ID   Head\n R1   10\n\n[TANKS]\n;ID   Elev  InitLvl  MinLvl  MaxLvl  Diam\n T1   50    3.0      0       7       5\n\n[PIPES]\n;ID    Node1  Node2  Length  Diam  Rough\n PIPE1 T1     J1     300     250   100\n\n[PUMPS]\n;ID   Node1  Node2  Params\n P1   R1     T1     POWER 25\n\n[TIMES]\n DURATION           240:00\n HYDRAULIC TIMESTEP 0:05\n REPORT TIMESTEP    0:05\n\n[OPTIONS]\n UNITS            LPS\n HEADLOSS         H-W\n QUALITY          NONE\n\n[COORDINATES]\n R1    0     0\n T1    100   0\n J1    200   0\n\n[END]\n",
+    "plcs": [
+      {
+        "id": "PLC1",
+        "elements": [
+          "T1",
+          "P1"
+        ]
+      }
+    ]
+  },
+  "devices": [
+    {
+      "id": "PLC1",
+      "protocol": "modbus",
+      "points": [
+        {
+          "id": "T1_LEV",
+          "role": "measurement",
+          "is_bool": false
+        },
+        {
+          "id": "P1_SPD",
+          "role": "command",
+          "is_bool": false
+        }
+      ]
+    }
+  ],
+  "mapping": [
+    {
+      "point": "T1_LEV",
+      "device": "PLC1",
+      "role": "measurement",
+      "element": "T1",
+      "quantity": "level"
+    },
+    {
+      "point": "P1_SPD",
+      "device": "PLC1",
+      "role": "command",
+      "element": "P1",
+      "quantity": "setting"
+    }
+  ],
+  "rules": [
+    {
+      "id": "base",
+      "if": [],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "setting",
+          "value": 0.7
+        }
+      ]
+    },
+    {
+      "id": "boost",
+      "priority": 1,
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "below",
+          "value": 3.0
+        }
+      ],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "setting",
+          "value": 1.0
+        }
+      ]
+    },
+    {
+      "id": "stop",
+      "priority": 2,
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "above",
+          "value": 5.5
+        }
+      ],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "setting",
+          "value": 0.0
+        }
+      ]
+    }
+  ]
+}

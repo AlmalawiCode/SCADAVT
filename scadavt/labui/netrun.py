@@ -41,6 +41,7 @@ class NetworkedRun:
         self.t = 0
         self.attacks = []
         self.trace = []
+        self.actuator_log = []       # three-way: commanded / received / applied, per actuator per cycle
         # element ownership + tank-per-PLC (for the ground-truth trace)
         self.plcs = [p["id"] for p in cfg["epanet"].get("plcs", [])]
         self.owner = {e: p["id"] for p in cfg["epanet"].get("plcs", [])
@@ -81,18 +82,29 @@ class NetworkedRun:
                                   app_client)
 
         # measurement reads (element<-register) and command writes (element->register)
-        meas, cmd_of = [], {}
+        _APPLIED = {"status": (wp.PT_LINK, wp.DT_STATUS), "setting": (wp.PT_LINK, wp.DT_SETTING),
+                    "speed": (wp.PT_LINK, wp.DT_SETTING), "flow": (wp.PT_LINK, wp.DT_FLOW)}
+        meas, cmd_of, applied_of = [], {}, {}
         for m in self.cfg["mapping"]:
             dev = devices[m["device"]]
             if m.get("role") == ig.COMMAND:
                 cmd_of[m["element"]] = (m["device"], dev.by_id[m["point"]])
+                # where the command physically lands in EPANET (what was actually applied)
+                applied_of[m["element"]] = _APPLIED.get(m.get("quantity", "status"),
+                                                         (wp.PT_LINK, wp.DT_STATUS))
             else:
                 meas.append((m["element"], m["device"], dev.by_id[m["point"]]))
 
+        # guard: EPANET must not internally control a SCADA actuator (it would fight
+        # the PLC every hydraulic step). Report any conflict with the run.
+        from .inp import scada_control_conflicts
+        conflicts = scada_control_conflicts(self.cfg["epanet"].get("inp_text", ""),
+                                            list(applied_of))
         try:
             for _ in range(cycles):
-                await self._cycle(app, gw, devices, mtu, meas, cmd_of)
+                await self._cycle(app, gw, devices, mtu, meas, cmd_of, applied_of)
             return {"traces": self.traces(app), "summary": self.summary(),
+                    "actuators": self.actuator_log, "control_conflicts": conflicts,
                     "engine": "networked"}
         finally:
             for c in mtu.values():
@@ -103,7 +115,7 @@ class NetworkedRun:
             app_server.close()
             app.close()
 
-    async def _cycle(self, app, gw, devices, mtu, meas, cmd_of):
+    async def _cycle(self, app, gw, devices, mtu, meas, cmd_of, applied_of):
         rec = {"t": self.t, "attack_window": False, "malicious_confirmed": False}
         rec["attack_window"] = any(self._active(p) is not None for p in self.plcs)
         # 1) gateway: EPANET measurements -> device inputs; device commands -> EPANET
@@ -117,16 +129,19 @@ class NetworkedRun:
                 pass
         read = lambda k, c, a: values.get(c)
         # 3) decide and write command registers over Modbus (attacks act here)
+        commanded, attacked = {}, {}
         for c in self.engine.decide(read, self.plant_hours(app)):
             dev_id, point = cmd_of.get(c["comp"], (None, None))
             if dev_id is None:
                 continue
+            commanded[c["comp"]] = c["value"]            # what control DECIDED (pre-tamper)
             atk = self._active(self.owner.get(c["comp"]))
+            attacked[c["comp"]] = atk["kind"] if atk else None
             if atk and atk["kind"] in ("dos", "delay"):
-                continue
+                continue                                 # command never reaches the PLC register
             value = c["value"]
             if atk and atk["kind"] == "integrity":
-                value = 0.0
+                value = 0.0                              # tampered on the SCADA network
                 rec["malicious_confirmed"] = True
             try:
                 await mtu[dev_id].write(point, value)
@@ -136,6 +151,21 @@ class NetworkedRun:
         await gw.run_cycle()
         await gw.app.step(self.step_seconds)
         self.t += 1
+        # three-way actuator record: commanded (decision) vs received (PLC register) vs
+        # applied (the value EPANET actually used) — the evidence for attack studies
+        for comp, (dev_id, point) in cmd_of.items():
+            recv = devices[dev_id].get_output(point.id)  # what the PLC register now holds
+            pt, dt = applied_of.get(comp, (wp.PT_LINK, wp.DT_STATUS))
+            try:
+                appl = round(app.plant.net.get(comp, pt, dt), 4)
+            except Exception:
+                appl = None
+            self.actuator_log.append({
+                "t": self.t, "actuator": comp,
+                "commanded": commanded.get(comp),
+                "received": round(recv, 4) if recv is not None else None,
+                "applied": appl,
+                "attack": attacked.get(comp)})
         for plc in self.plcs:
             tank = self._tank_of(app, plc)
             if tank is not None:
