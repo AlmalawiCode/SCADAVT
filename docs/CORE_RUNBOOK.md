@@ -40,8 +40,11 @@ coregen.write_session(cfg, "run/")      # -> run/session.json, gate_*.ini,
   taken straight from the config, so *every node has its own IP*;
 - a **SWITCH** node makes a **LAN**: all nodes linked to it share a subnet and
   reach each other directly (e.g. `MTU 10.0.0.254` ↔ `PLC1 10.0.0.1`);
-- a **`model="router"`** node (OSPF/IPForward) joins two subnets into a **WAN**
-  (e.g. `PLC1 10.0.0.0/24` ↔ router ↔ `PLC2 10.0.1.0/24`);
+- a **router** node joins two subnets into a **WAN**
+  (e.g. `PLC1 10.0.0.0/24` ↔ router ↔ `PLC2 10.0.1.0/24`); the script also brings
+  routing up explicitly — IP forwarding on the router and a default route on each
+  endpoint to its subnet's router leg — so reachability does not depend on OSPF
+  convergence (verified on live CORE: see `tools/live_core_integration.py`);
 - per-link delay/loss/bandwidth are real **`netem`** via `LinkOptions`.
 
 Point the script at the repo (shared node filesystem) and run it against the

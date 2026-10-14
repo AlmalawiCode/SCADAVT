@@ -19,6 +19,7 @@ why multi-configuration validation (M1) does not depend on a running emulator.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 from pathlib import Path
 
@@ -228,6 +229,39 @@ def _node_ip(n: dict, lk: dict, side: str) -> str | None:
     return lk.get(f"{side}_ip") or n.get("ip")
 
 
+def routing_plan(s: dict, mask: int) -> tuple[list[str], dict[str, str]]:
+    """Work out the L3 bring-up for a routed (WAN) topology from the session:
+    which nodes are routers (need IP forwarding) and, for each endpoint that sits
+    on a subnet a router also sits on, the router leg IP to use as its default
+    gateway. Returns (router_ids, {endpoint_id: gateway_ip}). Empty for a pure LAN.
+    """
+    by_id = {n["id"]: n for n in s["nodes"]}
+    ifaces = []  # (node_id, ip, kind)
+    for lk in s["links"]:
+        for side, end in (("a", lk.get("a")), ("b", lk.get("b"))):
+            n = by_id.get(end)
+            if n is None:
+                continue
+            ip = _node_ip(n, lk, side)
+            if ip:
+                ifaces.append((end, ip, n["kind"]))
+    router_ids = [n["id"] for n in s["nodes"] if n["kind"] == "router"]
+    router_ifaces = [(nid, ip) for nid, ip, kind in ifaces if kind == "router"]
+
+    def net(ip):
+        return ipaddress.ip_network(f"{ip}/{mask}", strict=False)
+
+    gateways: dict[str, str] = {}
+    for nid, ip, kind in ifaces:
+        if kind == "router" or nid in gateways:
+            continue
+        for _, rip in router_ifaces:
+            if net(ip) == net(rip):
+                gateways[nid] = rip
+                break
+    return router_ids, gateways
+
+
 def core_build_script(cfg: dict) -> str:
     """A runnable CORE gRPC build script.
 
@@ -301,8 +335,22 @@ def core_build_script(cfg: dict) -> str:
                  f"iface1={iface(a, lk, 'a')}, iface2={iface(b, lk, 'b')}{tail})")
 
     L += ["", "ok, warnings = core.start_session(session)",
-          "print(f'session {session.id} started ok={ok} warnings={warnings}')",
-          "", "# launch each node's program INSIDE its namespace (the PLC/master runs in-node)"]
+          "print(f'session {session.id} started ok={ok} warnings={warnings}')"]
+
+    # bring up L3 routing for a WAN: IP forwarding on routers + a default route on
+    # each endpoint to its subnet's router leg (gRPC-created router models do not
+    # reliably start routing, so make it explicit — validated on live CORE)
+    router_ids, gateways = routing_plan(s, mask)
+    if router_ids:
+        L.append("\n# routing bring-up (WAN): IP forwarding + default routes")
+        for rid in router_ids:
+            L.append(f"core.node_command(session.id, nodes[{rid!r}].id, "
+                     f"'sysctl -w net.ipv4.ip_forward=1', shell=True)")
+        for nid, gw in gateways.items():
+            L.append(f"core.node_command(session.id, nodes[{nid!r}].id, "
+                     f"'ip route replace default via {gw}', shell=True)")
+
+    L += ["", "# launch each node's program INSIDE its namespace (the PLC/master runs in-node)"]
     for n in s["nodes"]:
         if n["id"] in cmds:
             run = f"bash -c 'cd \"$SCADAVT_DIR\" && PYTHONPATH=. {cmds[n['id']]} " \

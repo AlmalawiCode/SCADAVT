@@ -353,3 +353,36 @@ def test_probe_reads_and_writes_points_over_modbus(tmp_path):
     assert r_read == 0 and r_write == 0 and r_back == 0      # real reads/writes succeed
     assert r_bad != 0                                        # unreachable -> nonzero
     assert pump == 1.0                                       # the write landed
+
+
+def test_build_script_brings_up_wan_routing():
+    """A routed (WAN) config emits explicit routing bring-up: IP forwarding on the
+    router and a default route on each endpoint to its subnet's router leg. A pure
+    LAN emits none."""
+    wan = {"name": "wan", "control": {"placement": "mtu"}, "netmask": 24,
+           "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]},
+                       {"id": "PLC2", "ip": "10.0.1.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW_A"}, {"id": "SW_B"}], "routers": [{"id": "R1"}],
+           "links": [{"a": "PLC1", "b": "SW_A"}, {"a": "MTU", "b": "SW_A"},
+                     {"a": "PLC2", "b": "SW_B"},
+                     {"a": "R1", "b": "SW_A", "a_ip": "10.0.0.250"},
+                     {"a": "R1", "b": "SW_B", "a_ip": "10.0.1.250"}]}
+    rids, gw = coregen.routing_plan(coregen.session(wan), 24)
+    assert rids == ["R1"]
+    assert gw["MTU"] == "10.0.0.250" and gw["PLC1"] == "10.0.0.250"
+    assert gw["PLC2"] == "10.0.1.250"                 # the leg in PLC2's own subnet
+    script = coregen.core_build_script(wan)
+    assert "net.ipv4.ip_forward=1" in script
+    assert "ip route replace default via 10.0.1.250" in script
+
+    lan = {"name": "lan", "control": {"placement": "mtu"}, "netmask": 24,
+           "mtu": {"id": "MTU", "ip": "10.0.0.254"},
+           "devices": [{"id": "PLC1", "ip": "10.0.0.1",
+                        "points": [{"id": "x", "role": "measurement", "is_bool": False}]}],
+           "switches": [{"id": "SW1"}],
+           "links": [{"a": "PLC1", "b": "SW1"}, {"a": "MTU", "b": "SW1"}]}
+    assert coregen.routing_plan(coregen.session(lan), 24) == ([], {})
+    assert "ip_forward" not in coregen.core_build_script(lan)
