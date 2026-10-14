@@ -59,51 +59,8 @@ def load_params(path: Path) -> list[Param]:
                   wp.DATA_TYPE_CODES[c[s]["dataType"]]) for s in c.sections()]
 
 
-class DeviceLink:
-    """One IOModules session with a field device; reconnects after an error."""
-
-    def __init__(self, name: str, host: str, port: int, timeout: float):
-        self.name, self.host, self.port, self.timeout = name, host, port, timeout
-        self.r = self.w = None
-        self.counters = {io.FC_READ: 0, io.FC_WRITE: 0}
-
-    async def _call(self, fc: int, pid: str, value: float = 0.0) -> io.IOMessage:
-        if self.w is None:
-            self.r, self.w = await asyncio.wait_for(
-                asyncio.open_connection(self.host, self.port), self.timeout)
-        self.counters[fc] = self.counters[fc] % 0xFFFFFFFF + 1
-        self.w.write(io.IOMessage(self.counters[fc], fc, pid, value).pack())
-        await self.w.drain()
-        reply = await asyncio.wait_for(io.read_message(self.r), self.timeout)
-        if reply is None:
-            raise ConnectionError(f"{self.name} closed the I/O session")
-        return reply
-
-    def drop(self) -> None:
-        if self.w is not None:
-            self.w.close()
-        self.r = self.w = None
-
-    async def write(self, items: list[tuple[str, float]]) -> int:
-        n = 0
-        for pid, value in items:
-            r = await self._call(io.FC_WRITE, pid, value)
-            n += r.transaction == self.counters[io.FC_WRITE]
-        return n
-
-    async def read(self, pids: list[str]) -> dict[str, float]:
-        out = {}
-        for pid in pids:
-            r = await self._call(io.FC_READ, pid)
-            if r.transaction != 0:
-                out[pid] = r.data
-        return out
-
-    async def close(self) -> None:
-        if self.w is not None:
-            self.w.write(io.IOMessage(0, io.FC_TERMINATE, "", 0.0).pack())
-            await self.w.drain()
-            self.drop()
+# DeviceLink moved to the generic core; re-exported for backward compatibility.
+from ..core.iolink import DeviceLink
 
 
 class IOModuleGate:
