@@ -115,7 +115,9 @@ def build(result_dir: str | Path, out_dir: str | Path,
 
     # ---- provenance manifest ----
     scen_path = Path(scenario_path or sc.DEFAULT_SCENARIO)
-    inp_path = sc.load(scen_path).epanet_file if scen_path.exists() else None
+    # the scenario's physical-model file, whatever the domain (EPANET .inp for water,
+    # or any model file another application exposes) — kept domain-neutral here
+    model_path = getattr(sc.load(scen_path), "epanet_file", None) if scen_path.exists() else None
     image = dep.get("image", "scadavt-net:2.0")
     manifest = {
         "name": summary.get("name"),
@@ -125,8 +127,8 @@ def build(result_dir: str | Path, out_dir: str | Path,
         "provenance": {
             "scenario_file": str(scen_path),
             "scenario_sha256": _sha256(scen_path),
-            "epanet_file": str(inp_path) if inp_path else None,
-            "epanet_sha256": _sha256(inp_path) if inp_path else None,
+            "model_file": str(model_path) if model_path else None,
+            "model_sha256": _sha256(model_path) if model_path else None,
             "image": image,
             "image_digest": _image_digest(image),
             "git_commit": _git_commit(Path(__file__).resolve().parents[2]),
@@ -181,7 +183,7 @@ python -m scadavt.attacks.dataset --result results/attacks/{manifest['name']} --
 ```
 
 Pinned inputs: seed `{dep.get('seed')}`, scenario sha256 `{prov.get('scenario_sha256')}`,
-EPANET sha256 `{prov.get('epanet_sha256')}`, image `{prov.get('image')}`
+physical-model sha256 `{prov.get('model_sha256')}`, image `{prov.get('image')}`
 digest `{prov.get('image_digest')}`.
 """)
 
