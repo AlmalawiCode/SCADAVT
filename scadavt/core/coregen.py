@@ -67,13 +67,28 @@ def validate(cfg: dict) -> list[str]:
     bcs = [d.get("backchannel") for d in devices if d.get("backchannel")]
     if len(set(bcs)) != len(bcs):
         issues.append("duplicate back-channel addresses")
-    # links must reference known endpoints (devices, mtu or switches)
+    # links must reference known endpoints (devices, mtu, routers or switches)
     endpoints = set(ids) | {cfg.get("mtu", {}).get("id")} \
-        | {s.get("id") for s in cfg.get("switches", [])}
+        | {s.get("id") for s in cfg.get("switches", [])} \
+        | {r.get("id") for r in cfg.get("routers", [])}
+    net_nodes = {s.get("id") for s in cfg.get("switches", [])}
+    routers = {r.get("id") for r in cfg.get("routers", [])}
+    ip_of = {d["id"]: d.get("ip") for d in devices}
+    if cfg.get("mtu"):
+        ip_of[cfg["mtu"]["id"]] = cfg["mtu"].get("ip")
     for lk in cfg.get("links", []):
-        for end in (lk.get("a"), lk.get("b")):
+        for end, side in ((lk.get("a"), "a"), (lk.get("b"), "b")):
             if end not in endpoints:
                 issues.append(f"link references unknown endpoint {end!r}")
+                continue
+            # an addressable endpoint needs an IP: from the node, or per-link for a router
+            if end in net_nodes:
+                continue
+            if lk.get(f"{side}_ip") or ip_of.get(end):
+                continue
+            if end in routers:
+                issues.append(f"router {end!r} needs an IP on link to "
+                              f"{lk.get('b' if side == 'a' else 'a')!r} ({side}_ip)")
     return issues
 
 
@@ -87,6 +102,7 @@ def session(cfg: dict) -> dict:
         proto = d.get("protocol", "modbus")
         nodes.append({
             "id": d["id"], "kind": d.get("kind", "plc"), "role": "field-device",
+            "model": d.get("model", "PC"),
             "ip": d.get("ip"), "backchannel": d.get("backchannel"),
             "services": [fb.PROTOCOLS[proto]["server"].__name__, "IOModules"],
             "protocol": proto,
@@ -95,29 +111,91 @@ def session(cfg: dict) -> dict:
     if cfg.get("mtu"):
         m = cfg["mtu"]
         nodes.append({"id": m["id"], "kind": "mtu", "role": "master",
+                      "model": m.get("model", "PC"),
                       "ip": m.get("ip"), "services": ["ModbusMaster", "ControlHost"]})
-    for sw in cfg.get("switches", []):
+    for r in cfg.get("routers", []):          # L3 node for WAN/routed segments
+        nodes.append({"id": r["id"], "kind": "router", "role": "network",
+                      "model": r.get("model", "router"), "ip": r.get("ip"),
+                      "services": ["IPForward", "OSPFv2", "Zebra"]})
+    for sw in cfg.get("switches", []):        # L2 node = one LAN segment
         nodes.append({"id": sw["id"], "kind": sw.get("kind", "switch"), "role": "network",
                       "services": []})
     return {
         "name": cfg.get("name", "scadavt-session"),
         "control": cfg.get("control", {"placement": "mtu"}),
+        "netmask": int(cfg.get("netmask", 24)),
         "nodes": nodes,
         "links": list(cfg.get("links", [])),
         "external_apps": list(cfg.get("external_apps", [])),
         "mapping": list(cfg.get("mapping", [])),
+        "rules": list(cfg.get("rules", [])),
     }
 
 
+def register_maps(cfg: dict) -> dict:
+    """Per-device Modbus register map, annotated with the physical element each
+    register is bound to (the ``mapping``). This is the real-PLC view the
+    researcher configures against: 'water-level sensor -> PLC2 input register
+    30001', 'pump command -> PLC2 coil 00001'. Table is role-fixed; address is
+    whatever the configuration pinned or the device auto-assigned."""
+    bound = {(m.get("device"), m.get("point")): m.get("element")
+             for m in cfg.get("mapping", [])}
+    out = {}
+    for d in cfg.get("devices", []):
+        dev = fb.Device(d["id"], [
+            fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)),
+                           address=int(p.get("address", 0)), pinned=("address" in p))
+            for p in d.get("points", [])])
+        rows = dev.register_map()
+        for r in rows:
+            r["element"] = bound.get((d["id"], r["point"]))
+        out[d["id"]] = rows
+    return out
+
+
+def address_plan(cfg: dict) -> list[dict]:
+    """The IP addressing of the emulated network: one row per node with its SCADA
+    IP, /mask, role and which LAN segments (switches/routers) it attaches to — the
+    'each node has its own IP and can reach the others' view, read off the links."""
+    s = session(cfg)
+    mask = s["netmask"]
+    by_id = {n["id"]: n for n in s["nodes"]}
+    attached: dict = {n["id"]: [] for n in s["nodes"]}
+    for lk in s["links"]:
+        a, b = lk.get("a"), lk.get("b")
+        if a in attached and b in attached:
+            attached[a].append(b)
+            attached[b].append(a)
+    rows = []
+    for n in s["nodes"]:
+        if n["kind"] in ("switch", "hub"):
+            continue
+        # a router shows its per-link IPs; an endpoint shows its single node IP
+        ips = sorted({lk.get(f"{side}_ip") for lk in s["links"] for side, end in
+                      (("a", lk.get("a")), ("b", lk.get("b"))) if end == n["id"]
+                      and lk.get(f"{side}_ip")})
+        if not ips and n.get("ip"):
+            ips = [n["ip"]]
+        rows.append({"node": n["id"], "kind": n["kind"], "role": n["role"],
+                     "model": n.get("model"), "ips": [f"{ip}/{mask}" for ip in ips],
+                     "attached_to": attached.get(n["id"], [])})
+    return rows
+
+
 def service_commands(cfg: dict) -> dict:
-    """The command each field node runs (the config-driven device runner)."""
+    """The command each node runs inside its namespace: the config-driven device
+    runner on every field node, and the master/control runner on the MTU node."""
     cmds = {}
     for d in cfg["devices"]:
         mb_port = fb.PROTOCOLS[d.get("protocol", "modbus")]["default_port"]
         ip = d.get("ip", "0.0.0.0")
         _, io_port = hostport(d.get("backchannel", ":9161"), 9161)
-        cmds[d["id"]] = (f"python -m scadavt.core.device --session session.json "
+        cmds[d["id"]] = (f"python3 -m scadavt.core.device --session session.json "
                          f"--node {d['id']} --modbus {ip}:{mb_port} --io 0.0.0.0:{io_port}")
+    if cfg.get("mtu") and cfg.get("control", {}).get("placement", "mtu") == "mtu":
+        m = cfg["mtu"]
+        cmds[m["id"]] = (f"python3 -m scadavt.core.master --session session.json "
+                         f"--node {m['id']}")
     return cmds
 
 
@@ -142,42 +220,100 @@ def gateway_files(cfg: dict) -> tuple[str, str]:
     return "\n".join(ep), "\n".join(pts)
 
 
+def _node_ip(n: dict, lk: dict, side: str) -> str | None:
+    """IP for an endpoint on one link: a per-link override (for a router, which
+    has one IP per subnet), else the node's own IP. Network nodes have none."""
+    if n["kind"] in ("switch", "hub"):
+        return None
+    return lk.get(f"{side}_ip") or n.get("ip")
+
+
 def core_build_script(cfg: dict) -> str:
-    """A CORE gRPC build script (text). Runnable on a CORE host; here it is a
-    generated artefact validated structurally (CORE is not required to build it)."""
+    """A runnable CORE gRPC build script.
+
+    It builds the emulated SCADA network the way CORE actually models it
+    (CORE 9.x, ``core.api.grpc``): every endpoint node is a Linux-namespace node
+    with an **explicit IP on its interface** (``wrappers.Interface(id, ip4=...,
+    ip4_mask=...)``); a **SWITCH** node makes a LAN (nodes sharing a subnet reach
+    each other directly); a **router** node (``model="router"``, OSPF/IPForward)
+    joins two subnets into a **WAN**; per-link impairment is real ``netem`` via
+    ``LinkOptions`` (delay in microseconds, loss %, bandwidth bps). After
+    ``start_session`` each node's own program is launched **inside its namespace**
+    with ``node_command`` — the PLC device runner on field nodes, the master on
+    the MTU — so the PLC implementation really runs in the node.
+
+    CORE is not required to *generate* this (so M1 validation is offline); it runs
+    as-is on a CORE host with ``core-daemon`` up (as root)."""
     s = session(cfg)
     cmds = service_commands(cfg)
-    lines = [
-        "#!/usr/bin/env python3",
-        "# Auto-generated by scadavt.core.coregen — domain-neutral CORE session.",
-        "# Runs as-is on a CORE host (core-daemon up). No manual editing required.",
-        "from core.api.grpc import client",
-        "from core.api.grpc.wrappers import Position, NodeType",
-        "",
-        "core = client.CoreGrpcClient()",
-        "core.connect()",
-        "session = core.create_session()",
-        "nodes = {}",
-    ]
+    mask = s["netmask"]
+    by_id = {n["id"]: n for n in s["nodes"]}
+
+    L = ["#!/usr/bin/env python3",
+         "# Auto-generated by scadavt.core.coregen — domain-neutral CORE session.",
+         "# Run on a CORE host with core-daemon running (as root). No manual editing.",
+         "from core.api.grpc import client, wrappers",
+         "from core.api.grpc.wrappers import NodeType, Position, LinkOptions",
+         "",
+         "core = client.CoreGrpcClient()      # default endpoint localhost:50051",
+         "core.connect()",
+         "session = core.create_session()",
+         "nodes = {}",
+         ""]
+
+    # --- nodes: endpoints are namespace nodes (model PC/router); switches are L2
     for i, n in enumerate(s["nodes"], 1):
-        ntype = "NodeType.SWITCH" if n["kind"] in ("switch", "hub") else \
-                ("NodeType.DEFAULT" if n["kind"] != "router" else "NodeType.DEFAULT")
-        lines.append(f"nodes[{n['id']!r}] = session.add_node({i}, name={n['id']!r}, "
-                     f"_type={ntype}, position=Position(x={100 + (i % 6) * 130}, "
-                     f"y={160 + (i // 6) * 130}))")
-        if n.get("ip"):
-            lines.append(f"#   ip={n['ip']}  services={n['services']}")
-        if n["id"] in cmds:
-            lines.append(f"#   startup: {cmds[n['id']]}")
+        pos = f"Position(x={120 + (i % 6) * 150}, y={160 + (i // 6) * 140})"
+        if n["kind"] in ("switch", "hub"):
+            ntype = "NodeType.SWITCH" if n["kind"] == "switch" else "NodeType.HUB"
+            L.append(f"nodes[{n['id']!r}] = session.add_node({i}, name={n['id']!r}, "
+                     f"_type={ntype}, position={pos})")
+        else:
+            model = n.get("model", "router" if n["kind"] == "router" else "PC")
+            L.append(f"nodes[{n['id']!r}] = session.add_node({i}, name={n['id']!r}, "
+                     f"_type=NodeType.DEFAULT, model={model!r}, position={pos})"
+                     + (f"   # SCADA ip {n['ip']}" if n.get("ip") else ""))
+    L.append("")
+
+    # --- links: assign a per-node and per-switch interface index; put the IP on
+    #     endpoint interfaces, leave switch interfaces bare (CORE's own pattern)
+    ifc: dict = {}
+
+    def iface(node_id: str, lk: dict, side: str) -> str:
+        idx = ifc.get(node_id, 0)
+        ifc[node_id] = idx + 1
+        ip = _node_ip(by_id[node_id], lk, side)
+        if ip is None:
+            return f"wrappers.Interface({idx})"                 # switch/hub end: no IP
+        return f"wrappers.Interface({idx}, ip4={ip!r}, ip4_mask={mask})"
+
     for lk in s["links"]:
-        lines.append(f"session.add_link(nodes[{lk['a']!r}], nodes[{lk['b']!r}], "
-                     f"options=dict(delay={int(lk.get('delay_ms', 0)) * 1000}, "
-                     f"loss={float(lk.get('loss', 0.0))}, bandwidth={int(lk.get('bw', 0))}))")
-    lines += ["core.start_session(session)",
-              "# each field node's startup command (above) launches its device runner;",
-              "# the gateway + external application run outside CORE on the back channel.",
-              ""]
-    return "\n".join(lines)
+        a, b = lk["a"], lk["b"]
+        opts = []
+        if lk.get("delay_ms"):
+            opts.append(f"delay={int(lk['delay_ms']) * 1000}")   # ms -> microseconds
+        if lk.get("loss"):
+            opts.append(f"loss={float(lk['loss'])}")
+        if lk.get("bw"):
+            opts.append(f"bandwidth={int(lk['bw'])}")
+        tail = f", options=LinkOptions({', '.join(opts)})" if opts else ""
+        L.append(f"session.add_link(node1=nodes[{a!r}], node2=nodes[{b!r}], "
+                 f"iface1={iface(a, lk, 'a')}, iface2={iface(b, lk, 'b')}{tail})")
+
+    L += ["", "ok, warnings = core.start_session(session)",
+          "", "# launch each node's program INSIDE its namespace (the PLC/master runs in-node)"]
+    for n in s["nodes"]:
+        if n["id"] in cmds:
+            run = f"bash -c 'cd \"$SCADAVT_DIR\" && PYTHONPATH=. {cmds[n['id']]} " \
+                  f">/tmp/{n['id']}.log 2>&1 &'"
+            L.append(f"core.node_command(session.id, nodes[{n['id']!r}].id, {run!r}, "
+                     f"wait=False, shell=True)")
+    L += ["",
+          "# The external process application + IOModuleGate run OUTSIDE CORE, on the",
+          "# out-of-band back channel (see gate_endpoints.ini / gate_points.ini).",
+          "# SCADAVT_DIR must point at the repo root inside the shared node filesystem.",
+          ""]
+    return "\n".join(L)
 
 
 def run_script(cfg: dict) -> str:

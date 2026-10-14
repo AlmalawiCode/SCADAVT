@@ -32,9 +32,16 @@ from . import integration as ig
 
 
 def device_from_node(node: dict) -> fb.Device:
-    """Build a neutral :class:`Device` from a session node descriptor."""
-    points = [fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)))
-              for p in node.get("points", [])]
+    """Build a neutral :class:`Device` from a session node descriptor.
+
+    A point may pin its Modbus address in configuration (``"address": 10``); the
+    table is still fixed by role, so the declared register map is honoured while
+    the semantics stay a real passive slave's."""
+    points = []
+    for p in node.get("points", []):
+        pinned = "address" in p
+        points.append(fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)),
+                                     address=int(p.get("address", 0)), pinned=pinned))
     return fb.Device(node["id"], points)
 
 
