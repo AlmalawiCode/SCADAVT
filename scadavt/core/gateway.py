@@ -15,7 +15,7 @@ IntegrationClient both have timeouts), so the gateway never blocks indefinitely.
 
 from __future__ import annotations
 
-from ..gateway.bridge import DeviceLink
+from .iolink import DeviceLink
 from ..util import hostport
 from . import integration as ig
 
