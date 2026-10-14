@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 import time
 
 REPO = os.environ.get("SCADAVT_DIR") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -104,8 +105,11 @@ def parse_loss_pct(ping_out: str):
 
 
 def write_descriptor(cfg, name):
-    out = os.path.join(REPO, f"_core_it_{name}")
+    # a temp dir (not the repo) so there are no permission/ownership clashes;
+    # nodes share the filesystem, so the in-node runners read it by absolute path
+    out = tempfile.mkdtemp(prefix=f"scadavt_it_{name}_")
     coregen.write_session(cfg, out)
+    os.chmod(out, 0o755)
     return out
 
 
