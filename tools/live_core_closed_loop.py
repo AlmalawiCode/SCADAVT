@@ -80,7 +80,7 @@ def read_level(core, sid, node, app_hp, point="T1_LEV"):
     node. Single-line python -c (robust through node_command). Returns float|None."""
     one = ("import asyncio,sys;from scadavt.core import integration as ig;"
            f"r=asyncio.run(ig.IntegrationClient('{app_hp[0]}',{app_hp[1]}).acquire('{point}'));"
-           "print(r.value)")
+           "print(r.value if r.quality=='OK' else 'FAILED')")
     rc, out = nrun(core, sid, node, f'{PREFIX} && {NODE_PY} -c "{one}"')
     try:
         return float((out or "").strip().splitlines()[-1])
@@ -110,6 +110,8 @@ def main(argv=None) -> int:
     # also hand the runners the full lab config (for the EPANET app + register map)
     labpath = os.path.join(outdir, "lab.json")
     open(labpath, "w").write(json.dumps(cfg))
+    evid = os.path.join(outdir, "evidence")
+    os.makedirs(evid, exist_ok=True)
 
     core = client.CoreGrpcClient()
     core.connect()
@@ -163,12 +165,23 @@ def main(argv=None) -> int:
                                f"--step 0.1 --cycles {a.cycles}", "MTU")
 
         # 5) capture Modbus on PLC1's SCADA interface while the loop runs
-        nrun(core, sid, plc, "bash -c 'setsid tcpdump -i eth0 -w /tmp/cl.pcap tcp port 502 "
-                             ">/tmp/td.log 2>&1 </dev/null &'", wait=False)
-        time.sleep(max(8.0, a.cycles * 0.25))        # let the closed loop run
-
-        # physical evidence: tank level moved under SCADA control
-        level1 = read_level(core, sid, appn, ("172.16.0.254", 9000))
+        # write straight into this run's evidence folder (fresh pcap every run)
+        pcap = os.path.join(evid, "modbus_scada.pcap")
+        nrun(core, sid, plc, f"bash -c 'rm -f {pcap}; setsid tcpdump -i eth0 -w {pcap} tcp port 502 "
+                             f">/tmp/td.log 2>&1 </dev/null &'", wait=False)
+        # sample a SYNCHRONIZED hydraulic + actuator trace while the loop runs
+        import csv as _csv
+        samples, t0w = [], time.time()
+        for _ in range(max(10, a.cycles // 3)):
+            lvl = read_level(core, sid, appn, ("172.16.0.254", 9000), "T1_LEV")
+            setg = read_level(core, sid, appn, ("172.16.0.254", 9000), "P1_SET")
+            samples.append((round(time.time() - t0w, 2), lvl, setg))
+            time.sleep(0.6)
+        with open(os.path.join(evid, "hydraulic_trace.csv"), "w", newline="") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["wall_s", "T1_level_m", "P1_applied_setting"])
+            w.writerows(samples)
+        level1 = samples[-1][1] if samples else None
         moved = (level0 is not None and level1 is not None and abs(level1 - level0) > 0.3)
         check("tank level changed under SCADA control (physical evidence)", moved,
               f"level {level0} -> {level1}")
@@ -205,9 +218,17 @@ def main(argv=None) -> int:
         # stop capture, confirm Modbus packets
         nrun(core, sid, plc, "pkill -f 'tcpdump -i eth0' || true")
         time.sleep(0.5)
-        rc, out = nrun(core, sid, plc, "tcpdump -r /tmp/cl.pcap 2>/dev/null | wc -l")
+        rc, out = nrun(core, sid, plc, f"tcpdump -r {pcap} 2>/dev/null | wc -l")
         n = int((out or "0").strip().split()[-1]) if out.strip() else 0
         check("Modbus/TCP captured in pcap on the SCADA network", n > 0, f"{n} packets")
+        # gather the rest of the synchronized evidence alongside the pcap
+        import shutil
+        for src, dst in [("/tmp/MTU.log", "commanded_mtu.log"),
+                         ("/tmp/GW.log", "gateway.log"), ("/tmp/APP.log", "epanet_app.log")]:
+            try:
+                shutil.copy(src, os.path.join(evid, dst))
+            except Exception:
+                pass
     finally:
         if not a.keep:
             try:
@@ -215,6 +236,7 @@ def main(argv=None) -> int:
             except Exception:
                 pass
 
+    print(f"\n  evidence saved to: {evid}")
     print("\n" + "=" * 60 + f"\n  RESULT   PASSED: {len(PASS)}   FAILED: {len(FAIL)}")
     for f in FAIL:
         print(f"    FAIL -> {f}")
