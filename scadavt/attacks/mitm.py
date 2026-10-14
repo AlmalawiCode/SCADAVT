@@ -73,7 +73,7 @@ class Agent:
         while not self._arp_stop.is_set():
             if self.spoofer:
                 self.spoofer.poison_once()
-            self._arp_stop.wait(1.0)
+            self._arp_stop.wait(0.3)       # re-poison aggressively so the cache can't revert
 
     # ----------------------------------------------- persistent MITM path
     # The man-in-the-middle position (ARP poisoning + REDIRECT) is established
