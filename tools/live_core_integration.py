@@ -246,10 +246,24 @@ def test_wan(core):
                      options=LinkOptions(delay=DELAY_MS * 1000, loss=LOSS_PCT))
     ok, warnings = core.start_session(session)
     check("WAN session started", ok, f"warnings={warnings}")
-    print("   (allowing a few seconds for OSPF/IPForward to converge...)")
-    time.sleep(8.0)
+
+    # Bring up L3 routing deterministically (don't depend on OSPF convergence or
+    # on which routing services the model attached): enable IP forwarding on the
+    # router and give each endpoint a default route to the router's leg in its
+    # own subnet. The router is directly connected to both subnets, so this is
+    # all that is needed for MTU (10.0.0.0/24) to reach PLC2 (10.0.1.0/24).
+    print("   (configuring routing: IP forwarding on R1 + default routes)")
+    node_run(core, sid, r1, "sysctl -w net.ipv4.ip_forward=1")
+    node_run(core, sid, plc1, "ip route replace default via 10.0.0.250")
+    node_run(core, sid, mtu, "ip route replace default via 10.0.0.250")
+    node_run(core, sid, plc2, "ip route replace default via 10.0.1.250")
+    time.sleep(2.0)
 
     try:
+        # sanity: each endpoint can reach its own router leg (same subnet)
+        rc_g, _ = ping(core, sid, mtu, "10.0.0.250", count=2)
+        check("MTU reaches the router (gateway on its LAN)", rc_g == 0)
+
         # 1) routing: MTU in 10.0.0.0/24 reaches PLC2 in 10.0.1.0/24 across the router
         rc, out = ping(core, sid, mtu, "10.0.1.1", count=5)
         check("Routing works: MTU -> PLC2 across the router (different subnets)",
