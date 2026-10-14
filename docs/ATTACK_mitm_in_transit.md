@@ -21,7 +21,41 @@ connection into the proxy, which relays frames and — while the attack window i
 open — rewrites the pump-speed write to `0.0` with `CommandHandler("H", 0,
 "const", 0.0)`.
 
-## What is VERIFIED live on CORE
+## L3-ROUTED variant — CLEAN cyber-physical MITM (VERIFIED, `tools/live_core_mitm_l3.py`)
+
+The ARP variant below disrupted the MTU's persistent connection. The **L3-routed**
+variant fixes that: the MTU and PLC are on two SCADA subnets and the **attacker is
+the router between them**, so MTU↔PLC traffic is forwarded through it by routing
+(no ARP poisoning). The attacker REDIRECTs the transit `:502` connection into the
+proxy and rewrites with `CommandHandler("H", 0, "const", 0.0)` while the window is
+open. EPANET, the gateway, the scenario **and the MTU's normal persistent-connection
+control behaviour** are all unchanged (the back channel stays off the routed path).
+
+**Verified live on CORE (2 reproducible runs, 7/7), with the clean result claimed
+only because all of the following held together:**
+- **Connection stable, not disrupted.** Through the whole attack the master kept
+  its persistent session and kept writing — **0** `socket.send` exceptions and
+  **77 MTU-side writes** on the wire. (This is the explicit *modification vs
+  disruption* discriminator.)
+- **Command modified in transit (both-interface PCAP).** Benign: MTU-side `{0.7,
+  1.0}` == PLC-side `{0.7, 1.0}`. Attack: MTU-side `{0.7, 1.0}` (**never 0**) but
+  PLC-side carries **`0.0`** — a value the sender never put on the wire, so it was
+  altered between the two interfaces. Write counts match (77 = 77): the stream
+  flows, it is not dropped.
+- **Three-way divergence:** received and applied forced to `0` for 100 % of the
+  sampled window while the MTU commands `0.7`→`1.0`.
+- **Independently measured hydraulic impact:** benign tank holds ~2.9 m; under the
+  attack the tank **empties (~0 m)** — with a stable connection in both phases, so
+  the drop is the effect of the *modification*, not of a broken link.
+
+Evidence per run (`evidence/`): `benign_mtu.pcap`/`benign_plc.pcap`,
+`attack_mtu.pcap`/`attack_plc.pcap`, `benign_trace.csv`/`attack_trace.csv`
+(level + applied + received), `mitm_agent.csv`, `commanded_mtu.log`.
+Reproduce: `SCADAVT_DIR=$PWD SCADAVT_NODE_PY=$PWD/.venv/bin/python /opt/core/venv/bin/python tools/live_core_mitm_l3.py`.
+A small `--no-arp` mode was added to `attacks/mitm.py` so the agent skips ARP and
+only REDIRECTs (the routing already puts it on-path). Single PLC.
+
+## (ARP variant) What is VERIFIED live on CORE
 - **The in-transit rewrite works.** With the MITM path up and the window open, a
   **legitimate Modbus write of `0.7`, sent through the path, is received as `0.0`
   at the PLC** (confirmed by reading the register back: `wrote 0.7 -> read 0.0`),
