@@ -1,0 +1,83 @@
+{
+  "name": "it-lan",
+  "control": {
+    "placement": "mtu"
+  },
+  "netmask": 24,
+  "nodes": [
+    {
+      "id": "PLC1",
+      "kind": "plc",
+      "role": "field-device",
+      "model": "PC",
+      "ip": "10.0.0.1",
+      "backchannel": "127.0.0.1:9161",
+      "services": [
+        "ModbusServer",
+        "IOModules"
+      ],
+      "protocol": "modbus",
+      "points": [
+        {
+          "id": "lvl",
+          "role": "measurement",
+          "is_bool": false
+        },
+        {
+          "id": "pmp",
+          "role": "command",
+          "is_bool": true
+        }
+      ]
+    },
+    {
+      "id": "MTU",
+      "kind": "mtu",
+      "role": "master",
+      "model": "PC",
+      "ip": "10.0.0.254",
+      "services": [
+        "ModbusMaster",
+        "ControlHost"
+      ]
+    }
+  ],
+  "links": [],
+  "external_apps": [],
+  "mapping": [
+    {
+      "point": "lvl",
+      "device": "PLC1",
+      "role": "measurement",
+      "element": "T1"
+    },
+    {
+      "point": "pmp",
+      "device": "PLC1",
+      "role": "command",
+      "element": "P1"
+    }
+  ],
+  "rules": [
+    {
+      "id": "on",
+      "if": [
+        {
+          "kind": "tank",
+          "comp": "T1",
+          "attr": "level",
+          "op": "below",
+          "value": 3.0
+        }
+      ],
+      "then": [
+        {
+          "comp": "P1",
+          "kind": "pump",
+          "attr": "status",
+          "value": "open"
+        }
+      ]
+    }
+  ]
+}

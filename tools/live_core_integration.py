@@ -68,10 +68,13 @@ def node_run(core, sid, node, command, wait=True):
 
 
 def launch(core, sid, node, module_args, logname):
-    """Launch a long-running SCADAVT runner inside a node (backgrounded)."""
-    cmd = (f"bash -c '{PREFIX} && {NODE_PY} -m {module_args} "
-           f">/tmp/{logname}.log 2>&1 &'")
-    return node_run(core, sid, node, cmd, wait=True)
+    """Launch a long-running SCADAVT runner inside a node, fully detached.
+
+    Uses wait=False and setsid + closed stdin so node_command returns at once
+    (otherwise CORE waits on the still-running server and the test hangs)."""
+    cmd = (f"bash -c '{PREFIX} && setsid {NODE_PY} -m {module_args} "
+           f">/tmp/{logname}.log 2>&1 </dev/null &'")
+    return node_run(core, sid, node, cmd, wait=False)
 
 
 def ping(core, sid, node, target_ip, count=3):
@@ -160,9 +163,9 @@ def test_lan(core):
         check("MTU reads PLC1 sensor register over Modbus (~2.0)", rc == 0 and got_level, out.strip())
 
         # 4) start a PCAP capture on the PLC interface, then drive control traffic
-        node_run(core, sid, plc, "bash -c 'tcpdump -i eth0 -w /tmp/plc1.pcap tcp port 502 "
-                                  ">/tmp/tcpdump.log 2>&1 &'", wait=True)
-        time.sleep(1.0)
+        node_run(core, sid, plc, "bash -c 'setsid tcpdump -i eth0 -w /tmp/plc1.pcap tcp port 502 "
+                                  ">/tmp/tcpdump.log 2>&1 </dev/null &'", wait=False)
+        time.sleep(1.5)
 
         # 5) control decision + actuator write: run the MTU master a few cycles
         rc, out = node_run(core, sid, mtu,
