@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCADAVT Network Designer</title>
+<style>
+  :root{ --bg:#0f1420; --panel:#171e2e; --ink:#e6ecf5; --muted:#8a9cc0;
+         --line:#2b3550; --plc:#3b82f6; --mtu:#ef4444;
+         --router:#f59e0b; --switch:#10b981; --accent:#60a5fa; }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column}
+  header{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header b{font-size:15px;margin-right:8px}
+  button{background:#223052;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:13px}
+  button:hover{background:#2c3e68}
+  button.act{background:var(--accent);color:#06101f;border-color:var(--accent);font-weight:600}
+  .pill{padding:2px 8px;border-radius:999px;font-size:12px}
+  main{flex:1;display:flex;min-height:0}
+  #canvas{flex:1;background:
+    radial-gradient(circle at 1px 1px, #1c2740 1px, transparent 0) 0 0/22px 22px var(--bg)}
+  aside{width:320px;background:var(--panel);border-left:1px solid var(--line);padding:12px;overflow:auto}
+  aside h3{margin:6px 0 4px;font-size:13px;color:var(--accent)}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 2px}
+  input,textarea,select{width:100%;background:#0f1726;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px;font:13px monospace}
+  textarea{min-height:92px;resize:vertical}
+  .node{cursor:grab}
+  .node rect{rx:8}
+  .node text{fill:#06101f;font-weight:700;font-size:12px;pointer-events:none}
+  .lab{fill:var(--muted);font-size:10px;pointer-events:none}
+  .link{stroke:var(--line);stroke-width:2}
+  .sel{outline:2px solid var(--accent)}
+  #log{white-space:pre-wrap;font:12px monospace;background:#0b1120;border:1px solid var(--line);border-radius:6px;padding:8px;min-height:60px;max-height:220px;overflow:auto}
+  .legend span{display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .hint{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <b>SCADAVT Designer</b>
+  <span class="hint">add:</span>
+  <button data-add="plc">+ PLC</button>
+  <button data-add="mtu">+ MTU</button>
+  <button data-add="switch">+ Switch</button>
+  <button data-add="router">+ Router</button>
+  <button id="linkBtn">Link mode: off</button>
+  <button id="delBtn">Delete</button>
+  <span style="flex:1"></span>
+  <button id="importBtn">Import</button>
+  <button id="exportBtn">Export</button>
+  <button id="validateBtn">Validate</button>
+  <button id="runBtn" class="act">Run</button>
+  <input id="file" type="file" accept=".json,.yaml,.yml" hidden>
+</header>
+<main>
+  <svg id="canvas"></svg>
+  <aside>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--plc)"></i>PLC</span>
+      <span><i class="dot" style="background:var(--mtu)"></i>MTU</span>
+      <span><i class="dot" style="background:var(--router)"></i>Router</span>
+      <span><i class="dot" style="background:var(--switch)"></i>Switch</span>
+    </div>
+    <h3>Properties</h3>
+    <div id="props"><p class="hint">Select a node to edit. Click a node then another in Link mode to wire them.</p></div>
+    <h3>Rules (cross-PLC control)</h3>
+    <p class="hint">One per line: <code>Sx &lt; 3 =&gt; Ay open</code> — sensor Sx of PLCx low opens actuator Ay of PLCy.</p>
+    <textarea id="rules" placeholder="S1 < 3 => A2 open"></textarea>
+    <button id="applyRules">Apply rules</button>
+    <h3>Server</h3>
+    <label>Service base (same-origin by default)</label>
+    <input id="base" value="">
+    <label>Auth token (X-SCADAVT-Token, if set)</label>
+    <input id="token" placeholder="(none for local)">
+    <h3>Output</h3>
+    <div id="log"></div>
+  </aside>
+</main>
+<script src="designer.js"></script>
+</body>
+</html>

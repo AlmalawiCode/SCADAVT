@@ -32,7 +32,7 @@ def _is_local(host: str) -> bool:
 
 
 def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
-               cors_origins: list[str] | None = None):
+               cors_origins: list[str] | None = None, serve_designer: bool = True):
     """Build the FastAPI app.
 
     :param token: shared secret required in the ``X-SCADAVT-Token`` header for
@@ -73,13 +73,17 @@ def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
                 return JSONResponse({"detail": "missing or invalid auth token"},
                                     status_code=401)
         # 2) anti-CSRF: a cross-origin browser request carries an Origin header;
-        #    reject it unless explicitly allow-listed. Non-browser clients
-        #    (curl/httpx/the CLI) send no Origin and pass.
+        #    reject it unless it is same-origin (the served designer) or
+        #    explicitly allow-listed. Non-browser clients (curl/httpx/the CLI)
+        #    send no Origin and pass.
         origin = request.headers.get("origin")
-        if origin is not None and origin not in app.state.allowed_origins:
-            return JSONResponse(
-                {"detail": f"cross-origin state-changing request from {origin!r} "
-                           f"is not allowed"}, status_code=403)
+        if origin is not None:
+            host = request.headers.get("host", "")
+            same_origin = origin in (f"http://{host}", f"https://{host}")
+            if not same_origin and origin not in app.state.allowed_origins:
+                return JSONResponse(
+                    {"detail": f"cross-origin state-changing request from {origin!r} "
+                               f"is not allowed"}, status_code=403)
         return await call_next(request)
 
     @app.get("/health")
@@ -142,6 +146,16 @@ def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
             return {"started": ok, "reached": reached, "devices": len(cfg["devices"])}
         finally:
             net.stop()
+
+    # serve the generic designer (static, same-origin) at /designer
+    if serve_designer:
+        import os
+        from fastapi.staticfiles import StaticFiles
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                  "designer", "static")
+        if os.path.isdir(static_dir):
+            app.mount("/designer", StaticFiles(directory=static_dir, html=True),
+                      name="designer")
 
     return app
 
