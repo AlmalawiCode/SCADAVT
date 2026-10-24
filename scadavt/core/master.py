@@ -29,6 +29,39 @@ from . import integration as ig
 from .device import device_from_node
 
 
+#: comparison operators for register-based logic conditions
+_OPS = {
+    "below": lambda v, t: v < t, "above": lambda v, t: v > t,
+    "at_most": lambda v, t: v <= t, "at_least": lambda v, t: v >= t,
+    "equal": lambda v, t: v == t, "not_equal": lambda v, t: v != t,
+}
+
+
+def logic_reads(logic: list) -> set:
+    """The ``(device, register)`` pairs a logic program reads (its conditions)."""
+    return {(c["device"], c["register"]) for rule in logic for c in rule.get("if", [])}
+
+
+def evaluate_logic(logic: list, values: dict) -> list:
+    """Pure evaluator: given logic rules and a ``{(device,register): value}``
+    read snapshot, return the ``(device, register, value)`` writes whose
+    conditions **all** hold. The central MTU performs the reads/writes over real
+    Modbus; this decides what to write."""
+    writes = []
+    for rule in logic:
+        ok = True
+        for c in rule.get("if", []):
+            v = values.get((c["device"], c["register"]))
+            op = _OPS.get(c.get("op", "equal"))
+            if v is None or op is None or not op(v, c["value"]):
+                ok = False
+                break
+        if ok:
+            for a in rule.get("then", []):
+                writes.append((a["device"], a["register"], a.get("set", a.get("value"))))
+    return writes
+
+
 def _links(session: dict):
     """Build a Modbus client to each field device, keyed by device id, plus the
     local register handle for each mapped point. Addresses come from the device's
@@ -61,10 +94,13 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
         else:
             meas.append((comp, m["device"], dev.by_id[m["point"]]))
     engine = RuleEngine.from_json(session.get("rules", []))
+    logic = session.get("logic", [])                 # register-based control
+    lreads = logic_reads(logic)
     if log:
-        log.info("master: %d device links %s, %d measurements, %d commands, %d rules",
-                 len(clients), {k: f"{h}:{p}" for k, (h, p) in ports.items()},
-                 len(meas), len(cmd_of), len(session.get("rules", [])))
+        log.info("master: %d device links %s, %d measurements, %d commands, "
+                 "%d rules, %d logic", len(clients),
+                 {k: f"{h}:{p}" for k, (h, p) in ports.items()},
+                 len(meas), len(cmd_of), len(session.get("rules", [])), len(logic))
     t0 = time.time()
     i = 0
     try:
@@ -90,6 +126,33 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
                     pass
             if log and commanded:                        # independent record of the commanded stage
                 log.info("CMD t=%d %s", i, json.dumps(commanded))
+
+            # register-based control: read condition registers, decide, write
+            # target registers — all over real Modbus, node to node (central MTU).
+            if logic:
+                rvals = {}
+                for did, rid in lreads:
+                    dev = devs.get(did)
+                    pt = dev.by_id.get(rid) if dev else None
+                    if pt is None:
+                        continue
+                    try:
+                        rvals[(did, rid)] = await clients[did].read(pt)
+                    except Exception:
+                        pass
+                lcmd = {}
+                for did, rid, val in evaluate_logic(logic, rvals):
+                    dev = devs.get(did)
+                    pt = dev.by_id.get(rid) if dev else None
+                    if pt is None:
+                        continue
+                    try:
+                        await clients[did].write(pt, float(val))
+                        lcmd[f"{did}.{rid}"] = val
+                    except Exception:
+                        pass
+                if log and lcmd:
+                    log.info("LOGIC t=%d %s", i, json.dumps(lcmd))
             i += 1
             if cycles is None or i < cycles:
                 await asyncio.sleep(step_seconds)

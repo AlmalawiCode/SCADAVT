@@ -92,6 +92,22 @@ def validate(cfg: dict) -> list[str]:
     for m in cfg.get("mapping", []):
         if (m.get("device"), m.get("point")) not in known:
             issues.append(f"mapping references unknown point {m.get('device')}.{m.get('point')}")
+    # register-based control logic references real (device, register) points, and
+    # a 'then' target must be a writable register (coil/holding — not read-only).
+    writable = {(d["id"], r["id"]) for d in devices for r in d.get("registers", [])
+                if r.get("area") in ("coil", "holding_register")}
+    for rule in cfg.get("logic", []):
+        for c in rule.get("if", []):
+            if (c.get("device"), c.get("register")) not in known:
+                issues.append(f"logic {rule.get('id')}: unknown register "
+                              f"{c.get('device')}.{c.get('register')}")
+        for a in rule.get("then", []):
+            ref = (a.get("device"), a.get("register"))
+            if ref not in known:
+                issues.append(f"logic {rule.get('id')}: unknown register {ref[0]}.{ref[1]}")
+            elif writable and ref not in writable:
+                issues.append(f"logic {rule.get('id')}: target {ref[0]}.{ref[1]} is a "
+                              f"read-only register (use a coil/holding_register)")
     # addressing uniqueness (IPs and back channels must not clash)
     ips = [d.get("ip") for d in devices if d.get("ip")]
     if cfg.get("mtu", {}).get("ip"):
@@ -164,6 +180,7 @@ def session(cfg: dict) -> dict:
         "external_apps": list(cfg.get("external_apps", [])),
         "mapping": list(cfg.get("mapping", [])),
         "rules": list(cfg.get("rules", [])),
+        "logic": list(cfg.get("logic", [])),
     }
 
 
