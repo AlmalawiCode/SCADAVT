@@ -32,17 +32,12 @@ from . import integration as ig
 
 
 def device_from_node(node: dict) -> fb.Device:
-    """Build a neutral :class:`Device` from a session node descriptor.
+    """Build a neutral register-based :class:`Device` from a session node.
 
-    A point may pin its Modbus address in configuration (``"address": 10``); the
-    table is still fixed by role, so the declared register map is honoured while
-    the semantics stay a real passive slave's."""
-    points = []
-    for p in node.get("points", []):
-        pinned = "address" in p
-        points.append(fb.DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)),
-                                     address=int(p.get("address", 0)), pinned=pinned))
-    return fb.Device(node["id"], points)
+    Accepts the native ``registers`` list (each declaring its Modbus ``area`` and
+    ``data_type``) or, transitionally, a legacy ``points`` list (lowered to
+    registers) — never both. A register may pin its address (``"address": 10``)."""
+    return fb.Device(node["id"], fb.registers_from_config(node))
 
 
 class IOModulesServer:
