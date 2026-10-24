@@ -243,16 +243,27 @@ Design is only real if CI fails when it is violated:
   has a semantic fault (e.g. duplicate IP, dangling link endpoint) is **rejected
   by `coregen.validate`**; a config valid by schema but empty of devices fails
   validate. `validate` is asserted as the gate.
-- **T-R8 meaning-preserving round-trip.** For a battery of configs incl.
-  arbitrary non-grid ones: Python→file→(designer model)→file preserves the node
-  set, the link set, the mapping, the rules, and every supported property
-  (field-by-field diff == ∅); unknown-but-supported keys are retained.
-- **T-R9 arbitrary topology.** A hand-authored non-grid config validates, builds,
-  and runs (reusing the `--manual` live scenario) — no grid assumption anywhere
-  in model/validator/engine.
-- **T-R10 service security.** Default bind is `127.0.0.1`; a request to a
-  non-local bind without a valid token is refused; engine + CLI run with the
-  service never started.
+- **T-R8 meaning-preserving round-trip (full loop incl. edit + execute).** For a
+  battery of configs incl. arbitrary non-grid ones: a **complete Python → GUI →
+  Python loop** — author in Python, load into the designer model, **edit** it
+  there (e.g. add a PLC, add a link, change a rule), export back to a file — such
+  that (a) no configuration property or control relationship is lost at any hop
+  (field-by-field diff of the untouched parts == ∅; unknown-but-supported keys
+  retained), and (b) the round-tripped, edited config **validates and executes**
+  on the shared engine. The edit survives; everything else is byte-stable.
+- **T-R9 arbitrary topology authored *in the GUI*.** Beyond a hand-authored file:
+  a topology **created through the designer itself** — arbitrary, non-grid (nodes
+  and links placed by the user, not generated) — can be **exported** to a
+  canonical config and **executed on the shared CORE engine** (reusing the
+  `--manual`-style live path). No grid assumption anywhere in
+  model/validator/engine/designer.
+- **T-R10 remote auth + state-change protection (incl. local browser).** Default
+  bind `127.0.0.1`; any non-local bind requires an auth token, and a request
+  without a valid one is refused. **State-changing operations** (build/run/save
+  = non-idempotent `POST`s) are protected against cross-site/browser-driven
+  abuse even for a *local* browser client (e.g. token/CSRF check + restrictive
+  CORS; no ambient-authority write from a drive-by page). Read-only `GET`s on the
+  local bind stay convenient. Engine + CLI run with the service never started.
 - **T-R11 single CLI implementation.** `python -m scadavt` and the console-script
   resolve to the same `scadavt.cli:main`; a test asserts identical dispatch for a
   sample verb.
