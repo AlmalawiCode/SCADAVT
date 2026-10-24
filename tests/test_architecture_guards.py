@@ -36,7 +36,7 @@ LOWER_STACK_FILES = [
 
 # import prefixes a headless engine / CLI must never pull in
 FORBIDDEN = ("flask", "labui", "epanet", "scadavt.webui", "scadavt.apps.water",
-             "aiohttp", "fastapi")
+             "aiohttp", "fastapi", "uvicorn", "scadavt.service")
 
 
 def _imported_names(path: str):
