@@ -28,6 +28,33 @@ Binding constraints:
 
 This document is the contract that makes R1–R4 structural, not aspirational.
 
+**Binding refinements (approved).** D1–D4 (§9) are approved in principle, subject
+to seven refinements that become first-class requirements R5–R11:
+
+- **R5 — Python API/CLI independent of *both* GUI and HTTP server.** The API and
+  CLI must import and run with Flask **and** the HTTP service module both absent.
+- **R6 — Generic designer fully separated from water/EPANET.** LabUI is reused
+  *selectively*; the generic network designer imports nothing under
+  `scadavt.apps.water` and nothing EPANET-specific.
+- **R7 — One model; two-stage validation.** JSON Schema defines *structure*;
+  `coregen.validate` remains the **authoritative semantic validator**. Schema is
+  a precondition, not a substitute.
+- **R8 — Lossless round-trip of meaning.** Python↔GUI round-trip must preserve
+  **topology** (nodes + links), **control relationships** (mapping + rules), and
+  **every supported configuration property** — nothing silently dropped.
+- **R9 — Arbitrary topologies.** The model, validator, engine, and designer must
+  accept any user-defined topology; `grid()` is one convenience generator, never
+  a constraint on shape.
+- **R10 — HTTP service optional, local-by-default, secured for remote.** Default
+  bind `127.0.0.1`; remote exposure requires explicit opt-in **and**
+  authentication; the engine runs fully with the service absent.
+- **R11 — One implementation behind both CLI entry points.** `python -m scadavt`
+  and the `scadavt` console-script dispatch to the *same* function; no forked
+  logic.
+
+**North star:** a domain-independent, Python-first SCADA experimentation
+framework with an *optional* graphical interface.
+
 ---
 
 ## 2. Where we already stand (Phase 1 baseline)
@@ -80,9 +107,12 @@ Key rules:
 
 - **L0–L2 never import L3.** The engine does not know a GUI exists. (This is the
   machine-checkable form of R4 — see §7.)
+- **The HTTP service is itself L3**, a sibling of the GUI and the CLI — a thin
+  wrapper over L1/L2 with no business logic. The **Python API and CLI never
+  import it** (R5): the service depends on the engine, never the reverse.
 - **Both L3a and L3b sit on the same L0–L2.** The GUI has no private model,
   validator, or engine; it calls the same functions the Python user calls. This
-  is R2, and it is what guarantees R3.
+  is R2, and it is what guarantees R3/R8.
 - **The config file is the only hand-off** between any designer and the engine.
 
 ---
@@ -104,22 +134,38 @@ The config dict is promoted to a **named, versioned, machine-readable contract**
   (e.g. `apps.water`) that the generic engine ignores — so a water config and a
   bare generic config are the same model with an optional overlay.
 - **Versioning.** A `schema_version` field; L0 owns migration of older configs.
+- **Arbitrary topologies (R9).** The model expresses any set of nodes and any
+  set of links between them — any number of subnets, routers, back-channels, and
+  cross-PLC control relationships. There is no "grid" concept in the model;
+  `grid()` and friends are L3a *helpers* that merely emit ordinary configs. A
+  hand-authored non-grid config (e.g. the asymmetric `--manual` topology already
+  run live in PR #22) is a first-class citizen.
 
-This directly serves **R3**: because there is exactly one model and one file
+This directly serves **R3/R8**: because there is exactly one model and one file
 format, a Python-authored config and a GUI-authored config are the *same artefact*.
 
 ---
 
-## 5. L1 — one validator, one normaliser
+## 5. L1 — two-stage validation, one authority (R7)
 
-- `coregen.validate(cfg) -> list[issue]` remains the **only** validation entry
-  point. The GUI calls it (per keystroke / on save); the CLI calls it; tests
-  call it. There is no second, GUI-side validator — the GUI renders the issues
-  L1 returns.
-- Normalisation (defaulting, IP/mask inference, element↔register mapping) also
-  lives here so both workflows see identical resolved configs.
+Validation is two stages with a clear authority order:
 
-Serves **R2**: identical rules, identical results, regardless of entry point.
+1. **Structural (JSON Schema).** The canonical schema checks shape, types, and
+   required fields. It is a *precondition* — a fast, declarative gate the GUI can
+   also use for live field feedback.
+2. **Semantic (authoritative).** `coregen.validate(cfg) -> list[issue]` remains
+   the **only** authoritative validator: duplicate IPs, unknown link endpoints,
+   mapping references to non-existent points, placement rules, addressing. A
+   config is valid **iff `coregen.validate` returns no issues**; passing the
+   schema alone is never sufficient.
+
+- There is no second, GUI-side validator. The GUI calls the same L1 (per
+  keystroke / on save) and renders the issues L1 returns.
+- Normalisation (defaulting, IP/mask inference, element↔register mapping) lives
+  here so both workflows see identical resolved configs.
+
+Serves **R2/R7**: identical rules, identical results, regardless of entry point;
+schema structures, `coregen.validate` decides.
 
 ---
 
@@ -132,12 +178,18 @@ Serves **R2**: identical rules, identical results, regardless of entry point.
   assembling large configs in code. Offline-testable plan via `build_plan`.
 - **Framework CLI** (new, lifted out of `apps/water`): `python -m scadavt …`
   ```
-  scadavt validate  config.json              # L1
+  scadavt validate  config.json              # L1 (schema + coregen.validate)
   scadavt build      config.json -o out/      # L0→L2 generate artefacts
   scadavt run        config.json [--live]     # L2 run on CORE, print results
-  scadavt scaffold   --plcs 12 --per-subnet 6 # emit a starting config (grid)
+  scadavt scaffold   --plcs 12 --per-subnet 6 # emit a starting config (grid helper)
   scadavt export     config.json --format …   # round-trip / convert
   ```
+- **One implementation, two entry points (R11).** `python -m scadavt` (via
+  `scadavt/__main__.py`) and the `scadavt` console-script both call a single
+  `scadavt.cli:main(argv)`. No behaviour may differ between them.
+- **Independent of GUI and HTTP (R5).** The API and CLI import only L0–L2;
+  neither imports Flask nor the HTTP service module. They run on a headless host
+  with neither installed.
 - **Automation:** because everything is config-in / results-out, parameter
   sweeps, batch experiments, and CI runs are ordinary Python/shell loops over
   configs. No GUI, no display, no browser.
@@ -146,14 +198,20 @@ Serves **R2**: identical rules, identical results, regardless of entry point.
 
 - A thin client that lets a user **draw** nodes (PLC/MTU/router/switch) and
   links, set IPs/points/rules, and **emit the canonical config file**; and
-  **load** an existing config (Python- or GUI-authored) back onto the canvas.
-- It contains **no** domain or validation logic: it POSTs/【calls】 the config to
-  L1 for validation and L2 to run, and renders what comes back.
-- Boundary options (decision D1 below): (i) **in-process** — a desktop/local app
-  that imports L0–L2 directly; or (ii) **thin HTTP service** — a small server
-  that *only* wraps L1/L2 (a few endpoints: `validate`, `build`, `run`,
-  `load/save`) with zero business logic of its own. Either way the GUI is a leaf;
-  the server, if any, is itself just another L3 client of the engine.
+  **load** an existing config (Python- or GUI-authored) back onto the canvas,
+  including arbitrary non-grid topologies (R9).
+- It contains **no** domain or validation logic: it calls L1 for validation and
+  L2 to run, and renders what comes back.
+- **Water/EPANET-free (R6).** The generic designer and its service import nothing
+  under `scadavt.apps.water` and nothing EPANET-specific. Reuse of the existing
+  `apps/water/labui` is *selective* — generic canvas/validation/run mechanics are
+  lifted to a framework-level designer; water stays an optional overlay rendered
+  only when a config carries an `apps.water` section.
+- **Boundary = thin HTTP service (D1, approved).** A small server wraps L1/L2
+  (`validate`, `build`, `run`, `load/save`) with zero business logic. It is just
+  another L3 client of the engine. **Security (R10):** binds `127.0.0.1` by
+  default; remote exposure requires an explicit host/flag **and** an auth token;
+  the engine runs fully with the service absent.
 
 ---
 
@@ -173,10 +231,35 @@ Design is only real if CI fails when it is violated:
   configs (same function, asserted).
 - **T-R1 headless capability.** The existing live suite (`tools/live_core_*`,
   `tools/live_core_network.py`) runs with no GUI present — already true.
+- **T-R5 API/CLI independence.** Import `scadavt.cli` and `scadavt.core.corelive`
+  with both `flask` **and** the HTTP service module forced absent
+  (`sys.modules[...]=None`); `scadavt validate/build/run` still work. Static rule:
+  neither imports Flask nor the service module.
+- **T-R6 designer water-independence.** Import the generic designer/service with
+  `scadavt.apps.water` and the EPANET binding blocked; it still imports, loads a
+  config, validates, and runs. Static rule: no `apps.water`/EPANET import in the
+  generic designer.
+- **T-R7 schema vs. semantic authority.** A config that passes JSON Schema but
+  has a semantic fault (e.g. duplicate IP, dangling link endpoint) is **rejected
+  by `coregen.validate`**; a config valid by schema but empty of devices fails
+  validate. `validate` is asserted as the gate.
+- **T-R8 meaning-preserving round-trip.** For a battery of configs incl.
+  arbitrary non-grid ones: Python→file→(designer model)→file preserves the node
+  set, the link set, the mapping, the rules, and every supported property
+  (field-by-field diff == ∅); unknown-but-supported keys are retained.
+- **T-R9 arbitrary topology.** A hand-authored non-grid config validates, builds,
+  and runs (reusing the `--manual` live scenario) — no grid assumption anywhere
+  in model/validator/engine.
+- **T-R10 service security.** Default bind is `127.0.0.1`; a request to a
+  non-local bind without a valid token is refused; engine + CLI run with the
+  service never started.
+- **T-R11 single CLI implementation.** `python -m scadavt` and the console-script
+  resolve to the same `scadavt.cli:main`; a test asserts identical dispatch for a
+  sample verb.
 
-Acceptance of Phase 2 = these four tests green, plus a GUI-authored config
-running unmodified through `scadavt run`, and a `corelive`-authored config
-opening unmodified in the GUI.
+Acceptance of Phase 2 = **all** tests above green (T-R1…T-R11), plus a
+GUI-authored config running unmodified through `scadavt run`, and a
+`corelive`-authored arbitrary-topology config opening unmodified in the GUI.
 
 ---
 
@@ -186,27 +269,34 @@ opening unmodified in the GUI.
    `schema_version`; port `coregen` to consume them. Round-trip tests.
 2. **L1 formalisation** — make `validate`/normalise the sole, schema-checked
    entry; single-validator test.
-3. **Framework CLI** — `python -m scadavt`; move generic verbs out of
-   `apps/water`; keep a water shim. (No new engine code.)
-4. **Dependency guard tests** — T-R4 static + runtime.
-5. **Generic designer (GUI)** — only after 1–4 are green; boundary per D1.
+3. **Framework CLI** — one `scadavt.cli:main`, exposed as both `python -m
+   scadavt` and a console-script (R11); move generic verbs out of `apps/water`,
+   keep a water shim. (No new engine code.)
+4. **Guard tests** — T-R4/T-R5/T-R6 dependency (static + runtime), T-R7, T-R11.
+5. **Thin HTTP service** — wraps L1/L2 only; local-by-default + auth for remote
+   (R10). Only after 1–4 green.
+6. **Generic designer (GUI)** — water/EPANET-free (R6); lifts generic mechanics
+   from `apps/water/labui`; supports arbitrary topologies (R9) and
+   meaning-preserving round-trip (R8). Only after 5 green.
 
 ---
 
-## 9. Open decisions (your call — needed to finalise)
+## 9. Decisions (approved, with constraints)
 
-- **D1 — GUI boundary:** in-process local app vs. thin HTTP service wrapping
-  L1/L2. (Recommendation: thin HTTP service — keeps the GUI a pure client, works
-  remotely, mirrors the existing `labui` serve model.)
-- **D2 — GUI starting point:** generalise the existing `apps/water/labui` web UI
-  into the domain-neutral designer, vs. a fresh designer. (Recommendation:
-  generalise — it already calls `coregen` and proves the pattern.)
-- **D3 — Schema mechanism:** JSON Schema + lightweight typed accessors vs.
-  pydantic models as the source of truth. (Recommendation: JSON Schema canonical
-  + typed accessors — no runtime dependency forced on the headless engine.)
-- **D4 — CLI namespace/name:** `python -m scadavt <verb>` vs. a `scadavt`
-  console-script. (Recommendation: both — module form always works, script is
-  convenience.)
+All four are **approved in principle**, bound by the refinements R5–R11 (§1):
+
+- **D1 — GUI boundary → thin HTTP service** wrapping L1/L2. *Constraint:* the
+  service is L3; the Python API/CLI never import it (R5); local-by-default and
+  auth-gated for remote (R10).
+- **D2 — GUI starting point → generalise `apps/water/labui`**, selectively.
+  *Constraint:* the generic designer imports no water/EPANET code (R6); water is
+  an optional overlay only.
+- **D3 — Schema mechanism → JSON Schema (canonical) + typed accessors.**
+  *Constraint:* schema is structural only; `coregen.validate` stays the
+  authoritative semantic validator (R7); no runtime dep forced on the headless
+  engine.
+- **D4 — CLI → both `python -m scadavt` and a `scadavt` console-script.**
+  *Constraint:* both dispatch to one `scadavt.cli:main` (R11).
 
 ---
 
