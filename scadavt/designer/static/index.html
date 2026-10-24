@@ -40,16 +40,6 @@
   .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
   .hint{color:var(--muted);font-size:12px}
   #log{white-space:pre-wrap;font:12px monospace;background:#0b1120;border:1px solid var(--line);border-radius:6px;padding:8px;min-height:60px;max-height:200px;overflow:auto}
-  /* tutorial overlay */
-  #help{position:fixed;inset:0;background:#05080fdd;display:none;align-items:center;justify-content:center;z-index:50}
-  #help.open{display:flex}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:640px;width:92%;max-height:86vh;overflow:auto;padding:22px 26px;box-shadow:0 20px 60px #0008}
-  .card h2{margin:0 0 4px;font-size:20px}
-  .card h4{color:var(--accent);margin:16px 0 4px}
-  .card ol{margin:6px 0;padding-left:20px} .card li{margin:5px 0}
-  .card kbd{background:#0f1726;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
-  .card .x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
-  .card code{background:#0f1726;padding:1px 5px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -68,7 +58,7 @@
   <button id="validateBtn">Validate</button>
   <button id="runBtn" class="act">▶ Run</button>
   <span style="flex:1"></span>
-  <button id="helpBtn" title="How to use">? Tutorial</button>
+  <button id="helpBtn" title="Open the full guide in a new tab">? Tutorial</button>
   <input id="file" type="file" accept=".json,.yaml,.yml" hidden>
 </header>
 <main>
@@ -99,54 +89,6 @@
   </aside>
 </main>
 
-<div id="help">
-  <div class="card">
-    <span class="x" id="helpClose">×</span>
-    <h2>How to design a network</h2>
-    <p class="hint">Everything you build is saved as one plain config file — the same file the Python API/CLI uses.</p>
-
-    <h4>1 · Add nodes</h4>
-    <ol>
-      <li>Click <kbd>+ PLC</kbd>, <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, <kbd>+ Router</kbd>. Each appears on the canvas.</li>
-      <li><b>Drag any node</b> to move it anywhere — press on it and drag (free movement, no grid snapping).</li>
-    </ol>
-
-    <h4>2 · Wire them (links)</h4>
-    <ol>
-      <li>Click <kbd>🔗 Connect</kbd> (it turns blue — you are now in Connect mode).</li>
-      <li>Click the <b>first</b> node: a dashed line follows your cursor.</li>
-      <li>Click the <b>second</b> node to create the link. Keep clicking pairs to add more.</li>
-      <li>Press <kbd>Esc</kbd> or right-click to cancel; click <kbd>🔗 Connect</kbd> again to leave Connect mode.</li>
-    </ol>
-    <p class="hint"><b>Tip:</b> in real SCADA, PLCs and the MTU connect to a <b>Switch</b> (one LAN); a <b>Router</b> joins two switches into a WAN. A direct PLC↔PLC link is allowed but shown dashed amber, because it is unusual — usually you want each device on a switch.</p>
-
-    <h4>3 · Configure</h4>
-    <ol>
-      <li>Click a node to edit its <b>id</b> and <b>IP</b> in the Properties panel. Give devices on one switch the same subnet (e.g. <code>10.0.1.x</code>), the MTU <code>10.0.1.254</code>.</li>
-      <li>For a PLC, <b>seed</b> is its sensor value (used so rules fire deterministically).</li>
-    </ol>
-
-    <h4>4 · Control rules</h4>
-    <p>In the Rules box, type cross-PLC rules, one per line, then <kbd>Apply rules</kbd>:</p>
-    <p><code>S1 &lt; 3 =&gt; A2 open</code> = when PLC1's sensor (S1) is below 3, open PLC2's actuator (A2). <code>Sx</code>/<code>Ax</code> are PLC <em>x</em>'s sensor / actuator.</p>
-
-    <h4>5 · Validate &amp; run</h4>
-    <ol>
-      <li><kbd>Validate</kbd> — checks the network (structure + rules) on the server; errors show in Output.</li>
-      <li><kbd>▶ Run</kbd> — builds and runs it live on CORE and reports, per device, whether the MTU reached it and the read-back sensor/actuator values.</li>
-      <li><kbd>Export</kbd> saves the config file; <kbd>Import</kbd> loads one back (lossless) — the same file runs from the CLI with <code>scadavt run</code>.</li>
-    </ol>
-
-    <h4>A quick first network</h4>
-    <ol>
-      <li>+ MTU, + Switch, + PLC, + PLC.</li>
-      <li>🔗 Connect → click MTU then Switch; Switch then PLC1; Switch then PLC2.</li>
-      <li>Rules: <code>S1 &lt; 3 =&gt; A2 open</code> → Apply.</li>
-      <li>Validate → Run. You should see each device reached and A2 opened.</li>
-    </ol>
-    <p style="text-align:right;margin-top:14px"><button id="helpGo" class="act">Got it — start designing</button></p>
-  </div>
-</div>
 <script src="designer.js"></script>
 </body>
 </html>

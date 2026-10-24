@@ -177,7 +177,7 @@ function renameNode(oldId, newId) {
 
 // ---- pointer interaction ----------------------------------------------------
 function svgXY(e) { const r = svg.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
-let drag = null;
+let drag = null, connectDragged = false;
 svg.addEventListener("mousedown", e => {
   if (e.button === 2) return;                         // right-click handled on contextmenu
   const g = e.target.closest(".node");
@@ -185,9 +185,12 @@ svg.addEventListener("mousedown", e => {
   if (mode === "connect") {
     if (!g) { connectFrom = null; rubber = null; render(); updateStatus(); return; }
     const id = g.getAttribute("data-id");
-    if (!connectFrom) { connectFrom = id; select(id); updateStatus(); }
-    else { addLink(connectFrom, id); connectFrom = null; rubber = null; render(); updateStatus(); }
-    return;
+    if (connectFrom && id !== connectFrom) {            // click-click: second node completes
+      addLink(connectFrom, id); connectFrom = null; rubber = null; render(); updateStatus(); return;
+    }
+    connectFrom = id; connectDragged = false;           // arm (works for click-click OR drag)
+    const c = center(id); rubber = { x1: c.x, y1: c.y, x2: c.x, y2: c.y };
+    select(id); updateStatus(); return;
   }
   if (!g) { select(null); return; }
   const id = g.getAttribute("data-id");
@@ -197,6 +200,7 @@ svg.addEventListener("mousedown", e => {
 svg.addEventListener("mousemove", e => {
   const m = svgXY(e);
   if (mode === "connect" && connectFrom) {
+    connectDragged = true;
     const c = center(connectFrom); rubber = { x1: c.x, y1: c.y, x2: m.x, y2: m.y }; render();
     return;
   }
@@ -205,7 +209,15 @@ svg.addEventListener("mousemove", e => {
   pos[drag.id] = { x: m.x - drag.ox, y: m.y - drag.oy };     // free movement, no snap
   render();
 });
-window.addEventListener("mouseup", () => {
+window.addEventListener("mouseup", e => {
+  if (mode === "connect" && connectFrom && connectDragged) {  // drag-to-connect: release on target
+    const t = document.elementFromPoint(e.clientX, e.clientY);
+    const g = t && t.closest && t.closest(".node");
+    const id = g && g.getAttribute("data-id");
+    if (id && id !== connectFrom) addLink(connectFrom, id);
+    connectFrom = null; rubber = null; connectDragged = false; render(); updateStatus();
+    return;
+  }
   if (drag && !drag.moved) select(drag.id);                  // a click (not a drag) selects
   drag = null;
 });
@@ -227,7 +239,7 @@ function setMode(m) {
 function updateStatus() {
   const s = document.getElementById("status");
   if (mode !== "connect") s.innerHTML = 'Mode: <b>Select</b> — drag nodes to move; click <b>🔗 Connect</b> to wire them.';
-  else if (!connectFrom) s.innerHTML = 'Mode: <b>Connect</b> — click the FIRST node to start a link. (Esc to exit)';
+  else if (!connectFrom) s.innerHTML = 'Mode: <b>Connect</b> — click a node (or drag from one node onto another) to wire them. (Esc to exit)';
   else s.innerHTML = `Mode: <b>Connect</b> — now click the SECOND node to link <b>${connectFrom}</b>. (right-click / Esc to cancel)`;
 }
 
@@ -290,16 +302,15 @@ document.getElementById("runBtn").onclick = async () => {
   if (status !== 200) return log(`RUN failed (${status}): ` + (data.detail || "") + ((data.issues) ? "\n  " + data.issues.join("\n  ") : ""));
   let s = `RUN ✓ started=${data.started}, reached ${data.reached}/${data.devices}`;
   (data.results || []).forEach(r => { s += `\n  ${r.id}: reachable=${r.reachable} ` + Object.entries(r.points || {}).map(([k, v]) => `${k}=${v}`).join(" "); });
+  if ((cfg.rules || []).length === 0)
+    s += "\n  note: no rules applied, so actuators (a) stay at default — add rules then Apply.";
+  if ((data.results || []).some(r => !r.reachable))
+    s += "\n  ⚠ some devices unreachable — connect every device (usually via a Switch) and give them IPs in the same subnet.";
   log(s);
 };
 
-// ---- tutorial --------------------------------------------------------------
-function openHelp() { document.getElementById("help").classList.add("open"); }
-function closeHelp() { document.getElementById("help").classList.remove("open"); try { localStorage.setItem("scadavt_seen", "1"); } catch (e) {} }
-document.getElementById("helpBtn").onclick = openHelp;
-document.getElementById("helpClose").onclick = closeHelp;
-document.getElementById("helpGo").onclick = closeHelp;
-document.getElementById("help").addEventListener("click", e => { if (e.target.id === "help") closeHelp(); });
+// ---- tutorial (opens the full guide page in a new tab) ---------------------
+document.getElementById("helpBtn").onclick = () => window.open("tutorial.html", "_blank", "noopener");
 
 function log(s) { const e = document.getElementById("log"); e.textContent = new Date().toLocaleTimeString() + "  " + s + "\n" + e.textContent; }
 
@@ -308,5 +319,4 @@ window.SCADAVT = { get cfg() { return cfg; }, addNode, addLink, removeNode, load
                    exportJSON: () => { syncRules(); return JSON.stringify(stripView(cfg)); } };
 
 setMode("select"); render(); updateStatus();
-log("Ready. Click ? Tutorial for a 1-minute guide.");
-try { if (!localStorage.getItem("scadavt_seen")) openHelp(); } catch (e) {}
+log("Ready. Click “? Tutorial” (opens a full guide with a 3-PLC example in a new tab).");

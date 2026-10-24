@@ -50,11 +50,25 @@ def test_same_origin_post_allowed():
 # ---- R6 water-free ----------------------------------------------------------
 def test_designer_is_domain_neutral():
     blob = ""
-    for f in ("index.html", "designer.js"):
+    for f in ("index.html", "designer.js", "tutorial.html"):
         with open(os.path.join(DESIGNER_DIR, f)) as fh:
             blob += fh.read().lower()
     for bad in ("epanet", "apps.water", ".inp", "watersim", "hydraulic"):
         assert bad not in blob, f"designer references {bad!r}"
+
+
+def test_tutorial_served_in_new_tab():
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from scadavt.service import create_app
+    c = TestClient(create_app())
+    r = c.get("/designer/tutorial.html")
+    assert r.status_code == 200
+    assert "three" in r.text.lower() and "PLC" in r.text        # worked 3-PLC example present
+    # the designer links to it and opens it in a new tab
+    with open(os.path.join(DESIGNER_DIR, "designer.js")) as fh:
+        js = fh.read()
+    assert 'window.open("tutorial.html"' in js and "_blank" in js
 
 
 # ---- R8 lossless round-trip incl. GUI-style edit ---------------------------
