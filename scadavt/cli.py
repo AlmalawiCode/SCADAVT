@@ -122,21 +122,17 @@ def cmd_run(a) -> int:
     from core.api.grpc import client
     core = client.CoreGrpcClient()
     core.connect()
-    net = corelive.build(core, cfg)
-    try:
-        ok, warn = net.start(cycles=a.cycles)
-        print(f"session started ok={ok} warnings={warn}")
-        # minimal liveness: MTU reaches every device
-        mtu = cfg.get("mtu", {}).get("id")
-        reached = 0
-        for d in cfg["devices"]:
-            if mtu and d.get("ip") and net.ping(mtu, d["ip"]):
-                reached += 1
-        print(f"{mtu} reached {reached}/{len(cfg['devices'])} devices")
-        return 0 if reached == len(cfg["devices"]) else 1
-    finally:
-        if not a.keep:
-            net.stop()
+    res = corelive.run_live(core, cfg, cycles=a.cycles)
+    if a.json:
+        import json as _json
+        print(_json.dumps(res))
+    else:
+        print(f"session started={res['started']}")
+        print(f"MTU reached {res['reached']}/{res['devices']} devices")
+        for r in res["results"]:
+            pts = " ".join(f"{k}={v}" for k, v in r["points"].items())
+            print(f"  {r['id']:<8} reachable={r['reachable']}  {pts}")
+    return 0 if res["reached"] == res["devices"] else 1
 
 
 def _import_engine(need_core: bool):
@@ -187,7 +183,8 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", help="build + run the config on live CORE")
     r.add_argument("config"); r.add_argument("--live", action="store_true",
                                              help="(accepted; run is always live)")
-    r.add_argument("--cycles", type=int, default=60); r.add_argument("--keep", action="store_true")
+    r.add_argument("--cycles", type=int, default=60)
+    r.add_argument("--json", action="store_true", help="emit the results as JSON")
     r.set_defaults(fn=cmd_run)
     return ap
 

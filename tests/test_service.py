@@ -114,12 +114,31 @@ def test_non_local_bind_requires_token():
 
 
 def test_run_without_core_is_503(monkeypatch):
-    # force the live engine unavailable -> graceful 503, not a crash
+    # force the live engine unavailable AND no delegate -> graceful 503, not a crash
     import scadavt.service.app as appmod
+    monkeypatch.delenv("SCADAVT_CORE_PYTHON", raising=False)
     monkeypatch.setattr(appmod, "_engine_available", lambda: False)
     c = TestClient(create_app())
     r = c.post("/run", json={"config": _valid()})
     assert r.status_code == 503
+
+
+def test_run_delegates_to_core_python(monkeypatch, tmp_path):
+    # with SCADAVT_CORE_PYTHON set, /run shells out to that interpreter and
+    # returns its JSON — tested with a fake "core python" that ignores its args
+    # and prints a canned results line (so no real CORE is needed).
+    fake = tmp_path / "fake_core_python"
+    fake.write_text('#!/usr/bin/env python3\n'
+                    'import sys\n'
+                    'print(\'{"started": true, "reached": 1, "devices": 1, '
+                    '"results": [{"id": "PLC1", "reachable": true, "points": {"a": 1.0}}]}\')\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("SCADAVT_CORE_PYTHON", str(fake))
+    c = TestClient(create_app())
+    r = c.post("/run", json={"config": _valid()})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["reached"] == 1 and body["results"][0]["points"]["a"] == 1.0
 
 
 def test_service_is_water_free():
