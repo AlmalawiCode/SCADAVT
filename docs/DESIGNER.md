@@ -43,24 +43,36 @@ there is one model and one file format. A config built entirely in Python
 (`corelive.grid(...)` or hand-written) opens unchanged in the designer, and a
 config built in the designer runs unchanged via `scadavt run` and `corelive`.
 
+## How `/run` executes (one engine, two deployments)
+
+`/run` always goes through the single shared runner
+`scadavt.core.corelive.run_live`, which the CLI (`scadavt run`) uses too — so
+both interfaces produce the same result shape.
+
+- **in-process** — where `pip install .[webui]` is done in the CORE environment,
+  the service imports the CORE API and runs directly;
+- **delegated** — set `SCADAVT_CORE_PYTHON=/path/to/core/python` and the service
+  runs `<it> -m scadavt run <cfg> --live --json` as a subprocess (outbound gRPC
+  to the daemon). This lets the HTTP service run on an interpreter that cannot
+  itself load CORE (e.g. when only an out-of-process interpreter can reach CORE).
+
+Without either, `/run` returns 503 — the rest of the service (and all of the
+Python CLI) keeps working.
+
 ## Verification
 
-- Unit/contract (`tests/test_designer.py`): served same-origin, domain-neutral,
-  lossless round-trip incl. a GUI-style edit that still validates and plans,
-  arbitrary non-grid topology valid + planned.
-- Real-browser E2E (`tests/e2e_designer.js`, needs `node` + `puppeteer-core` +
-  Chrome): loads the served designer, builds an arbitrary topology + a cross-PLC
-  rule through the GUI's own code, exports the canonical config, and validates it
-  via the service — verified: 4 nodes / 3 links / 1 rule, validate ok, no page
+- Unit/contract (`tests/test_designer.py`, `tests/test_service.py`): served
+  same-origin, domain-neutral, lossless round-trip incl. a GUI-style edit that
+  still validates and plans, arbitrary non-grid topology valid + planned, and
+  `/run` delegation (fake CORE interpreter) returns results.
+- **Genuine browser → CORE E2E** (`tests/e2e_designer_run.js`, needs `node` +
+  `puppeteer-core` + Chrome, plus a service with CORE in-process or via
+  `SCADAVT_CORE_PYTHON`): builds an arbitrary 3-PLC topology **with a cross-PLC
+  rule ring through the GUI's own code**, validates, and **executes it live on
+  CORE via `/run`, retrieving the actual results in the browser**:
+  `started=true, reached 3/3, every actuator opened by the ring (a=1)`, no page
   errors.
-- Live execution of a GUI-shaped (arbitrary, non-grid) config on real CORE via
-  the identical engine the service `/run` uses: `scadavt run --live` → MTU
-  reached every device (3/3).
-
-## Note
-
-A single interpreter holding both FastAPI and the CORE libraries was not
-available in the dev sandbox (`/opt/core` venv is root-owned), so the browser
-E2E exercised create/export/validate; live `/run` from the browser works where
-`pip install .[webui]` is run in the CORE environment. The `/run` engine path is
-identical to the verified `scadavt run --live`.
+- **Consistency**: the same GUI-exported config run through the Python CLI
+  (`scadavt run --live --json`) gives identical results (3/3, all actuators 1.0)
+  — one engine behind both interfaces.
+- A simpler create/export/validate browser E2E is `tests/e2e_designer.js`.

@@ -129,23 +129,10 @@ def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
         if not r.ok:
             return JSONResponse({"detail": "invalid config", "issues": r.issues},
                                 status_code=422)
-        corelive = _lazy_engine()
-        if corelive is None or not _engine_available():
-            return JSONResponse(
-                {"detail": "live CORE engine not available on this host"},
-                status_code=503)
-        from core.api.grpc import client
-        core = client.CoreGrpcClient()
-        core.connect()
-        net = corelive.build(core, cfg)
         try:
-            ok, warn = net.start(cycles=cycles)
-            mtu = cfg.get("mtu", {}).get("id")
-            reached = sum(1 for d in cfg["devices"]
-                          if mtu and d.get("ip") and net.ping(mtu, d["ip"]))
-            return {"started": ok, "reached": reached, "devices": len(cfg["devices"])}
-        finally:
-            net.stop()
+            return _execute(cfg, cycles)
+        except _EngineUnavailable as e:
+            return JSONResponse({"detail": str(e)}, status_code=503)
 
     # serve the generic designer (static, same-origin) at /designer
     if serve_designer:
@@ -158,6 +145,52 @@ def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
                       name="designer")
 
     return app
+
+
+class _EngineUnavailable(RuntimeError):
+    pass
+
+
+def _execute(cfg: dict, cycles: int) -> dict:
+    """Run a config live and return the actual results via the ONE shared runner
+    (:func:`scadavt.core.corelive.run_live`). Two deployments, same runner and
+    same result shape:
+
+    * **in-process** — when this process can import the CORE Python API
+      (``pip install .[webui]`` in the CORE environment), run directly;
+    * **delegated** — when ``SCADAVT_CORE_PYTHON`` names a CORE-capable
+      interpreter, run ``<it> -m scadavt run <cfg> --live --json`` as a
+      subprocess (it connects out to the daemon). This lets the HTTP service run
+      on an interpreter that cannot itself load CORE.
+    """
+    import os
+    core_py = os.environ.get("SCADAVT_CORE_PYTHON")
+    if core_py:
+        import json
+        import subprocess
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            json.dump(cfg, fh)
+            cfgpath = fh.name
+        try:
+            out = subprocess.run([core_py, "-m", "scadavt", "run", cfgpath,
+                                  "--live", "--json", "--cycles", str(cycles)],
+                                 capture_output=True, text=True, timeout=600,
+                                 env=dict(os.environ))
+        finally:
+            os.unlink(cfgpath)
+        lines = [l for l in out.stdout.splitlines() if l.strip().startswith("{")]
+        if not lines:
+            raise _EngineUnavailable(f"delegated run failed: {out.stderr.strip()[-400:]}")
+        return json.loads(lines[-1])
+    corelive = _lazy_engine()
+    if corelive is None or not _engine_available():
+        raise _EngineUnavailable("live CORE engine not available on this host "
+                                 "(and SCADAVT_CORE_PYTHON is not set)")
+    from core.api.grpc import client
+    core = client.CoreGrpcClient()
+    core.connect()
+    return corelive.run_live(core, cfg, cycles=cycles)
 
 
 def _lazy_engine():
