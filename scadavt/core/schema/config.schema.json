@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://scadavt/core/config.schema.json",
+  "title": "SCADAVT experiment configuration",
+  "description": "Domain-neutral SCADA network experiment. The single shared model used by the Python API/CLI and the GUI designer. Structural contract only; scadavt.core.coregen.validate is the authoritative semantic validator.",
+  "type": "object",
+  "required": ["devices"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string"},
+    "netmask": {"type": "integer", "minimum": 1, "maximum": 32},
+    "control": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "placement": {"type": "string", "enum": ["mtu", "plc", "distributed"]}
+      }
+    },
+    "mtu": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"type": "string"},
+        "ip": {"type": "string"},
+        "model": {"type": "string"}
+      }
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "ip": {"type": "string"},
+          "kind": {"type": "string"},
+          "model": {"type": "string"},
+          "protocol": {"type": "string"},
+          "backchannel": {"type": "string"},
+          "seed": {"type": "number"},
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id"],
+              "additionalProperties": true,
+              "properties": {
+                "id": {"type": "string"},
+                "role": {"type": "string", "enum": ["measurement", "command"]},
+                "is_bool": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "switches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string", "enum": ["switch", "hub"]}
+        }
+      }
+    },
+    "routers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "model": {"type": "string"},
+          "ip": {"type": "string"}
+        }
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["a", "b"],
+        "additionalProperties": true,
+        "properties": {
+          "a": {"type": "string"},
+          "b": {"type": "string"},
+          "a_ip": {"type": "string"},
+          "b_ip": {"type": "string"},
+          "delay_ms": {"type": "number", "minimum": 0},
+          "loss": {"type": "number", "minimum": 0, "maximum": 100},
+          "bw": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "mapping": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["point", "device"],
+        "additionalProperties": true,
+        "properties": {
+          "point": {"type": "string"},
+          "device": {"type": "string"},
+          "role": {"type": "string", "enum": ["measurement", "command"]},
+          "element": {"type": "string"}
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "external_apps": {
+      "type": "array",
+      "items": {"type": "object"}
+    }
+  }
+}
