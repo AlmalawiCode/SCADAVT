@@ -1,229 +1,196 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:,">
-<title>SCADAVT Designer — Guide</title>
+<title>SCADAVT Network Designer — How it works & how to run</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0e1322; --bg2:#0b0f1c; --panel:#151d30; --panel2:#1b2438;
-    --ink:#eaf0fb; --muted:#93a4c6; --line:#2a3550;
-    --plc:#3b82f6; --mtu:#ef4444; --router:#f59e0b; --switch:#10b981;
-    --accent:#60a5fa; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24;
-    --code:#0b1120;
+    --primary:#3b2e7e; --accent:#0e7c6b; --gold:#b07d23; --red:#c0392b;
+    --bg-soft:#f5f3fb; --border:#d6cfe8; --text:#1f2430; --text-light:#55607a;
+    --plc:#2563eb; --mtu:#dc2626; --switch:#0ea371; --router:#d97706;
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.6 system-ui,Segoe UI,Roboto,sans-serif}
-  a{color:var(--accent)}
-  .wrap{max-width:900px;margin:0 auto;padding:0 16px 80px}
-  /* hero */
-  header.hero{background:
-      radial-gradient(1200px 400px at 20% -10%, #27408055, transparent),
-      radial-gradient(900px 400px at 100% 0%, #6d28d955, transparent),
-      linear-gradient(180deg,#121a2e,#0e1322);
-      border-bottom:1px solid var(--line)}
-  .hero .wrap{padding-top:40px;padding-bottom:30px}
-  .kicker{display:inline-block;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
-          color:var(--accent2);border:1px solid #3a3570;background:#241f4a66;padding:4px 10px;border-radius:999px}
-  h1{font-size:34px;margin:14px 0 6px;line-height:1.15;
-     background:linear-gradient(90deg,#dbe6ff,#9fb8ff 60%,#c4b5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .sub{color:var(--muted);font-size:17px;max-width:62ch}
-  /* nav pills */
-  nav.toc{position:sticky;top:0;z-index:5;background:#0e1322e6;backdrop-filter:blur(6px);
-          border-bottom:1px solid var(--line);padding:10px 0}
-  nav.toc .wrap{display:flex;gap:8px;flex-wrap:wrap;padding-top:0;padding-bottom:0}
-  nav.toc a{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
-            background:var(--panel);padding:6px 11px;border-radius:999px;white-space:nowrap}
-  nav.toc a:hover{color:var(--ink);border-color:var(--accent)}
-  /* sections */
-  section{margin-top:34px}
-  h2{font-size:23px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
-  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;
-        font-size:15px;font-weight:800;color:#06101f;background:linear-gradient(135deg,#7dd3fc,#60a5fa)}
-  .lead{color:var(--muted);margin:2px 0 14px}
-  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
-        border-radius:14px;padding:18px 20px;margin:12px 0;box-shadow:0 10px 30px #0003}
-  ol,ul{margin:8px 0;padding-left:22px} li{margin:6px 0}
-  kbd{background:#0f1726;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 7px;font-size:13px;font-family:ui-monospace,monospace}
-  code{background:var(--code);border:1px solid #16203a;border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:13px;color:#cfe0ff}
-  pre{background:var(--code);border:1px solid #16203a;border-left:3px solid var(--accent);border-radius:10px;
-      padding:14px 16px;overflow:auto;font:13px/1.55 ui-monospace,monospace;color:#d7e3ff}
-  pre .c{color:#7488b0}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
-  .chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);
-        border-radius:999px;padding:5px 12px;font-size:13px}
+  html{font-size:16px;scroll-behavior:smooth}
+  body{font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--text);line-height:1.8;margin:0;background:#e9e6f2}
+  .wrap{max-width:21.5cm;margin:0 auto 2rem;background:#fff;padding:1.4cm 1.6cm;box-shadow:0 0 22px rgba(30,20,60,.18)}
+  .memo-title{text-align:center;background:linear-gradient(135deg,var(--primary),#5a46ad);color:#fff;border-radius:12px;padding:1.3rem 1rem;margin-bottom:1.6rem}
+  .memo-title h1{margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-.01em}
+  .memo-title span{font-size:.98rem;color:#e4ddf6}
+  h2.sec{color:#fff;background:var(--primary);font-size:1.18rem;margin:2.2rem 0 1rem;padding:.6rem 1.05rem;border-radius:9px;display:flex;align-items:center;gap:.6rem}
+  h2.sec .num{display:inline-flex;align-items:center;justify-content:center;background:var(--gold);color:#fff;border-radius:7px;min-width:1.9rem;height:1.9rem;font-weight:800}
+  h2.sec.star .num{background:var(--accent)}
+  p{margin:.5rem 0 1rem} strong{color:var(--primary)}
+  .big{font-size:1.1rem;font-weight:700}
+  .lead{color:var(--text-light)}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0 1.3rem;font-size:.98rem}
+  th,td{border:1px solid var(--border);padding:.6rem .85rem;text-align:left;vertical-align:top}
+  thead th{background:var(--accent);color:#fff;font-weight:600}
+  tbody tr:nth-child(even){background:var(--bg-soft)}
+  .card{border:2px solid var(--accent);border-radius:11px;padding:.95rem 1.15rem;margin:1.1rem 0;background:#e8f4f1}
+  .card.gold{border-color:var(--gold);background:#fbf3e0}
+  .card.warn{border-color:var(--red);background:#fcecea}
+  code{background:#f1eef9;border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:.9em;font-family:ui-monospace,"SFMono-Regular",Menlo,monospace}
+  pre{background:#1c1630;color:#e7e0ff;border-radius:10px;padding:14px 16px;overflow:auto;font:13.5px/1.6 ui-monospace,monospace;margin:.8rem 0}
+  pre .c{color:#9b8fc7}
+  kbd{background:#fff;border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:1px 8px;font-size:.88em;font-family:ui-monospace,monospace;color:var(--primary);font-weight:600}
+  .steps{counter-reset:s;padding:0;margin:.6rem 0}
+  .steps li{list-style:none;position:relative;padding:.55rem .9rem .55rem 3rem;margin:.45rem 0;background:var(--bg-soft);border-radius:9px;border:1px solid var(--border)}
+  .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.65rem;top:.5rem;background:var(--primary);color:#fff;border-radius:50%;width:1.7rem;height:1.7rem;line-height:1.7rem;text-align:center;font-weight:700}
+  .diagram{background:var(--bg-soft);border:1px solid var(--border);border-radius:11px;padding:1.3rem 1rem;margin:1.1rem 0;text-align:center}
+  .net{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+  .box{color:#fff;border-radius:9px;padding:.5rem .8rem;font-weight:700;font-size:.9rem;min-width:62px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .b-mtu{background:var(--mtu)} .b-sw{background:var(--switch)} .b-plc{background:var(--plc)}
+  .wire{height:3px;width:34px;background:#8a93ad} .wire.v{width:3px;height:22px}
+  .stack{display:flex;flex-direction:column;gap:.5rem;align-items:flex-start}
+  .legend{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;margin-top:.9rem}
+  .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:4px 11px;font-size:.86rem}
   .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
-  .callout{border-radius:12px;padding:13px 16px;margin:12px 0;border:1px solid;display:flex;gap:10px}
-  .callout .ic{font-size:18px;line-height:1.3}
-  .tip{background:#07261c;border-color:#17513c;color:#b9f3da}
-  .warn{background:#2a1f05;border-color:#5c4410;color:#fde8b0}
-  .result{background:#06131f;border:1px solid #123;border-left:3px solid var(--ok);border-radius:10px;
-          padding:12px 14px;font:13px/1.55 ui-monospace,monospace;color:#c7f3dd;white-space:pre-wrap}
-  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
-  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left} th{background:#172036;color:var(--muted)}
-  .foot{margin-top:40px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
-  .btn{display:inline-block;background:var(--accent);color:#06101f;font-weight:700;text-decoration:none;
-       padding:9px 16px;border-radius:9px}
-  @media (max-width:560px){h1{font-size:27px}}
+  .flowrow{display:flex;gap:.6rem;flex-wrap:wrap;align-items:stretch;margin:.9rem 0}
+  .flowbox{flex:1;min-width:150px;border-radius:10px;padding:.7rem .85rem;color:#fff;font-size:.9rem;text-align:center}
+  .result{background:#06241c;border:1px solid #0e5e46;border-left:4px solid var(--switch);border-radius:10px;padding:12px 15px;font:13.5px/1.6 ui-monospace,monospace;color:#bff0dc;white-space:pre-wrap;margin:.6rem 0}
+  .toc{display:flex;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 .4rem}
+  .toc a{font-size:.85rem;text-decoration:none;color:var(--primary);border:1px solid var(--border);background:var(--bg-soft);border-radius:999px;padding:4px 11px}
+  .toc a:hover{background:var(--primary);color:#fff}
+  .backbtn{display:inline-block;background:var(--primary);color:#fff;text-decoration:none;font-weight:600;padding:9px 16px;border-radius:9px}
+  footer{margin-top:2.3rem;border-top:2px solid var(--primary);padding-top:.7rem;font-size:.85rem;color:var(--text-light);text-align:center}
+  @media (max-width:560px){.wrap{padding:1cm .8cm}.memo-title h1{font-size:1.3rem}}
 </style>
 </head>
 <body>
-
-<header class="hero">
-  <div class="wrap">
-    <span class="kicker">SCADAVT · Network Designer</span>
-    <h1>Design, wire & run a SCADA network</h1>
-    <p class="sub">Place controllers on a canvas, wire them, add control logic, and run it on the live CORE emulator — the picture you draw is the same config the Python CLI runs. This guide ends with a full <b>three-PLC</b> example you can copy click-for-click.</p>
-  </div>
-</header>
-
-<nav class="toc"><div class="wrap">
-  <a href="#parts">The parts</a>
-  <a href="#add">1 · Add</a>
-  <a href="#wire">2 · Wire</a>
-  <a href="#config">3 · Configure</a>
-  <a href="#rules">4 · Rules</a>
-  <a href="#run">5 · Run</a>
-  <a href="#example">★ 3-PLC example</a>
-  <a href="#cli">Same via CLI</a>
-  <a href="#trouble">Troubleshooting</a>
-</div></nav>
-
 <div class="wrap">
 
-  <section id="parts">
-    <h2><span class="n">◆</span>The parts</h2>
-    <p class="lead">Four node types — each PLC becomes a real emulated machine running a Modbus device.</p>
-    <div class="chips">
-      <span class="chip"><i class="dot" style="background:var(--plc)"></i><b>PLC</b> — a controller with a sensor <code>s</code> and actuator <code>a</code></span>
-      <span class="chip"><i class="dot" style="background:var(--mtu)"></i><b>MTU</b> — the master that reads sensors &amp; sends commands (one per network)</span>
-      <span class="chip"><i class="dot" style="background:var(--switch)"></i><b>Switch</b> — one LAN; everything on it shares a subnet</span>
-      <span class="chip"><i class="dot" style="background:var(--router)"></i><b>Router</b> — joins two switches into a WAN</span>
-    </div>
-  </section>
+  <div class="memo-title">
+    <h1>SCADAVT Network Designer</h1>
+    <span>How it works, and how to build &amp; run a network — ending with a full three-PLC example</span>
+  </div>
 
-  <section id="add">
-    <h2><span class="n">1</span>Add nodes</h2>
-    <div class="card">
-      <ol>
-        <li>Click <kbd>+ PLC</kbd>, <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, or <kbd>+ Router</kbd> in the toolbar — the node appears on the canvas.</li>
-        <li><b>Move anything</b>: press a node and drag it anywhere (free movement — no grid snapping).</li>
-        <li><b>Select</b>: a single click (without dragging) selects a node and shows its Properties.</li>
-        <li><b>Delete</b>: select a node and press <kbd>Delete</kbd> (or the 🗑 button).</li>
-      </ol>
-    </div>
-  </section>
+  <div class="toc">
+    <a href="#idea">The idea</a><a href="#parts">The parts</a><a href="#build">Build</a>
+    <a href="#addr">Addresses</a><a href="#rules">Rules</a><a href="#run">Run</a>
+    <a href="#example">★ 3-PLC example</a><a href="#cli">From the terminal</a><a href="#trouble">Troubleshooting</a>
+  </div>
 
-  <section id="wire">
-    <h2><span class="n">2</span>Wire them together</h2>
-    <div class="card">
-      <ol>
-        <li>Click <kbd>🔗 Connect</kbd> — it turns blue (you're in Connect mode).</li>
-        <li><b>Two ways</b> to make a link:
-          <ul>
-            <li><b>Drag</b> from one node and release on another, or</li>
-            <li><b>Click</b> the first node, then <b>click</b> the second.</li>
-          </ul>
-          A dashed line follows your cursor while you aim.
-        </li>
-        <li>Keep going to add more links. Press <kbd>Esc</kbd> or right-click to cancel the current link; click <kbd>🔗 Connect</kbd> again to leave Connect mode.</li>
-      </ol>
-      <div class="callout tip"><span class="ic">💡</span><div><b>Golden rule:</b> connect each PLC and the MTU to a <b>Switch</b> (that makes one LAN where they can all talk). Use a <b>Router</b> only to join two switches into a WAN.</div></div>
-      <div class="callout warn"><span class="ic">⚠</span><div>A direct <b>PLC↔PLC</b> or <b>PLC↔MTU</b> link is drawn as a <b>dashed amber</b> line. It's allowed, but it's a point-to-point wire — if one node has several of them they fight over the same IP and only one works. For normal networks, go through a Switch.</div></div>
-    </div>
-  </section>
+  <h2 class="sec"><span class="num">1</span> The idea in one sentence</h2>
+  <div class="card"><span class="big">You draw a network of controllers on a canvas — and the picture you draw <em>is</em> the file the engine runs.</span>
+  One <strong>MTU</strong> (the master) reads the sensors of many <strong>PLCs</strong> and, following your rules, sends commands back to them. Everything on a <strong>switch</strong> can talk; a <strong>router</strong> joins two switches.</div>
 
-  <section id="config">
-    <h2><span class="n">3</span>Configure addresses</h2>
-    <div class="card">
-      <p>Click a node to edit it in the <b>Properties</b> panel:</p>
-      <ul>
-        <li><b>id</b> — the node's name (e.g. <code>PLC1</code>).</li>
-        <li><b>IP</b> — put everything on one switch in the same subnet, e.g. <code>10.0.1.1</code>, <code>10.0.1.2</code>, …, and the MTU at <code>10.0.1.254</code>.</li>
-        <li><b>seed</b> (PLC only) — the sensor's starting value, so your rules fire predictably.</li>
-      </ul>
+  <div class="diagram">
+    <div class="net">
+      <div class="box b-mtu">MTU</div>
+      <div class="wire"></div>
+      <div class="box b-sw">Switch</div>
+      <div class="wire"></div>
+      <div class="stack">
+        <div class="box b-plc">PLC1</div>
+        <div class="box b-plc">PLC2</div>
+        <div class="box b-plc">PLC3</div>
+      </div>
     </div>
-  </section>
+    <p class="lead" style="margin:.8rem 0 0">A typical network: the MTU and all PLCs connect to one switch (one LAN), so the MTU can reach every PLC.</p>
+  </div>
 
-  <section id="rules">
-    <h2><span class="n">4</span>Add control rules</h2>
-    <div class="card">
-      <p>In the <b>Rules</b> box (right panel), type one rule per line, then press <kbd>Apply rules</kbd>:</p>
-      <pre>S1 &lt; 3 =&gt; A2 open   <span class="c"># if PLC1's sensor S1 is below 3, open PLC2's actuator A2</span></pre>
-      <p><code>Sx</code> is PLC <em>x</em>'s sensor, <code>Ax</code> is PLC <em>x</em>'s actuator. This is how one PLC's reading drives another PLC's output — <b>cross-PLC control</b>.</p>
-      <div class="callout tip"><span class="ic">💡</span><div>No rules = actuators stay at their default (you'll see <code>a=0</code> after a run). Add rules to make things move.</div></div>
-    </div>
-  </section>
+  <h2 class="sec"><span class="num">2</span> The four parts</h2>
+  <p>Four node types. Each PLC becomes a <strong>real emulated machine</strong> running a Modbus device.</p>
+  <table>
+    <thead><tr><th>Node</th><th>What it is</th><th>Has an IP?</th></tr></thead>
+    <tbody>
+      <tr><td><strong style="color:var(--plc)">PLC</strong></td><td>A controller with one sensor <code>s</code> and one actuator <code>a</code>. Its sensor is read by the MTU; its actuator is driven by rules.</td><td>Yes</td></tr>
+      <tr><td><strong style="color:var(--mtu)">MTU</strong></td><td>The master station — reads every PLC's sensor and sends commands. <strong>One per network.</strong></td><td>Yes</td></tr>
+      <tr><td><strong style="color:var(--switch)">Switch</strong></td><td>One LAN segment. Everything connected to it shares a subnet and can talk directly.</td><td>No</td></tr>
+      <tr><td><strong style="color:var(--router)">Router</strong></td><td>Joins two switches into a WAN (two different subnets that still reach each other).</td><td>Yes</td></tr>
+    </tbody>
+  </table>
 
-  <section id="run">
-    <h2><span class="n">5</span>Validate &amp; run</h2>
-    <div class="card">
-      <ul>
-        <li><kbd>Validate</kbd> — checks the whole network on the server; any problems appear in the <b>Output</b> panel.</li>
-        <li><kbd>▶ Run</kbd> — builds &amp; runs it live on CORE and reports, per device, whether the MTU <b>reached</b> it and the read-back sensor/actuator values.</li>
-        <li><kbd>Export</kbd> — downloads the config file. <kbd>Import</kbd> — loads one back (nothing is lost). The exact same file runs from the terminal with <code>scadavt run</code>.</li>
-      </ul>
-    </div>
-  </section>
+  <h2 class="sec"><span class="num">3</span> Build it: add &amp; wire</h2>
+  <ol class="steps">
+    <li><strong>Add nodes.</strong> Click <kbd>+ PLC</kbd>, <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, <kbd>+ Router</kbd> — each appears on the canvas.</li>
+    <li><strong>Move anything.</strong> Press a node and drag it anywhere — free movement, no grid snapping. A single click (no drag) selects it.</li>
+    <li><strong>Connect.</strong> Click <kbd>🔗 Connect</kbd> (it turns blue), then either <em>drag</em> from one node onto another, or <em>click</em> the first node then the second. A dashed line follows your cursor.</li>
+    <li><strong>Delete.</strong> Select a node and press <kbd>Delete</kbd> (or the 🗑 button). <kbd>Esc</kbd> cancels a half-drawn link.</li>
+  </ol>
+  <div class="card"><span class="big">Golden rule:</span> connect each PLC <em>and</em> the MTU to a <strong>Switch</strong>. That puts them on one LAN where the MTU can reach them all. Use a <strong>Router</strong> only to join two switches.</div>
+  <div class="card warn"><span class="big">Watch out:</span> a direct <strong>PLC↔PLC</strong> or <strong>PLC↔MTU</strong> link is drawn as a <strong>dashed amber</strong> line. It is a point-to-point wire — if one node has several of them they fight over the same IP and only one works (you'll see <code>reached 1/2</code> after a run). For normal networks, go through a Switch.</div>
 
-  <section id="example">
-    <h2><span class="n">★</span>Worked example — run three PLCs</h2>
-    <p class="lead">One MTU reads three PLCs on a switch; a control ring makes each PLC's low sensor open the next PLC's actuator.</p>
-    <div class="card">
-      <b>a) Add the nodes</b>
-      <ol>
-        <li><kbd>+ MTU</kbd></li>
-        <li><kbd>+ Switch</kbd></li>
-        <li><kbd>+ PLC</kbd> three times → <code>PLC1</code>, <code>PLC2</code>, <code>PLC3</code></li>
-      </ol>
-      <b>b) Wire everything to the switch</b> (click <kbd>🔗 Connect</kbd>, then drag each onto <code>SW1</code>)
-      <ul>
-        <li><code>MTU → SW1</code></li>
-        <li><code>PLC1 → SW1</code>, <code>PLC2 → SW1</code>, <code>PLC3 → SW1</code></li>
-      </ul>
-      <p>All four links should be solid grey (through the switch) — no amber dashed lines.</p>
-      <b>c) Addresses</b> (defaults already fit: PLCs <code>10.0.1.1/2/3</code>, MTU <code>10.0.1.254</code>). Leave each PLC's <b>seed</b> at <code>2</code> (that's "low").</p>
-      <b>d) Rules</b> — paste into the Rules box and press <kbd>Apply rules</kbd>:
-      <pre>S1 &lt; 3 =&gt; A2 open
+  <h2 class="sec"><span class="num">4</span> Addresses</h2>
+  <p>Click a node to edit it in the <strong>Properties</strong> panel:</p>
+  <table>
+    <thead><tr><th>Field</th><th>What to put</th></tr></thead>
+    <tbody>
+      <tr><td><strong>id</strong></td><td>The node's name, e.g. <code>PLC1</code>.</td></tr>
+      <tr><td><strong>IP</strong></td><td>Everything on one switch shares a subnet: <code>10.0.1.1</code>, <code>10.0.1.2</code>, … and the MTU at <code>10.0.1.254</code>.</td></tr>
+      <tr><td><strong>seed</strong> <span class="lead">(PLC only)</span></td><td>The sensor's starting value, so rules fire predictably. <code>2</code> is "low", <code>5</code> is "high".</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec"><span class="num">5</span> Control rules — one PLC drives another</h2>
+  <p>In the <strong>Rules</strong> box, type one rule per line, then press <kbd>Apply rules</kbd>:</p>
+  <pre>S1 &lt; 3 =&gt; A2 open   <span class="c"># if PLC1's sensor (S1) is below 3, open PLC2's actuator (A2)</span></pre>
+  <p><code>Sx</code> is PLC <em>x</em>'s sensor, <code>Ax</code> is PLC <em>x</em>'s actuator. This is <strong>cross-PLC control</strong>: the MTU reads one PLC and commands another.</p>
+  <div class="card gold"><span class="big">If you see every <code>a=0</code> after a run:</span> no rule fired. Either you added no rules, or the triggering sensor's <strong>seed</strong> is not below the threshold. Add rules, press <kbd>Apply rules</kbd>, and set the seed low (e.g. <code>2</code>).</div>
+
+  <h2 class="sec"><span class="num">6</span> Run it — what actually happens</h2>
+  <div class="flowrow">
+    <div class="flowbox" style="background:var(--accent)">1 · Validate<br><span style="font-weight:400;font-size:.82rem">structure + rules checked on the server</span></div>
+    <div class="flowbox" style="background:var(--gold)">2 · Build on CORE<br><span style="font-weight:400;font-size:.82rem">real nodes, links &amp; Modbus devices</span></div>
+    <div class="flowbox" style="background:var(--primary)">3 · Read back<br><span style="font-weight:400;font-size:.82rem">per device: reached? sensor &amp; actuator values</span></div>
+  </div>
+  <p><kbd>Validate</kbd> checks everything and lists any problems in the <strong>Output</strong> panel. <kbd>▶ Run</kbd> builds and runs it live, then reports for each PLC whether the MTU <strong>reached</strong> it and the read-back values (<code>s</code> = sensor, <code>a</code> = actuator). <kbd>Export</kbd> saves the config file; the <em>same</em> file runs from the terminal.</p>
+
+  <h2 class="sec star"><span class="num">★</span> Worked example — run three PLCs</h2>
+  <p class="lead">One MTU reads three PLCs on a switch; a control ring makes each PLC's low sensor open the <em>next</em> PLC's actuator.</p>
+
+  <ol class="steps">
+    <li><strong>Add:</strong> <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, then <kbd>+ PLC</kbd> three times → <code>PLC1 PLC2 PLC3</code>.</li>
+    <li><strong>Wire to the switch:</strong> click <kbd>🔗 Connect</kbd>, then drag each onto <code>SW1</code> — <code>MTU→SW1</code>, <code>PLC1→SW1</code>, <code>PLC2→SW1</code>, <code>PLC3→SW1</code>. All links should be solid grey (no amber).</li>
+    <li><strong>Addresses:</strong> the defaults already fit (PLCs <code>10.0.1.1/2/3</code>, MTU <code>10.0.1.254</code>). Leave each PLC's <strong>seed</strong> at <code>2</code>.</li>
+    <li><strong>Rules:</strong> paste into the Rules box, then <kbd>Apply rules</kbd>:
+      <pre style="margin:.5rem 0 0">S1 &lt; 3 =&gt; A2 open
 S2 &lt; 3 =&gt; A3 open
-S3 &lt; 3 =&gt; A1 open</pre>
-      <b>e) Run</b> — press <kbd>Validate</kbd> (should say VALID ✓), then <kbd>▶ Run</kbd>. Expected Output:
-      <div class="result">RUN ✓ started=true, reached 3/3
+S3 &lt; 3 =&gt; A1 open</pre></li>
+    <li><strong>Run:</strong> press <kbd>Validate</kbd> (should say VALID), then <kbd>▶ Run</kbd>.</li>
+  </ol>
+
+  <p><strong>Expected Output:</strong></p>
+  <div class="result">RUN ✓ started=true, reached 3/3
   PLC1: reachable=true s=2 a=1
   PLC2: reachable=true s=2 a=1
   PLC3: reachable=true s=2 a=1</div>
-      <p style="margin-top:10px">Every sensor is 2 (&lt; 3), so every rule fires and every actuator opens (<code>a=1</code>). Change a PLC's <b>seed</b> to <code>5</code> and re-run: that PLC's rule no longer fires, and the actuator it targets stays <code>a=0</code>.</p>
-    </div>
-  </section>
+  <p>Every sensor is 2 (below 3), so every rule fires and every actuator opens (<code>a=1</code>). Now change one PLC's <strong>seed</strong> to <code>5</code> and run again: that PLC's rule no longer fires, and the actuator it targets stays <code>a=0</code> — you can see the control logic working.</p>
 
-  <section id="cli">
-    <h2><span class="n">⌨</span>The same network from the terminal</h2>
-    <p class="lead">The GUI is optional. <kbd>Export</kbd> your design to <code>net.json</code>, then:</p>
-    <pre><span class="c"># validate and run the very same file the designer produced</span>
+  <h2 class="sec"><span class="num">7</span> The same network from the terminal</h2>
+  <p>The GUI is optional. <kbd>Export</kbd> your design to <code>net.json</code>, then run the identical file:</p>
+  <pre><span class="c"># validate and run the very file the designer produced</span>
 scadavt validate net.json
 scadavt run net.json --live</pre>
-    <p>Or scaffold a three-PLC network without the GUI at all:</p>
-    <pre>scadavt scaffold --plcs 3 -o net.json
+  <p>Or build a three-PLC network with no GUI at all:</p>
+  <pre>scadavt scaffold --plcs 3 -o net.json
 scadavt run net.json --live</pre>
-    <p>Same model, same validation, same engine — the GUI just draws it.</p>
-  </section>
+  <p>Same model, same validation, same engine — the designer just draws it.</p>
 
-  <section id="trouble">
-    <h2><span class="n">?</span>Troubleshooting</h2>
-    <table>
-      <tr><th>You see…</th><th>Why / fix</th></tr>
-      <tr><td><code>reached 1/2</code> (or similar)</td><td>A device isn't on a shared LAN. Connect every device to a <b>Switch</b> and give them IPs in the same subnet. Avoid direct device↔device (amber) links.</td></tr>
-      <tr><td>All <code>a=0</code> after a run</td><td>No rules fired. Add rules and press <kbd>Apply rules</kbd>, and make sure the triggering sensor's <b>seed</b> is below the rule's threshold.</td></tr>
+  <h2 class="sec"><span class="num">8</span> Troubleshooting</h2>
+  <table>
+    <thead><tr><th>You see…</th><th>Why / fix</th></tr></thead>
+    <tbody>
+      <tr><td><code>reached 1/2</code> (not all reached)</td><td>A device is not on a shared LAN. Connect every device to a <strong>Switch</strong> and give them IPs in the same subnet; avoid direct device↔device (amber) links.</td></tr>
+      <tr><td>All <code>a=0</code> after a run</td><td>No rule fired — add rules and <kbd>Apply rules</kbd>, and make sure the triggering sensor's seed is below the threshold.</td></tr>
       <tr><td><code>INVALID</code> on Validate</td><td>Read the listed issues — usually a duplicate IP, a link to a missing node, or a rule referencing an element that doesn't exist.</td></tr>
-      <tr><td><code>RUN failed (503)</code></td><td>The service can't reach CORE. Start it on a host with the CORE daemon running, or set <code>SCADAVT_CORE_PYTHON</code>.</td></tr>
-      <tr><td>Can't reach the service</td><td>Check the <b>Service base</b> field (blank = same origin) and, for a remote service, the <b>Auth token</b>.</td></tr>
-    </table>
-    <p style="margin-top:18px"><a class="btn" href="index.html">← Back to the designer</a></p>
-    <div class="foot">SCADAVT generic network designer · domain-neutral · one shared model, validator and execution engine for both the GUI and the Python API/CLI.</div>
-  </section>
+      <tr><td><code>RUN failed (503)</code></td><td>The service can't reach CORE. Start the daemon (<code>sudo systemctl start core-daemon</code>) on a host with CORE, or set <code>SCADAVT_CORE_PYTHON</code>.</td></tr>
+      <tr><td>Can't reach the service</td><td>Check the <strong>Service base</strong> field (blank = same origin) and, for a remote service, the <strong>Auth token</strong>.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <span class="pill"><i class="dot" style="background:var(--plc)"></i>PLC</span>
+    <span class="pill"><i class="dot" style="background:var(--mtu)"></i>MTU</span>
+    <span class="pill"><i class="dot" style="background:var(--switch)"></i>Switch</span>
+    <span class="pill"><i class="dot" style="background:var(--router)"></i>Router</span>
+  </div>
+
+  <p style="margin-top:1.4rem"><a class="backbtn" href="index.html">← Back to the designer</a></p>
+  <footer>SCADAVT · generic network designer · one shared model, validator and execution engine for both the GUI and the Python API/CLI.</footer>
 
 </div>
 </body>
