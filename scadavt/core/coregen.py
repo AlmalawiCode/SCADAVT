@@ -25,6 +25,7 @@ from pathlib import Path
 
 from ..util import hostport
 from . import fieldbus as fb
+from . import fieldio
 from . import integration as ig
 
 
@@ -101,7 +102,10 @@ def _validate_device_data(d: dict) -> list[str]:
 
 def validate(cfg: dict) -> list[str]:
     """Return a list of problems; empty means the configuration is usable."""
-    issues: list[str] = []
+    # I/O modules + emulated field devices are a front-end: check them, then
+    # validate the register/adapter model they lower to like any other config.
+    issues: list[str] = fieldio.validate(cfg)
+    cfg = fieldio.expand(cfg)
     devices = cfg.get("devices", [])
     if not devices:
         issues.append("no devices defined")
@@ -188,6 +192,7 @@ def session(cfg: dict) -> dict:
     issues = validate(cfg)
     if issues:
         raise ConfigError("; ".join(issues))
+    cfg = fieldio.expand(cfg)
     nodes = []
     for d in cfg["devices"]:
         proto = d.get("protocol", "modbus")

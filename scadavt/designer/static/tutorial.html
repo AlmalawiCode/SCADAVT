@@ -55,6 +55,9 @@
   .toc a{font-size:.85rem;text-decoration:none;color:var(--primary);border:1px solid var(--border);background:var(--bg-soft);border-radius:999px;padding:4px 11px}
   .toc a:hover{background:var(--primary);color:#fff}
   .backbtn{display:inline-block;background:var(--primary);color:#fff;text-decoration:none;font-weight:600;padding:9px 16px;border-radius:9px}
+  figure{margin:1rem 0}
+  figure img{width:100%;border:1px solid var(--border);border-radius:10px;box-shadow:0 2px 10px rgba(30,20,60,.12)}
+  figcaption{font-size:.86rem;color:var(--text-light);margin-top:.35rem}
   footer{margin-top:2.3rem;border-top:2px solid var(--primary);padding-top:.7rem;font-size:.85rem;color:var(--text-light);text-align:center}
   @media (max-width:560px){.wrap{padding:1cm .8cm}.memo-title h1{font-size:1.3rem}}
 </style>
@@ -64,19 +67,19 @@
 
   <div class="memo-title">
     <h1>SCADAVT Network Designer</h1>
-    <span>How it works, and how to build &amp; run a network — ending with a full three-PLC example</span>
+    <span>How it works, and how to build &amp; run a network — PLC I/O modules, emulated sensors, LAN/WAN scenarios and watching the traffic</span>
   </div>
 
   <div class="toc">
     <a href="#idea">The idea</a><a href="#parts">The parts</a><a href="#build">Build &amp; wire</a>
-    <a href="#rules">Rules</a><a href="#example">★ 3-PLC example</a>
+    <a href="#io">★ PLC I/O &amp; sensors</a><a href="#rules">Rules</a><a href="#example">★ Worked example</a>
     <a href="#scenarios">★ Terminal scenarios (LAN / WAN)</a>
     <a href="#traffic">See the traffic (Wireshark)</a><a href="#trouble">Troubleshooting</a>
   </div>
 
   <h2 id="idea" class="sec"><span class="num">1</span> The idea in one sentence</h2>
   <div class="card"><span class="big">You draw a network of controllers on a canvas — and the picture you draw <em>is</em> the file the engine runs.</span>
-  One <strong>MTU</strong> (the master) reads the sensors of many <strong>PLCs</strong> and, following your rules, sends commands back to them. Everything on a <strong>switch</strong> can talk; a <strong>router</strong> joins two switches.</div>
+  One <strong>MTU</strong> (the master) reads the sensors wired into many <strong>PLCs</strong> and, following your rules, switches their outputs. Everything on a <strong>switch</strong> can talk; a <strong>router</strong> joins two switches.</div>
 
   <div class="diagram">
     <div class="net">
@@ -98,7 +101,7 @@
   <table>
     <thead><tr><th>Node</th><th>What it is</th><th>Has an IP?</th></tr></thead>
     <tbody>
-      <tr><td><strong style="color:var(--plc)">PLC</strong></td><td>A controller with one sensor <code>s</code> and one actuator <code>a</code>. Its sensor is read by the MTU; its actuator is driven by rules.</td><td>Yes</td></tr>
+      <tr><td><strong style="color:var(--plc)">PLC</strong></td><td>A Modbus controller with <strong>I/O modules</strong>: input channels (<code>AI</code>, <code>DI</code>) and output channels (<code>DO</code>, <code>AO</code>). You wire <strong>emulated sensors and actuators</strong> to its channels (section&nbsp;5). The MTU reads its inputs and drives its outputs.</td><td>Yes</td></tr>
       <tr><td><strong style="color:var(--mtu)">MTU</strong></td><td>The master station — reads every PLC's sensor and sends commands. <strong>One per network.</strong></td><td>Yes</td></tr>
       <tr><td><strong style="color:var(--switch)">Switch</strong></td><td>One LAN segment. Everything connected to it shares a subnet and can talk directly.</td><td>No</td></tr>
       <tr><td><strong style="color:var(--router)">Router</strong></td><td>Joins two switches into a WAN (two different subnets that still reach each other).</td><td>Yes</td></tr>
@@ -122,46 +125,141 @@
     <tbody>
       <tr><td><strong>id</strong></td><td>The node's name, e.g. <code>PLC1</code>.</td></tr>
       <tr><td><strong>IP</strong></td><td>Everything on one switch shares a subnet: <code>10.0.1.1</code>, <code>10.0.1.2</code>, … and the MTU at <code>10.0.1.254</code>.</td></tr>
-      <tr><td><strong>seed</strong> <span class="lead">(PLC only)</span></td><td>The sensor's starting value, so rules fire predictably. <code>2</code> is "low", <code>5</code> is "high".</td></tr>
+      <tr><td><strong>I/O modules</strong> <span class="lead">(PLC only)</span></td><td>Shown under the IP when you click a PLC — see the next section.</td></tr>
     </tbody>
   </table>
 
-  <h2 id="rules" class="sec"><span class="num">5</span> Control rules — one PLC drives another</h2>
-  <p>In the <strong>Rules</strong> box, type one rule per line, then press <kbd>Apply rules</kbd>:</p>
-  <pre>PLC1.s &lt; 3 =&gt; PLC2.a open   <span class="c"># if PLC1's register s is below 3, set PLC2's register a</span></pre>
-  <p>Each PLC has two Modbus registers: <code>s</code> (an input register the MTU reads) and <code>a</code> (a coil the MTU writes). This is <strong>cross-PLC control</strong>: the MTU reads one PLC's register and commands another's.</p>
-  <div class="card gold"><span class="big">If you see every <code>a=0</code> after a run:</span> no rule fired. Either you added no rules, or the triggering sensor's <strong>seed</strong> is not below the threshold. Add rules, press <kbd>Apply rules</kbd>, and set the seed low (e.g. <code>2</code>).</div>
+  <h2 id="io" class="sec star"><span class="num">5</span> Inside a PLC: I/O modules, channels &amp; emulated sensors</h2>
+  <p class="lead">A real Modbus PLC (or remote-I/O unit) has <strong>I/O modules</strong> plugged in beside its CPU; each module has
+  several <strong>channels</strong>, and a sensor or actuator is wired to one channel. The PLC publishes every channel in one of
+  the four Modbus tables. The Modbus specification (§4.3, <em>data model</em>) says the input tables hold data that
+  "can be provided by an I/O system", and the output tables hold data "alterable by an application program".
+  A typical unit mixes types — e.g. Moxa's ioLogik E1242 has 4 analog inputs, 4 digital inputs and 4 configurable digital I/O.</p>
+  <table>
+    <thead><tr><th>Module</th><th>Channel is</th><th>Modbus table</th><th>Address</th><th>MTU can</th><th>Wire to it</th></tr></thead>
+    <tbody>
+      <tr><td><strong>AI</strong> analog input</td><td>a number</td><td>input register</td><td><code>3xxxx</code></td><td>read only</td><td>temperature, humidity, pressure, level, flow sensor</td></tr>
+      <tr><td><strong>DI</strong> digital input</td><td>on / off</td><td>discrete input</td><td><code>1xxxx</code></td><td>read only</td><td>switch (button, float switch, door contact)</td></tr>
+      <tr><td><strong>DO</strong> digital output</td><td>on / off</td><td>coil</td><td><code>0xxxx</code></td><td>read &amp; write</td><td>pump, fan, valve, lamp, motor</td></tr>
+      <tr><td><strong>AO</strong> analog output</td><td>a number</td><td>holding register</td><td><code>4xxxx</code></td><td>read &amp; write</td><td>valve position, speed (%)</td></tr>
+    </tbody>
+  </table>
+  <p>Channels are numbered per type across the whole PLC, in slot order: <code>AI0, AI1, …</code>, <code>DI0, …</code>, <code>DO0, …</code>.
+  That name is what you use in rules (<code>PLC1.AI0</code>). An analog channel holds a 32-bit float, so it uses
+  <strong>two</strong> registers: <code>AI0</code> is at <code>30001</code>, <code>AI1</code> at <code>30003</code>, and so on.</p>
 
-  <h2 class="sec"><span class="num">6</span> Run it — what actually happens</h2>
+  <div class="card gold"><span class="big">The sensor emulator — no physical device needed.</span>
+  An emulated sensor only produces numbers (they need not be "real"); its value is written into the channel it is wired to,
+  exactly where a physical sensor's reading would appear. Pick its signal shape:
+  <code>constant</code> (a fixed value), <code>sine</code>, <code>ramp</code> or <code>random</code> between a min and max,
+  or <code>square</code> (on/off, for switches). An emulated actuator receives whatever the MTU writes to its output channel.
+  <table style="margin:.7rem 0 .2rem">
+    <thead><tr><th>Sensor</th><th>Goes on</th><th>Default</th><th>Actuator</th><th>Goes on</th></tr></thead>
+    <tbody>
+      <tr><td>temperature</td><td>AI</td><td>sine 18–30 °C</td><td>pump · fan · valve · lamp · motor</td><td>DO</td></tr>
+      <tr><td>humidity</td><td>AI</td><td>sine 35–65 %RH</td><td>valve_position · speed</td><td>AO</td></tr>
+      <tr><td>pressure</td><td>AI</td><td>sine 1–6 bar</td><td></td><td></td></tr>
+      <tr><td>level / flow / analog</td><td>AI</td><td>ramp 0–5 m / random 10–50 m3/h / constant 0</td><td></td><td></td></tr>
+      <tr><td>switch</td><td>DI</td><td>square 0/1, every 20 s</td><td></td><td></td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>In the designer:</strong></p>
+  <ol class="steps">
+    <li><strong>Click a PLC.</strong> Under its IP you see <strong>I/O MODULES</strong> — a new PLC comes with
+      <code>AI · 4 ch</code>, <code>DI · 4 ch</code>, <code>DO · 4 ch</code> — and <strong>CHANNELS → MODBUS</strong>,
+      one row per channel with its real Modbus address (<code>AI0 30001</code>, <code>DI0 10001</code>, <code>DO0 00001</code> …).</li>
+    <li><strong>Wire a sensor:</strong> in the <strong>Wired to</strong> list of an input channel pick e.g. <code>temperature (°C)</code>.
+      A tag (<code>TT1</code>) appears with its signal: choose <code>constant</code> and type a value, or keep <code>sine</code> and set min–max.
+      The tag is also drawn under the PLC on the canvas (<code>TT1→AI0</code>).</li>
+    <li><strong>Wire an actuator</strong> the same way on an output channel (e.g. <code>fan</code> on <code>DO0</code> → tag <code>FAN1</code>).</li>
+    <li><strong>Add or remove modules:</strong> pick a type and channel count, press <kbd>+ Module</kbd>; <kbd>✕</kbd> removes one.
+      Removing a module renumbers the later channels of the same type: their wired sensors and rules follow them, while sensors
+      and rules on the removed channels are deleted (the Output panel says how many).</li>
+  </ol>
+  <figure><img src="img/designer_io.png" alt="The designer with PLC1 selected: I/O modules, channel table with Modbus addresses, and wired sensors">
+  <figcaption>PLC1 selected: three modules, every channel with its Modbus address, and three emulated sensors wired
+  (temperature constant 28 on AI0, humidity on AI1, a switch on DI0). The canvas shows <code>TT1→AI0 HT1→AI1 HS1→DI0</code> under PLC1.</figcaption></figure>
+  <div class="card warn"><span class="big">"<code>--</code> (no signal)"</span> after a run means nothing has written that input channel —
+  usually because no sensor is wired to it. The PLC then answers the MTU's read with a Modbus <em>exception 6 (busy)</em>
+  instead of inventing a value, and a rule that reads that channel does not fire. Wire a sensor to it, or ignore it.</div>
+
+  <h2 id="rules" class="sec"><span class="num">6</span> Control rules — one PLC drives another</h2>
+  <p>In the <strong>Rules</strong> box, type one rule per line, then press <kbd>Apply rules</kbd>:</p>
+  <pre>PLC1.AI0 &gt; 25 =&gt; PLC2.DO0 on    <span class="c"># if PLC1's input AI0 is above 25, switch PLC2's output DO0 on</span>
+PLC1.AI0 &lt; 24 =&gt; PLC2.DO0 off   <span class="c"># ...and off again below 24 (a gap between the two = hysteresis)</span></pre>
+  <p>A rule reads an <strong>input</strong> channel (or any register) and sets an <strong>output</strong> channel. Comparisons:
+  <code>&lt;</code> <code>&gt;</code> <code>&lt;=</code> <code>&gt;=</code> <code>==</code> <code>!=</code>; the action is <code>on</code>/<code>off</code>
+  (also <code>open</code>/<code>close</code>) or a number (for an <code>AO</code> channel, e.g. <code>=&gt; PLC1.AO0 50</code>).
+  This is <strong>cross-PLC control</strong>: the MTU reads one PLC over Modbus and commands another. A rule may only set an
+  output — Validate rejects a rule that tries to write an input channel.</p>
+  <div class="card gold"><span class="big">If an output stays <code>0.00</code> after a run:</span> its rule did not fire. Either you did not
+  press <kbd>Apply rules</kbd>, the condition is false for the sensor's value, or the input it reads shows <code>--</code> (nothing wired).</div>
+
+  <h2 class="sec"><span class="num">7</span> Run it — what actually happens</h2>
   <div class="flowrow">
     <div class="flowbox" style="background:var(--accent)">1 · Validate<br><span style="font-weight:400;font-size:.82rem">structure + rules checked on the server</span></div>
     <div class="flowbox" style="background:var(--gold)">2 · Build on CORE<br><span style="font-weight:400;font-size:.82rem">real nodes, links &amp; Modbus devices</span></div>
-    <div class="flowbox" style="background:var(--primary)">3 · Read back<br><span style="font-weight:400;font-size:.82rem">per device: reached? sensor &amp; actuator values</span></div>
+    <div class="flowbox" style="background:var(--primary)">3 · Read back<br><span style="font-weight:400;font-size:.82rem">per PLC: reached? every channel's value</span></div>
   </div>
-  <p><kbd>Validate</kbd> checks everything and lists any problems in the <strong>Output</strong> panel. <kbd>▶ Run</kbd> builds and runs it live, then reports for each PLC whether the MTU <strong>reached</strong> it and the read-back values (<code>s</code> = sensor, <code>a</code> = actuator). <kbd>Export</kbd> saves the config file; the <em>same</em> file runs from the terminal.</p>
+  <p><kbd>Validate</kbd> checks everything and lists any problems in the <strong>Output</strong> panel. <kbd>▶ Run</kbd> builds the network on CORE,
+  starts every PLC, starts the sensor emulators beside the PLCs they are wired to, starts the MTU, and then reports for each PLC whether the MTU
+  <strong>reached</strong> it and the value of every channel, read back over Modbus — with the wired sensor/actuator named beside it.
+  <kbd>Export</kbd> saves the config file; the <em>same</em> file runs from the terminal (section&nbsp;8, Scenario&nbsp;D).</p>
 
-  <h2 id="example" class="sec star"><span class="num">★</span> Worked example — run three PLCs</h2>
-  <p class="lead">One MTU reads three PLCs on a switch; a control ring makes each PLC's low sensor open the <em>next</em> PLC's actuator.</p>
-
+  <h2 id="example" class="sec star"><span class="num">★</span> Worked example — a temperature sensor switches a fan on another PLC</h2>
+  <p class="lead">One MTU, one switch, two PLCs. PLC1 has a temperature, a humidity and a switch sensor; PLC2 has a pressure
+  sensor and a fan. When PLC1's temperature is above 25 °C the MTU switches PLC2's fan on. Every step below was performed in
+  the designer and run live on CORE; the output is what it printed.</p>
   <ol class="steps">
-    <li><strong>Add:</strong> <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, then <kbd>+ PLC</kbd> three times → <code>PLC1 PLC2 PLC3</code>.</li>
-    <li><strong>Wire to the switch:</strong> click <kbd>🔗 Connect</kbd>, then drag each onto <code>SW1</code> — <code>MTU→SW1</code>, <code>PLC1→SW1</code>, <code>PLC2→SW1</code>, <code>PLC3→SW1</code>. All links should be solid grey (no amber).</li>
-    <li><strong>Addresses:</strong> the defaults already fit (PLCs <code>10.0.1.1/2/3</code>, MTU <code>10.0.1.254</code>). Leave each PLC's <strong>seed</strong> at <code>2</code>.</li>
-    <li><strong>Rules:</strong> paste into the Rules box, then <kbd>Apply rules</kbd>:
-      <pre style="margin:.5rem 0 0">PLC1.s &lt; 3 =&gt; PLC2.a open
-PLC2.s &lt; 3 =&gt; PLC3.a open
-PLC3.s &lt; 3 =&gt; PLC1.a open</pre></li>
-    <li><strong>Run:</strong> press <kbd>Validate</kbd> (should say VALID), then <kbd>▶ Run</kbd>.</li>
+    <li><strong>Add:</strong> <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, then <kbd>+ PLC</kbd> twice → <code>PLC1 PLC2</code>.</li>
+    <li><strong>Wire to the switch:</strong> click <kbd>🔗 Connect</kbd>, then click <code>MTU</code> then <code>SW1</code>; <code>PLC1</code> then <code>SW1</code>;
+      <code>PLC2</code> then <code>SW1</code>. Press <kbd>Esc</kbd>. The default IPs already fit (<code>10.0.1.1</code>, <code>10.0.1.2</code>, MTU <code>10.0.1.254</code>).</li>
+    <li><strong>PLC1's sensors:</strong> click <code>PLC1</code>. On <code>AI0</code> pick <code>temperature (°C)</code>, set its signal to
+      <code>constant</code> and the value to <code>28</code>. On <code>AI1</code> pick <code>humidity (%RH)</code> (keep sine 35–65).
+      On <code>DI0</code> pick <code>switch</code>.</li>
+    <li><strong>PLC2's sensor and fan:</strong> click <code>PLC2</code>. On <code>AI0</code> pick <code>pressure (bar)</code>, <code>constant</code>,
+      value <code>2.5</code>. On <code>DO0</code> pick <code>fan</code>.</li>
+    <li><strong>Rules:</strong> type into the Rules box, then press <kbd>Apply rules</kbd>:
+      <pre style="margin:.5rem 0 0">PLC1.AI0 &gt; 25 =&gt; PLC2.DO0 on
+PLC1.AI0 &lt; 24 =&gt; PLC2.DO0 off
+PLC2.AI0 &lt; 3 =&gt; PLC1.DO1 on</pre></li>
+    <li><strong>Run:</strong> press <kbd>Validate</kbd> (it says <code>VALID ✓</code>), then <kbd>▶ Run</kbd>.</li>
   </ol>
+  <p><strong>Output panel (actual):</strong></p>
+  <div class="result">RUN ✓ started=true, reached 2/2
+  PLC1: reachable=true
+     AI0  = 28.00   TT1 temperature (°C)
+     AI1  = 54.15   HT1 humidity (%RH)
+     AI2  = --      (no signal)
+     AI3  = --      (no signal)
+     DI0  = 1.00    HS1 switch
+     DI1  = --      (no signal)
+     DI2  = --      (no signal)
+     DI3  = --      (no signal)
+     DO0  = 0.00
+     DO1  = 1.00
+     DO2  = 0.00
+     DO3  = 0.00
+  PLC2: reachable=true
+     AI0  = 2.50    PT1 pressure (bar)
+     AI1  = --      (no signal)
+     AI2  = --      (no signal)
+     AI3  = --      (no signal)
+     DI0  = --      (no signal)
+     DI1  = --      (no signal)
+     DI2  = --      (no signal)
+     DI3  = --      (no signal)
+     DO0  = 1.00    FAN1 fan
+     DO1  = 0.00
+     DO2  = 0.00
+     DO3  = 0.00</div>
+  <p>The MTU read <code>28.00</code> from PLC1's <code>AI0</code> over Modbus; 28 &gt; 25, so it switched PLC2's <code>DO0</code> on and the emulated
+  fan <code>FAN1</code> received the command. PLC2's pressure 2.5 &lt; 3 switched PLC1's <code>DO1</code> on. The humidity value moves (it is a sine).</p>
+  <div class="card"><span class="big">Try it:</span> click <code>PLC1</code>, change the temperature value from <code>28</code> to <code>22</code> and run again.
+  Now 22 &lt; 24, so the second rule fires and the fan is off: <code>DO0 = 0.00 FAN1 fan</code>.</div>
 
-  <p><strong>Expected Output:</strong></p>
-  <div class="result">RUN ✓ started=true, reached 3/3
-  PLC1: reachable=true s=2 a=1
-  PLC2: reachable=true s=2 a=1
-  PLC3: reachable=true s=2 a=1</div>
-  <p>Every sensor is 2 (below 3), so every rule fires and every actuator opens (<code>a=1</code>). Now change one PLC's <strong>seed</strong> to <code>5</code> and run again: that PLC's rule no longer fires, and the actuator it targets stays <code>a=0</code> — you can see the control logic working.</p>
-
-  <h2 id="scenarios" class="sec"><span class="num">7</span> Terminal scenarios you can run (tested)</h2>
+  <h2 id="scenarios" class="sec"><span class="num">8</span> Terminal scenarios you can run (tested)</h2>
   <p class="lead">The GUI is optional — everything runs from the terminal. These examples
   were all executed on this machine; the output shown is what they actually print.
   First, once per boot, start the emulator and go to the project folder:</p>
@@ -240,7 +338,107 @@ MTU reached 2/2 devices
     <div class="callout tip"><span class="ic">💡</span><div>To put specific PLCs on specific subnets by hand, give them IPs in different <code>/24</code>s (e.g. <code>10.0.1.x</code> and <code>10.0.2.x</code>), add a second switch and a <code>router</code>, and link each switch to the router (see the scaffolded <code>/tmp/wan.json</code> for the exact shape).</div></div>
   </div>
 
-  <h2 id="traffic" class="sec"><span class="num">8</span> See the traffic — capture &amp; open in Wireshark</h2>
+  <h4 style="color:var(--accent);margin:18px 0 4px">Scenario D · I/O modules and emulated sensors, from a file</h4>
+  <div class="card">
+    <p>The worked example above is shipped as a config file: <code>scadavt/designer/static/examples/io_lab.json</code>
+    (you can also load it in the designer with <kbd>Import</kbd>). The interesting parts:</p>
+    <pre>"devices": [
+  { "id": "PLC1", "ip": "10.0.1.1", "protocol": "modbus",
+    "io_modules": [ { "type": "AI", "channels": 4 },
+                    { "type": "DI", "channels": 2 },
+                    { "type": "DO", "channels": 4 } ] },
+  { "id": "PLC2", "ip": "10.0.1.2", "protocol": "modbus",
+    "io_modules": [ { "type": "AI", "channels": 2 },
+                    { "type": "DO", "channels": 2 } ] } ],
+"sensors": [
+  { "id": "TT101", "type": "temperature", "device": "PLC1", "channel": "AI0",
+    "wave": "constant", "value": 28.0 },
+  { "id": "HT101", "type": "humidity", "device": "PLC1", "channel": "AI1" },
+  { "id": "SW101", "type": "switch",   "device": "PLC1", "channel": "DI0",
+    "wave": "constant", "value": 1.0 },
+  { "id": "PT201", "type": "pressure", "device": "PLC2", "channel": "AI0",
+    "wave": "constant", "value": 2.5 } ],
+"actuators": [
+  { "id": "FAN1", "type": "fan", "device": "PLC2", "channel": "DO0" } ],
+"logic": [
+  { "id": "fan_on",  "if":   [ { "device": "PLC1", "register": "AI0", "op": "above", "value": 25 } ],
+                     "then": [ { "device": "PLC2", "register": "DO0", "set": 1 } ] },
+  { "id": "fan_off", "if":   [ { "device": "PLC1", "register": "AI0", "op": "below", "value": 24 } ],
+                     "then": [ { "device": "PLC2", "register": "DO0", "set": 0 } ] },
+  { "id": "low_p",   "if":   [ { "device": "PLC2", "register": "AI0", "op": "below", "value": 3 } ],
+                     "then": [ { "device": "PLC1", "register": "DO1", "set": 1 } ] } ]</pre>
+    <p>A sensor without <code>wave</code>/<code>min</code>/<code>max</code> uses its type's default (HT101 is a sine 35–65). First print each PLC's
+    <strong>Modbus map</strong> — the address sheet an MTU (or an analyst) works from:</p>
+    <pre>./scadavt.sh io scadavt/designer/static/examples/io_lab.json</pre>
+    <div class="result">PLC1  (10.0.1.1)
+  channel slot  Modbus table      ref    access      wired
+  AI0     1     input register    30001  read-only   TT101 temperature (°C)
+  AI1     1     input register    30003  read-only   HT101 humidity (%RH)
+  AI2     1     input register    30005  read-only   -
+  AI3     1     input register    30007  read-only   -
+  DI0     2     discrete input    10001  read-only   SW101 switch
+  DI1     2     discrete input    10002  read-only   -
+  DO0     3     coil              00001  read/write  -
+  DO1     3     coil              00002  read/write  -
+  DO2     3     coil              00003  read/write  -
+  DO3     3     coil              00004  read/write  -
+PLC2  (10.0.1.2)
+  channel slot  Modbus table      ref    access      wired
+  AI0     1     input register    30001  read-only   PT201 pressure (bar)
+  AI1     1     input register    30003  read-only   -
+  DO0     2     coil              00001  read/write  FAN1 fan
+  DO1     2     coil              00002  read/write  -</div>
+    <p>Then run it live:</p>
+    <pre>./scadavt.sh run scadavt/designer/static/examples/io_lab.json --live</pre>
+    <div class="result">session started=True
+MTU reached 2/2 devices
+  PLC1     reachable=True
+      AI0   = 28.00   TT101 temperature (°C)
+      AI1   = 54.14   HT101 humidity (%RH)
+      AI2   = --      (no signal)
+      AI3   = --      (no signal)
+      DI0   = 1.00    SW101 switch
+      DI1   = --      (no signal)
+      DO0   = 0.00
+      DO1   = 1.00
+      DO2   = 0.00
+      DO3   = 0.00
+  PLC2     reachable=True
+      AI0   = 2.50    PT201 pressure (bar)
+      AI1   = --      (no signal)
+      DO0   = 1.00    FAN1 fan
+      DO1   = 0.00</div>
+  </div>
+
+  <h4 style="color:var(--accent);margin:18px 0 4px">Scenario E · prove it end to end — on a LAN and across a WAN router</h4>
+  <div class="card">
+    <p>This test builds the same lab, checks every link of the chain (sensor → channel → Modbus → rule → other PLC → actuator), tries to
+    overwrite a sensor channel from the network, and captures the traffic. <code>--wan</code> moves PLC2 to a second subnet behind a router.</p>
+    <pre>SCADAVT_DIR=$PWD SCADAVT_NODE_PY=$PWD/.venv/bin/python \
+  /opt/core/venv/bin/python tools/live_core_iomodules.py          <span class="c"># LAN</span>
+SCADAVT_DIR=$PWD SCADAVT_NODE_PY=$PWD/.venv/bin/python \
+  /opt/core/venv/bin/python tools/live_core_iomodules.py --wan    <span class="c"># WAN</span></pre>
+    <div class="result">== PLC I/O modules + emulated sensors on live CORE (WAN) ==
+   [PASS] MTU reaches PLC1
+   [PASS] MTU reaches PLC2 across the router
+   [PASS] temperature sensor TT101 -> PLC1.AI0 (input register 30001) read over Modbus  — AI0=28.0
+   [PASS] humidity sensor HT101 -> PLC1.AI1 in its 35..65 %RH range  — AI1=55.92…
+   [PASS] switch SW101 -> PLC1.DI0 (discrete input 10001) = 1  — DI0=1.0
+   [PASS] pressure sensor PT201 -> PLC2.AI0 = 2.5  — AI0=2.5
+   [PASS] rule PLC1.AI0 > 25 => PLC2.DO0 on (cross-PLC, sensor-driven)  — PLC2.DO0=1.0
+   [PASS] rule PLC2.AI0 < 3 => PLC1.DO1 on  — PLC1.DO1=1.0
+   [PASS] untouched outputs stay off (PLC1.DO0, PLC2.DO1)  — PLC1.DO0=0.0 PLC2.DO1=0.0
+   [PASS] emulated actuator FAN1 received the MTU's command  — … iohost:PLC2 INFO actuator FAN1 &lt;- 1.0 (from PLC2.DO0)
+   [PASS] AI channel is read-only over Modbus (write attempt leaves AI0 = 28)  — AI0 after write attempt=28.0
+   [PASS] the temperature 28.0 is visible inside a Modbus FC4 response in the capture  — 59 FC4 replies, e.g. [28.0, 28.0, 28.0]
+   evidence: /tmp/scadavt_net_XXXX/iolab.pcap
+
+  RESULT   PASSED: 12   FAILED: 0</div>
+    <p>The LAN run prints the same 12 checks (<code>MTU reaches PLC2</code> without "across the router"). Keep the <code>evidence</code>
+    path — the next section opens that capture in Wireshark.</p>
+  </div>
+
+  <h2 id="traffic" class="sec"><span class="num">9</span> See the traffic — capture &amp; open in Wireshark</h2>
   <p class="lead">Nothing is hidden: the Modbus packets between the MTU and the PLCs are real
   and you can watch them. This run captures them to a <code>.pcap</code> you open in Wireshark.</p>
   <div class="card">
@@ -260,15 +458,41 @@ wireshark  -r "$latest" &amp;             <span class="c"># GUI (note the -r)</s
     <p>Port <strong>502</strong> is Modbus/TCP. In Wireshark type <code>modbus</code> in the filter bar to
     decode each read/write (function code, register address, value) — you can see exactly which
     register the MTU read and which coil it wrote.</p>
-    <div class="callout tip"><span class="ic">💡</span><div><strong>Live capture instead of a file:</strong> keep a session up and sniff a node directly — run a scenario with the tool left running, then in another terminal attach to a node's namespace with CORE's <code>vcmd</code>/<code>coresendmsg</code> and run <code>tcpdump -i eth0 tcp port 502 -w live.pcap</code>, then open <code>live.pcap</code> in Wireshark. The pcap method above is the simplest and needs no extra tools.</div></div>
+    <div class="callout tip"><span class="ic">💡</span><div><strong>Where the capture is made:</strong> the tools run <code>tcpdump</code>
+    <em>inside the MTU's emulated machine</em> (on its <code>eth0</code>, port 502), so the file holds exactly what crossed the MTU's network
+    card — every poll and every command. <code>tools/live_core_network.py</code> writes <code>evidence/mtu_modbus.pcap</code>;
+    <code>tools/live_core_iomodules.py</code> (Scenario&nbsp;E) writes <code>iolab.pcap</code>.</div></div>
   </div>
 
-  <h2 id="trouble" class="sec"><span class="num">9</span> Troubleshooting</h2>
+  <div class="card">
+    <p><strong>See a sensor value and a command on the wire.</strong> Open the capture from Scenario&nbsp;E and show only PLC1's
+    replies to <em>Read Input Registers</em> (function code 4), with a column for the register values:</p>
+    <pre>latest=$(ls -t /tmp/scadavt_net_*/iolab.pcap | head -1)
+
+wireshark -r "$latest" -Y 'modbus.func_code == 4 &amp;&amp; ip.src == 10.0.1.1' \
+  -o 'gui.column.format:"No.","%m","Source","%s","Destination","%d","Register values","%Cus:modbus.regval_uint16","Info","%i"' &amp;</pre>
+    <figure><img src="img/wireshark_fc4.png" alt="Wireshark showing Modbus FC4 responses from PLC1 with register values 16864,0">
+    <figcaption>Every reply carries the registers <code>16864,0</code> — hex <code>41E0 0000</code>, which is the 32-bit float <strong>28.0</strong>:
+    the emulated temperature, inside the packet (bytes <code>01 04 04 41 e0 00 00</code> = unit 1, function 4, 4 bytes, value).</figcaption></figure>
+    <p>Now the MTU's <strong>command</strong> to the fan — <em>Write Single Coil</em> (function code 5) sent to PLC2:</p>
+    <pre>wireshark -r "$latest" -Y 'modbus.func_code == 5 &amp;&amp; ip.dst == 10.0.1.2' &amp;</pre>
+    <figure><img src="img/wireshark_fc5.png" alt="Wireshark showing Modbus FC5 write-single-coil queries from the MTU to PLC2">
+    <figcaption>Queries from the MTU <code>10.0.1.254</code> to PLC2 <code>10.0.1.2</code>, ending in bytes <code>01 05 00 00 ff 00</code>:
+    function 5, coil address 0 (= <code>DO0</code>, ref 00001), value <code>FF00</code> = ON. That is FAN1 being switched on.</figcaption></figure>
+    <p>Both screenshots are from Wireshark 4.2 opening a capture made by Scenario&nbsp;E. Useful display filters:
+    <code>modbus</code> (all Modbus), <code>modbus.func_code == 4</code> (analog inputs read), <code>modbus.func_code == 2</code> (digital inputs read),
+    <code>modbus.func_code == 5</code> (a coil = digital output written), <code>ip.src == 10.0.1.1</code> (from one PLC).</p>
+  </div>
+
+  <h2 id="trouble" class="sec"><span class="num">10</span> Troubleshooting</h2>
   <table>
     <thead><tr><th>You see…</th><th>Why / fix</th></tr></thead>
     <tbody>
       <tr><td><code>reached 1/2</code> (not all reached)</td><td>A device is not on a shared LAN. Connect every device to a <strong>Switch</strong> and give them IPs in the same subnet; avoid direct device↔device (amber) links.</td></tr>
-      <tr><td>All <code>a=0</code> after a run</td><td>No rule fired — add rules and <kbd>Apply rules</kbd>, and make sure the triggering sensor's seed is below the threshold.</td></tr>
+      <tr><td>An output stays <code>0.00</code> after a run</td><td>No rule fired — add rules and press <kbd>Apply rules</kbd>, and check the condition against the sensor's value. (For a plain-register network from <code>scaffold</code>: the triggering register <code>s</code> must be below the threshold.)</td></tr>
+      <tr><td>An input shows <code>--</code> (no signal)</td><td>Nothing writes that channel — wire a sensor to it (click the PLC, <strong>Wired to</strong>). A rule that reads it will not fire until it has a value.</td></tr>
+      <tr><td><code>INVALID … a temperature needs a AI channel</code></td><td>Sensors go on input channels of the right kind (temperature/humidity/pressure/level/flow on <code>AI</code>, switch on <code>DI</code>); actuators on <code>DO</code> or <code>AO</code>.</td></tr>
+      <tr><td><code>INVALID … is a read-only register</code></td><td>A rule tries to set an input channel (<code>AI</code>/<code>DI</code>). Rules can only set outputs (<code>DO</code>/<code>AO</code>).</td></tr>
       <tr><td><code>INVALID</code> on Validate</td><td>Read the listed issues — usually a duplicate IP, a link to a missing node, or a rule referencing an element that doesn't exist.</td></tr>
       <tr><td><code>RUN failed (503)</code></td><td>The service can't reach CORE. Start the daemon (<code>sudo systemctl start core-daemon</code>) on a host with CORE, or set <code>SCADAVT_CORE_PYTHON</code>.</td></tr>
       <tr><td>Can't reach the service</td><td>Check the <strong>Service base</strong> field (blank = same origin) and, for a remote service, the <strong>Auth token</strong>.</td></tr>

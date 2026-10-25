@@ -28,8 +28,8 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8161';
       S.addLink('MTU', 'SW1');
       S.addLink('PLC1', 'SW1');
       S.addLink('PLC2', 'SW1');
-      // a cross-PLC control rule, typed into the rules box as a user would
-      document.getElementById('rules').value = 'PLC1.s < 3 => PLC2.a open';
+      // a cross-PLC control rule on the PLCs' I/O channels, typed as a user would
+      document.getElementById('rules').value = 'PLC1.AI0 > 25 => PLC2.DO0 on';
       const exported = JSON.parse(S.exportJSON());   // exportJSON() syncs the box
       // validate via the shared service, same-origin (as the Validate button does)
       const res = await fetch('/validate', { method: 'POST',
@@ -47,7 +47,8 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8161';
       built_nodes: nodeCount,
       devices: (ex.devices || []).map(d => d.id),
       links: (ex.links || []).length,
-      rules: (ex.rules || []).length,
+      io_modules: (ex.devices || []).map(d => (d.io_modules || []).map(m => m.type + m.channels).join('+')),
+      logic: (ex.logic || []).length,
       validate_status: result.validate_status,
       validate_ok: result.validate && result.validate.ok,
       issues: (result.validate && result.validate.issues) || [],

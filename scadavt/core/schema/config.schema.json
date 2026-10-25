@@ -72,6 +72,22 @@
                 "is_bool": {"type": "boolean"}
               }
             }
+          },
+          "io_modules": {
+            "type": "array",
+            "description": "I/O modules (DI/DO/AI/AO); each channel becomes a register (scadavt.core.fieldio).",
+            "items": {
+              "type": "object",
+              "required": ["type", "channels"],
+              "additionalProperties": true,
+              "properties": {
+                "type": {"type": "string", "enum": ["DI", "DO", "AI", "AO"]},
+                "channels": {"type": "integer", "minimum": 1, "maximum": 16},
+                "slot": {"type": "integer"},
+                "data_type": {"type": "string"},
+                "scale": {"type": "number"}, "offset": {"type": "number"}
+              }
+            }
           }
         }
       }
@@ -188,6 +204,38 @@
           "default": {"type": "number"},
           "owner": {"type": "string", "enum": ["mtu", "plc", "process", "any"]},
           "limits": {"type": "object"}
+        }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "description": "Emulated sensors wired to PLC I/O channels (scadavt.core.fieldio).",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "device", "channel"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"}, "type": {"type": "string"},
+          "device": {"type": "string"}, "channel": {"type": "string"},
+          "unit": {"type": "string"}, "wave": {"type": "string"},
+          "min": {"type": "number"}, "max": {"type": "number"}, "value": {"type": "number"},
+          "period": {"type": "number"}, "duty": {"type": "number"}
+        }
+      }
+    },
+    "actuators": {
+      "type": "array",
+      "description": "Emulated actuators wired to PLC I/O channels (scadavt.core.fieldio).",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "device", "channel"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"}, "type": {"type": "string"},
+          "device": {"type": "string"}, "channel": {"type": "string"},
+          "unit": {"type": "string"}, "wave": {"type": "string"},
+          "min": {"type": "number"}, "max": {"type": "number"}, "value": {"type": "number"},
+          "period": {"type": "number"}, "duty": {"type": "number"}
         }
       }
     },

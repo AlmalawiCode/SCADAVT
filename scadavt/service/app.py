@@ -96,6 +96,18 @@ def create_app(token: str | None = None, *, bind_host: str = "127.0.0.1",
         r = validation.check(cfg)
         return {"ok": r.ok, "issues": r.issues}
 
+    @app.get("/io/catalog")
+    async def io_catalog():
+        from scadavt.core import fieldio
+        return fieldio.catalog()
+
+    @app.post("/io")
+    async def io_map(body: dict):
+        # works on an unfinished config too (the designer calls it while editing)
+        from scadavt.core import fieldio
+        cfg = body.get("config", body)
+        return {"devices": fieldio.channel_table(cfg), "issues": fieldio.validate(cfg)}
+
     @app.post("/plan")
     async def plan(body: dict):
         cfg = body.get("config", body)

@@ -72,8 +72,10 @@ def main(argv=None) -> int:
     log = setup_logging(f"iohost:{a.node}")
     session = json.loads(Path(a.session).read_text())
 
-    adapters = {ad["id"]: make_adapter(ad) for ad in session.get("adapters", [])}
     io_map = [m for m in session.get("io_map", []) if m.get("device") == a.node]
+    used = {m.get("adapter") for m in io_map}          # only this node's adapters
+    adapters = {ad["id"]: make_adapter(ad) for ad in session.get("adapters", [])
+                if ad["id"] in used}
     host, port = hostport(a.io, 9161)
     sink = BackchannelSink(a.node, host, port)
     owners = {(d["id"], r["id"]): r["owner"]
@@ -82,11 +84,21 @@ def main(argv=None) -> int:
     sync = IOSync(adapters, io_map, sink, owners=owners)
     log.info("iohost %s: %d adapters, %d io_map entries, back channel %s:%s",
              a.node, len(adapters), len(io_map), host, port)
+    outs = [(m["adapter"], m["external"].get("var"), m["register"])
+            for m in io_map if m.get("direction") == "out"]
+    applied: dict = {}
     i = 0
     try:
         with sync:
             while a.cycles == 0 or i < a.cycles:
                 sync.cycle()
+                # log each command an emulated actuator receives (on change)
+                for ad, var, reg in outs:
+                    get = getattr(adapters.get(ad), "output", None)
+                    v = get(var) if get else None
+                    if v is not None and applied.get(ad) != v:
+                        applied[ad] = v
+                        log.info("actuator %s <- %s (from %s.%s)", ad, v, a.node, reg)
                 i += 1
                 time.sleep(a.sleep)
     finally:
