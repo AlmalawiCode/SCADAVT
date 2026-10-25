@@ -23,7 +23,7 @@
     radial-gradient(circle at 1px 1px, #1c2740 1px, transparent 0) 0 0/24px 24px var(--bg)}
   #status{position:absolute;left:10px;bottom:10px;background:#0b1120cc;border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);pointer-events:none}
   #status b{color:var(--accent)}
-  aside{width:320px;background:var(--panel);border-left:1px solid var(--line);padding:12px;overflow:auto}
+  aside{width:360px;background:var(--panel);border-left:1px solid var(--line);padding:12px;overflow:auto}
   aside h3{margin:10px 0 4px;font-size:13px;color:var(--accent)}
   label{display:block;font-size:12px;color:var(--muted);margin:8px 0 2px}
   input,textarea,select{width:100%;background:#0f1726;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px;font:13px monospace}
@@ -39,6 +39,19 @@
   .legend span{display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px;color:var(--muted)}
   .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
   .hint{color:var(--muted);font-size:12px}
+  aside h4{margin:12px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .mod{display:flex;justify-content:space-between;align-items:center;gap:6px;background:#0f1726;border:1px solid var(--line);border-radius:6px;padding:3px 4px 3px 8px;margin:3px 0;font:12px monospace}
+  .mod button{padding:1px 7px;font-size:11px}
+  .row{display:flex;gap:4px;align-items:center;margin-top:4px}
+  .row select,.row input{width:auto;flex:1;min-width:0}
+  table.ch{width:100%;border-collapse:collapse;font:12px monospace}
+  table.ch th{color:var(--muted);font-weight:500;text-align:left;padding:2px 3px;border-bottom:1px solid var(--line)}
+  table.ch td{padding:3px;border-bottom:1px solid #222c44;vertical-align:middle}
+  table.ch select{padding:2px 3px;font-size:12px}
+  table.ch tr.sub td{padding:0 3px 6px 12px;color:var(--muted);border-bottom:1px solid var(--line)}
+  table.ch tr.sub input{width:52px;padding:2px 4px;font-size:12px}
+  table.ch tr.sub select{width:auto;padding:2px}
+  .node text.tag{fill:#c9d6f2;font-weight:500;font-size:10px}
   #log{white-space:pre-wrap;font:12px monospace;background:#0b1120;border:1px solid var(--line);border-radius:6px;padding:8px;min-height:60px;max-height:200px;overflow:auto}
 </style>
 </head>
@@ -74,10 +87,10 @@
       <span><i class="dot" style="background:var(--switch)"></i>Switch</span>
     </div>
     <h3>Properties</h3>
-    <div id="props"><p class="hint">Click a node to edit its id / IP / seed.</p></div>
+    <div id="props"><p class="hint">Click a node to edit it. Click a PLC to see its I/O modules and wire sensors.</p></div>
     <h3>Rules (cross-PLC control)</h3>
-    <p class="hint">One per line: <code>PLC1.s &lt; 3 =&gt; PLC2.a open</code> — when PLC1's register <code>s</code> is low, set PLC2's register <code>a</code>.</p>
-    <textarea id="rules" placeholder="PLC1.s < 3 => PLC2.a open"></textarea>
+    <p class="hint">One per line: <code>PLC1.AI0 &gt; 25 =&gt; PLC2.DO0 on</code> — when PLC1's input channel <code>AI0</code> is above 25, switch PLC2's output <code>DO0</code> on. Operators <code>&lt; &gt; &lt;= &gt;= == !=</code>; action <code>on</code>/<code>off</code> or a number.</p>
+    <textarea id="rules" spellcheck="false" placeholder="PLC1.AI0 > 25 => PLC2.DO0 on"></textarea>
     <button id="applyRules">Apply rules</button>
     <h3>Server</h3>
     <label>Service base (blank = same origin)</label>

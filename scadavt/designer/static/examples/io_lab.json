@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "name": "iolab",
+  "control": {
+    "placement": "mtu"
+  },
+  "mtu": {
+    "id": "MTU",
+    "ip": "10.0.1.254"
+  },
+  "devices": [
+    {
+      "id": "PLC1",
+      "ip": "10.0.1.1",
+      "protocol": "modbus",
+      "io_modules": [
+        {
+          "type": "AI",
+          "channels": 4
+        },
+        {
+          "type": "DI",
+          "channels": 2
+        },
+        {
+          "type": "DO",
+          "channels": 4
+        }
+      ]
+    },
+    {
+      "id": "PLC2",
+      "ip": "10.0.1.2",
+      "protocol": "modbus",
+      "io_modules": [
+        {
+          "type": "AI",
+          "channels": 2
+        },
+        {
+          "type": "DO",
+          "channels": 2
+        }
+      ]
+    }
+  ],
+  "switches": [
+    {
+      "id": "SW1"
+    }
+  ],
+  "links": [
+    {
+      "a": "MTU",
+      "b": "SW1",
+      "a_ip": "10.0.1.254"
+    },
+    {
+      "a": "PLC1",
+      "b": "SW1",
+      "a_ip": "10.0.1.1"
+    },
+    {
+      "a": "PLC2",
+      "b": "SW1",
+      "a_ip": "10.0.1.2"
+    }
+  ],
+  "sensors": [
+    {
+      "id": "TT101",
+      "type": "temperature",
+      "device": "PLC1",
+      "channel": "AI0",
+      "wave": "constant",
+      "value": 28.0
+    },
+    {
+      "id": "HT101",
+      "type": "humidity",
+      "device": "PLC1",
+      "channel": "AI1"
+    },
+    {
+      "id": "SW101",
+      "type": "switch",
+      "device": "PLC1",
+      "channel": "DI0",
+      "wave": "constant",
+      "value": 1.0
+    },
+    {
+      "id": "PT201",
+      "type": "pressure",
+      "device": "PLC2",
+      "channel": "AI0",
+      "wave": "constant",
+      "value": 2.5
+    }
+  ],
+  "actuators": [
+    {
+      "id": "FAN1",
+      "type": "fan",
+      "device": "PLC2",
+      "channel": "DO0"
+    }
+  ],
+  "logic": [
+    {
+      "id": "fan_on",
+      "if": [
+        {
+          "device": "PLC1",
+          "register": "AI0",
+          "op": "above",
+          "value": 25
+        }
+      ],
+      "then": [
+        {
+          "device": "PLC2",
+          "register": "DO0",
+          "set": 1
+        }
+      ]
+    },
+    {
+      "id": "fan_off",
+      "if": [
+        {
+          "device": "PLC1",
+          "register": "AI0",
+          "op": "below",
+          "value": 24
+        }
+      ],
+      "then": [
+        {
+          "device": "PLC2",
+          "register": "DO0",
+          "set": 0
+        }
+      ]
+    },
+    {
+      "id": "low_p",
+      "if": [
+        {
+          "device": "PLC2",
+          "register": "AI0",
+          "op": "below",
+          "value": 3
+        }
+      ],
+      "then": [
+        {
+          "device": "PLC1",
+          "register": "DO1",
+          "set": 1
+        }
+      ]
+    }
+  ]
+}

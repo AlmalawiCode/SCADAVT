@@ -64,12 +64,9 @@ SCENARIOS = [
 def run_scenario(core, label, adapter, var) -> None:
     net = corelive.build(core, cfg_for(adapter, var))
     try:
+        # start() also launches the adapter host inside the PLC node, driving
+        # the back channel
         net.start(cycles=10)
-        # launch the adapter host inside the PLC node, driving the back channel
-        net.nrun("PLC1", f"bash -c '{corelive.PREFIX} && setsid {corelive.NODE_PY} "
-                         f"-m scadavt.core.iohost --session {net.sess_json} --node PLC1 "
-                         f"--io 127.0.0.1:9161 --cycles 0 --sleep 0.2 "
-                         f">/tmp/iohost.log 2>&1 </dev/null &'", wait=False)
         time.sleep(3.0)
         temp = net.probe("MTU", "PLC1", "temp")
         check(f"{label}: MTU reads PLC1.temp == {VALUE} over Modbus",

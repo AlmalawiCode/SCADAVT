@@ -18,6 +18,7 @@ Verbs::
     scadavt scaffold   [--plcs N ...] [-o]  # emit a starting config (grid helper)
     scadavt export     CONFIG [--format]    # round-trip / convert (JSON<->YAML)
     scadavt plan       CONFIG               # resolved node/link plan (offline)
+    scadavt io         CONFIG               # each PLC's I/O channels as a Modbus map
     scadavt run        CONFIG [--live ...]  # build + run on live CORE
 """
 
@@ -95,6 +96,23 @@ def cmd_migrate(a) -> int:
     return 0
 
 
+def cmd_io(a) -> int:
+    from .core import fieldio
+    cfg = validation.ensure_valid(_load(a.config))
+    ip = {d["id"]: d.get("ip", "") for d in cfg.get("devices", [])}
+    table = fieldio.channel_table(cfg)
+    if not table:
+        print("no device declares io_modules")
+        return 0
+    for did, rows in table.items():
+        print(f"{did}  ({ip.get(did)})")
+        print(f"  {'channel':<8}{'slot':<6}{'Modbus table':<18}{'ref':<7}{'access':<12}wired")
+        for r in rows:
+            print(f"  {r['channel']:<8}{r['slot']:<6}{r['table'].replace('_', ' '):<18}"
+                  f"{r['ref']:05d}  {r['access']:<12}{r['wired'] or '-'}")
+    return 0
+
+
 def cmd_scaffold(a) -> int:
     corelive = _import_engine(need_core=False)
     if corelive is None:
@@ -145,8 +163,17 @@ def cmd_run(a) -> int:
         print(f"session started={res['started']}")
         print(f"MTU reached {res['reached']}/{res['devices']} devices")
         for r in res["results"]:
-            pts = " ".join(f"{k}={v}" for k, v in r["points"].items())
-            print(f"  {r['id']:<8} reachable={r['reachable']}  {pts}")
+            labels = r.get("labels") or {}
+            if not (r.get("io") or labels):       # plain registers: one line
+                pts = " ".join(f"{k}={v}" for k, v in r["points"].items())
+                print(f"  {r['id']:<8} reachable={r['reachable']}  {pts}")
+                continue
+            print(f"  {r['id']:<8} reachable={r['reachable']}")
+            for k, v in r["points"].items():      # I/O channels: one per line
+                # an input nothing has produced yet answers 'busy' -> no signal
+                val = "--" if v is None else f"{v:.2f}"
+                note = labels.get(k) or ("(no signal)" if v is None else "")
+                print(f"      {k:<6}= {val:<8}{note}".rstrip())
     return 0 if res["reached"] == res["devices"] else 1
 
 
@@ -197,6 +224,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     pl = sub.add_parser("plan", help="print the resolved node/link plan (offline)")
     pl.add_argument("config"); pl.set_defaults(fn=cmd_plan)
+
+    io = sub.add_parser("io", help="print each PLC's I/O channels as a Modbus map")
+    io.add_argument("config"); io.set_defaults(fn=cmd_io)
 
     r = sub.add_parser("run", help="build + run the config on live CORE")
     r.add_argument("config"); r.add_argument("--live", action="store_true",

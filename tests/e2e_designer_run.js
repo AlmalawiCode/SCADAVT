@@ -28,8 +28,11 @@ const OUT = process.env.OUT || '/tmp/gui_exported.json';
       S.addNode('plc', 260, 120);  // PLC2
       S.addNode('plc', 260, 200);  // PLC3
       ['MTU', 'PLC1', 'PLC2', 'PLC3'].forEach(n => S.addLink(n, 'SW1'));
+      // an emulated temperature sensor (constant 28) on each PLC's AI0
+      ['PLC1', 'PLC2', 'PLC3'].forEach(n => S.wire(n, 'AI0', 'temperature'));
+      S.cfg.sensors.forEach(f => { f.wave = 'constant'; f.value = 28; });
       // cross-PLC control ring entered as a user would type it
-      document.getElementById('rules').value = 'PLC1.s < 3 => PLC2.a open\nPLC2.s < 3 => PLC3.a open\nPLC3.s < 3 => PLC1.a open';
+      document.getElementById('rules').value = 'PLC1.AI0 > 25 => PLC2.DO0 on\nPLC2.AI0 > 25 => PLC3.DO0 on\nPLC3.AI0 > 25 => PLC1.DO0 on';
       const exported = JSON.parse(S.exportJSON());
       const v = await (await fetch('/validate', { method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,7 +49,8 @@ const OUT = process.env.OUT || '/tmp/gui_exported.json';
       pageerrors: errs,
       devices: out.exported.devices.map(d => d.id),
       links: out.exported.links.length,
-      rules: out.exported.rules.length,
+      sensors: out.exported.sensors.map(f => `${f.id}:${f.device}.${f.channel}`),
+      logic: out.exported.logic.length,
       validate_ok: out.validate.ok,
       run_status: out.run_status,
       run: out.run,

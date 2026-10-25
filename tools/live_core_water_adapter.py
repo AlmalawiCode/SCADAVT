@@ -68,12 +68,10 @@ def main() -> int:
     core = client.CoreGrpcClient(); core.connect()
     net = corelive.build(core, CFG)
     try:
-        net.start(cycles=120)
-        # adapter host inside the PLC node drives level<-EPANET and pump->EPANET
-        net.nrun("PLC1", f"bash -c '{corelive.PREFIX} && setsid {corelive.NODE_PY} "
-                         f"-m scadavt.core.iohost --session {net.sess_json} --node PLC1 "
-                         f"--io 127.0.0.1:9161 --cycles 0 --sleep 0.3 "
-                         f">/tmp/iohost.log 2>&1 </dev/null &'", wait=False)
+        # start() also launches the adapter host inside the PLC node, which
+        # drives level<-EPANET and pump->EPANET (one EPANET step per host cycle,
+        # so the period sets how fast simulated time runs)
+        net.start(cycles=120, io_period=0.3)
         time.sleep(4.0)
         lvl0 = net.probe("MTU", "PLC1", "level")
         check("#2 EPANET measurement mapped: MTU reads PLC1.level over Modbus", lvl0 is not None

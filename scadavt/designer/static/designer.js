@@ -4,18 +4,28 @@
  * export/import is plain JSON and a Python<->GUI round-trip is lossless by
  * construction. Every edit is a pure mutation of `cfg`. Topologies are
  * arbitrary. The GUI never validates or runs itself — it calls the shared
- * HTTP service (L1/L2).
+ * HTTP service (L1/L2). The I/O catalog and each channel's Modbus address also
+ * come from the service (/io/catalog, /io), so the GUI never allocates addresses.
  *
  * Interaction model:
  *   - Select mode (default): press-and-drag a node to move it ANYWHERE (free,
  *     no grid snapping); a click (no drag) selects it for editing.
  *   - Connect mode: click node A then node B to wire them; a dashed rubber-band
  *     line follows the cursor; Esc or right-click cancels.
+ *   - A selected PLC shows its I/O modules and channels; each channel can be
+ *     wired to an emulated sensor (inputs) or actuator (outputs).
  */
 "use strict";
 const SVGNS = "http://www.w3.org/2000/svg";
 const COLORS = { plc: "var(--plc)", mtu: "var(--mtu)", router: "var(--router)", switch: "var(--switch)" };
 const W = 92, H = 38;                      // node box size
+// a new PLC's I/O: a compact controller's mix (analog in, digital in/out)
+const DEFAULT_IO = [{ type: "AI", channels: 4 }, { type: "DI", channels: 4 }, { type: "DO", channels: 4 }];
+// instrument-style tag prefixes for emulated field devices
+const TAG = { temperature: "TT", humidity: "HT", pressure: "PT", level: "LT", flow: "FT", analog: "AT",
+              switch: "HS", pump: "P", fan: "FAN", valve: "XV", lamp: "L", motor: "M",
+              valve_position: "FV", speed: "SC" };
+const OPS = { "<": "below", ">": "above", "<=": "at_most", ">=": "at_least", "==": "equal", "!=": "not_equal" };
 
 let cfg = blankConfig();
 let pos = {};                              // id -> {x,y} (presentation only)
@@ -23,11 +33,13 @@ let selected = null;
 let mode = "select";                       // 'select' | 'connect'
 let connectFrom = null;                    // id while wiring
 let counter = { plc: 0, mtu: 0, switch: 0, router: 0 };
+let catalog = null;                        // /io/catalog: module + field-device types
+let ioTable = {};                          // device id -> channel rows from /io
 
 function blankConfig() {
   return { schema_version: 1, name: "untitled", control: { placement: "mtu" },
            netmask: 24, mtu: null, devices: [], switches: [], routers: [],
-           links: [], logic: [] };
+           links: [], logic: [], sensors: [], actuators: [] };
 }
 
 // ---- model helpers ---------------------------------------------------------
@@ -45,6 +57,8 @@ function nodeObj(id) {
     || cfg.routers.find(r => r.id === id) || cfg.switches.find(s => s.id === id);
 }
 function isEndpoint(id) { return ["plc", "mtu", "router"].includes(nodeKind(id)); }
+function fieldDevices() { return [...(cfg.sensors || []), ...(cfg.actuators || [])]; }
+function wiredTo(dev, ch) { return fieldDevices().find(f => f.device === dev && f.channel === ch); }
 
 // ---- mutations -------------------------------------------------------------
 function addNode(kind, x, y) {
@@ -52,10 +66,9 @@ function addNode(kind, x, y) {
   let id;
   if (kind === "plc") {
     id = "PLC" + counter.plc;
-    // register-native PLC: an input register 's' (read) + a coil 'a' (command)
-    cfg.devices.push({ id, ip: `10.0.1.${cfg.devices.length + 1}`, protocol: "modbus", seed: 2.0,
-      registers: [{ id: "s", area: "input_register", data_type: "float32", initial: 2.0 },
-                  { id: "a", area: "coil", data_type: "bool", owner: "mtu" }] });
+    // a PLC is a Modbus device with I/O modules; each channel is a register
+    cfg.devices.push({ id, ip: `10.0.1.${cfg.devices.length + 1}`, protocol: "modbus",
+      io_modules: DEFAULT_IO.map(m => Object.assign({}, m)) });
   } else if (kind === "mtu") {
     if (cfg.mtu) { log("There is already an MTU (one MTU controls many PLCs)."); return; }
     id = "MTU"; cfg.mtu = { id, ip: "10.0.1.254" };
@@ -74,7 +87,9 @@ function removeNode(id) {
   cfg.links = cfg.links.filter(l => l.a !== id && l.b !== id);
   cfg.logic = (cfg.logic || []).filter(r =>
     !(r.if || []).some(c => c.device === id) && !(r.then || []).some(a => a.device === id));
-  delete pos[id];
+  cfg.sensors = (cfg.sensors || []).filter(f => f.device !== id);
+  cfg.actuators = (cfg.actuators || []).filter(f => f.device !== id);
+  delete pos[id]; delete ioTable[id];
   if (selected === id) selected = null;
   if (connectFrom === id) connectFrom = null;
   render(); renderProps();
@@ -99,24 +114,93 @@ function addLink(a, b) {
   return true;
 }
 
+// ---- I/O modules + emulated field devices ----------------------------------
+// Channel naming rule of scadavt.core.fieldio.channels (per type, module order).
+// Used only to re-point wiring when a module is removed; addresses come from /io.
+function chanIds(dev) {
+  const n = {}, out = [];
+  (dev.io_modules || []).forEach((m, slot) => {
+    for (let k = 0; k < (m.channels | 0); k++) {
+      const i = n[m.type] || 0; n[m.type] = i + 1; out.push({ id: m.type + i, slot });
+    }
+  });
+  return out;
+}
+function addModule(devId, type, channels) {
+  const dev = nodeObj(devId);
+  (dev.io_modules = dev.io_modules || []).push({ type, channels });
+  log(`${devId}: added a ${type} module with ${channels} channel(s).`);
+  renderProps();
+}
+function removeModule(devId, slot) {
+  const dev = nodeObj(devId), before = chanIds(dev);
+  dev.io_modules.splice(slot, 1);
+  const after = chanIds(dev);
+  // channels after the removed module shift down: map old -> new ids
+  const map = {};
+  before.filter(c => c.slot !== slot).forEach((c, i) => { map[c.id] = after[i].id; });
+  const gone = new Set(before.filter(c => c.slot === slot).map(c => c.id));
+  ["sensors", "actuators"].forEach(k => {
+    cfg[k] = (cfg[k] || []).filter(f => !(f.device === devId && gone.has(f.channel)));
+    cfg[k].forEach(f => { if (f.device === devId && map[f.channel]) f.channel = map[f.channel]; });
+  });
+  // a rule on a removed channel must go too — its name may now belong to a
+  // shifted channel, which would silently change what the rule means
+  const uses = r => [...(r.if || []), ...(r.then || [])].some(c => c.device === devId && gone.has(c.register));
+  const dropped = (cfg.logic || []).filter(uses);
+  cfg.logic = (cfg.logic || []).filter(r => !uses(r));
+  cfg.logic.forEach(r => [...(r.if || []), ...(r.then || [])].forEach(c => {
+    if (c.device === devId && map[c.register]) c.register = map[c.register];
+  }));
+  document.getElementById("rules").value = rulesToText();
+  log(`${devId}: removed module in slot ${slot + 1}.` +
+      (dropped.length ? ` Also removed ${dropped.length} rule(s) that used its channels.` : ""));
+  render(); renderProps();
+}
+function newTag(type) {
+  const p = TAG[type] || type.slice(0, 2).toUpperCase();
+  const used = new Set(fieldDevices().map(f => f.id));
+  let i = 1; while (used.has(p + i)) i++;
+  return p + i;
+}
+function wire(devId, ch, type) {
+  // one field device per channel: replace whatever was there
+  cfg.sensors = (cfg.sensors || []).filter(f => !(f.device === devId && f.channel === ch));
+  cfg.actuators = (cfg.actuators || []).filter(f => !(f.device === devId && f.channel === ch));
+  if (type) {
+    const sensor = catalog && catalog.sensors[type];
+    const f = { id: newTag(type), type, device: devId, channel: ch };
+    if (sensor) ["wave", "min", "max", "value", "period", "duty"].forEach(k => {
+      if (sensor[k] !== undefined) f[k] = sensor[k];
+    });
+    (sensor ? cfg.sensors : cfg.actuators).push(f);
+    log(`Wired ${f.id} (${type}) to ${devId}.${ch}.`);
+  }
+  render(); renderProps();
+}
+
 // ---- rules text <-> cfg.logic ----------------------------------------------
 function rulesToText() {
+  const sym = Object.fromEntries(Object.entries(OPS).map(([k, v]) => [v, k]));
   return (cfg.logic || []).map(r => {
     const c = (r.if && r.if[0]) || {}, t = (r.then && r.then[0]) || {};
     const set = (t.set !== undefined ? t.set : t.value);
-    return `${c.device}.${c.register} < ${c.value} => ${t.device}.${t.register} ${set ? "open" : "close"}`;
+    const act = set === 1 ? "on" : set === 0 ? "off" : String(set);
+    return `${c.device}.${c.register} ${sym[c.op] || "<"} ${c.value} => ${t.device}.${t.register} ${act}`;
   }).join("\n");
 }
 function textToRules(text) {
-  // register-native: "PLC1.s < 3 => PLC2.a open"
+  // "PLC1.AI0 > 25 => PLC2.DO0 on"  (also <, <=, >=, ==, !=; on/off/open/close or a number)
   const logic = [];
   text.split("\n").map(s => s.trim()).filter(Boolean).forEach((line, i) => {
-    const m = line.match(/^(\w+)\.(\w+)\s*<\s*([\d.]+)\s*=>\s*(\w+)\.(\w+)\s*(\w+)?$/);
-    if (!m) { log("Ignored rule (expected `PLC1.s < 3 => PLC2.a open`): " + line); return; }
-    const set = (m[6] || "open").toLowerCase();
+    const m = line.match(/^(\w+)\.(\w+)\s*(<=|>=|==|!=|<|>)\s*(-?[\d.]+)\s*=>\s*(\w+)\.(\w+)\s*(\S+)?$/);
+    if (!m) { log("Ignored rule (expected `PLC1.AI0 > 25 => PLC2.DO0 on`): " + line); return; }
+    const a = (m[7] || "on").toLowerCase();
+    const set = ["on", "open", "true"].includes(a) ? 1 : ["off", "close", "false"].includes(a) ? 0 : parseFloat(a);
+    if (Number.isNaN(set)) { log("Ignored rule (action must be on/off or a number): " + line); return; }
     logic.push({ id: "r" + (i + 1),
-      if: [{ device: m[1], register: m[2], op: "below", value: parseFloat(m[3]) }],
-      then: [{ device: m[4], register: m[5], set: (set === "open" || set === "on" || set === "1") ? 1 : 0 }] });
+      if: [{ device: m[1], register: m[2], op: OPS[m[3]], value: parseFloat(m[4]) }],
+      then: [{ device: m[5], register: m[6], set }] });
   });
   cfg.logic = logic;
 }
@@ -143,25 +227,41 @@ function render() {
     g.appendChild(txt(n.id, W / 2, 17, "text"));
     const o = nodeObj(n.id);
     g.appendChild(txt((o && o.ip) || n.kind, W / 2, 30, "lab"));
+    // the emulated field devices wired into this PLC's I/O, under the box
+    const tags = fieldDevices().filter(f => f.device === n.id).map(f => `${f.id}→${f.channel}`);
+    tags.forEach((t, i) => g.appendChild(txt(t, W / 2, H + 17 + i * 12, "tag")));
     svg.appendChild(g);
   });
 }
 function el(t, a) { const e = document.createElementNS(SVGNS, t); for (const k in a) e.setAttribute(k, a[k]); return e; }
 function txt(s, x, y, cls) { const e = el("text", { x, y, class: cls, "text-anchor": "middle" }); e.textContent = s; return e; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
 // ---- properties -------------------------------------------------------------
 function select(id) { selected = id; render(); renderProps(); }
 function renderProps() {
   const box = document.getElementById("props");
-  if (!selected || !nodeObj(selected)) { box.innerHTML = '<p class="hint">Click a node to edit its id / IP / seed.</p>'; return; }
+  if (!selected || !nodeObj(selected)) { box.innerHTML = '<p class="hint">Click a node to edit it. Click a PLC to see its I/O modules and wire sensors.</p>'; return; }
   const o = nodeObj(selected), kind = nodeKind(selected);
   let h = `<div style="display:inline-block;padding:2px 8px;border-radius:999px;color:#06101f;background:${COLORS[kind]}">${kind}</div>`;
-  h += `<label>id</label><input id="p_id" value="${o.id}">`;
-  if (kind !== "switch") h += `<label>ip</label><input id="p_ip" value="${o.ip || ""}">`;
+  h += `<label>id</label><input id="p_id" value="${esc(o.id)}">`;
+  if (kind !== "switch") h += `<label>ip</label><input id="p_ip" value="${esc(o.ip || "")}">`;
   if (kind === "plc") {
-    const regs = (o.registers || []).map(r => `${r.id}:${r.area}`).join(", ");
-    h += `<label>seed (input register 's' initial value)</label><input id="p_seed" value="${o.seed ?? ""}">`;
-    h += `<label>registers</label><div class="hint">${regs}</div>`;
+    if (o.seed !== undefined || (o.registers || []).length) {   // plain-register PLC (imported)
+      const regs = (o.registers || []).map(r => `${r.id}:${r.area}`).join(", ");
+      h += `<label>seed (input register 's' initial value)</label><input id="p_seed" value="${o.seed ?? ""}">`;
+      h += `<label>registers</label><div class="hint">${esc(regs)}</div>`;
+    }
+    h += `<h4>I/O modules</h4>`;
+    (o.io_modules || []).forEach((m, i) => {
+      const lab = catalog ? catalog.modules[m.type].label : m.type;
+      h += `<div class="mod"><span>Slot ${i + 1} · <b>${m.type}</b> · ${m.channels} ch <span class="hint">${esc(lab)}</span></span>`
+         + `<button data-rm="${i}" title="Remove this module">✕</button></div>`;
+    });
+    if (!(o.io_modules || []).length) h += `<p class="hint">No I/O modules — add one below.</p>`;
+    h += `<div class="row"><select id="m_type"><option>AI</option><option>AO</option><option>DI</option><option>DO</option></select>`
+       + `<input id="m_n" type="number" min="1" max="16" value="4" title="channels"><button id="m_add">+ Module</button></div>`;
+    h += `<h4>Channels → Modbus</h4><div id="chans" class="hint">loading…</div>`;
   }
   box.innerHTML = h;
   const idEl = document.getElementById("p_id");
@@ -175,6 +275,61 @@ function renderProps() {
     const sreg = (o.registers || []).find(r => r.id === "s");   // seed = input register 's' initial
     if (sreg) sreg.initial = o.seed;
   };
+  if (kind === "plc") {
+    box.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => removeModule(o.id, +b.dataset.rm));
+    document.getElementById("m_add").onclick = () => {
+      const n = Math.max(1, Math.min(16, parseInt(document.getElementById("m_n").value, 10) || 1));
+      addModule(o.id, document.getElementById("m_type").value, n);
+    };
+    refreshIO();
+  }
+}
+function renderChannels() {
+  const box = document.getElementById("chans");
+  if (!box || !selected) return;
+  const rows = ioTable[selected];
+  if (!rows || !rows.length) { box.innerHTML = '<span class="hint">No channels.</span>'; return; }
+  if (rows[0].error) { box.innerHTML = `<span class="hint">${esc(rows[0].error)}</span>`; return; }
+  let h = `<table class="ch"><tr><th>Ch</th><th>Modbus</th><th>Wired to</th></tr>`;
+  rows.forEach(r => {
+    const f = wiredTo(selected, r.channel);
+    const input = r.type === "AI" || r.type === "DI";
+    const pool = catalog ? (input ? catalog.sensors : catalog.actuators) : {};
+    const opts = Object.keys(pool).filter(t => pool[t].module === r.type)
+      .map(t => `<option value="${t}"${f && f.type === t ? " selected" : ""}>${t}${pool[t].unit ? " (" + pool[t].unit + ")" : ""}</option>`).join("");
+    h += `<tr><td title="slot ${r.slot}">${r.channel}</td>`
+       + `<td title="${esc(r.table)} @ ${r.address}, ${esc(r.access)}">${String(r.ref).padStart(5, "0")}</td>`
+       + `<td><select data-ch="${r.channel}"><option value="">— ${input ? "no sensor" : "no actuator"} —</option>${opts}</select></td></tr>`;
+    if (f) {
+      h += `<tr class="sub"><td colspan="3">tag <input data-f="${f.id}" data-k="id" value="${esc(f.id)}">`;
+      if (input) {
+        const waves = (catalog ? catalog.waves : []).map(w => `<option${(f.wave || "constant") === w ? " selected" : ""}>${w}</option>`).join("");
+        h += ` <select data-f="${f.id}" data-k="wave">${waves}</select>`;
+        if ((f.wave || "constant") === "constant") h += ` value <input data-f="${f.id}" data-k="value" value="${f.value ?? 0}">`;
+        else h += ` <input data-f="${f.id}" data-k="min" value="${f.min ?? 0}" title="min">–<input data-f="${f.id}" data-k="max" value="${f.max ?? 1}" title="max">`;
+      } else h += ` <span class="hint">receives the MTU's command</span>`;
+      h += `</td></tr>`;
+    }
+  });
+  box.innerHTML = h + `</table>`;
+  box.querySelectorAll("[data-ch]").forEach(s => s.onchange = () => wire(selected, s.dataset.ch, s.value));
+  box.querySelectorAll("[data-f]").forEach(e => e.onchange = () => {
+    const f = fieldDevices().find(x => x.id === e.dataset.f); if (!f) return;
+    const k = e.dataset.k, v = e.value.trim();
+    if (k === "id") { if (v && !fieldDevices().some(x => x.id === v)) f.id = v; }
+    else if (k === "wave") {
+      f.wave = v;
+      if (v === "constant" && f.value === undefined) f.value = f.min ?? 0;   // a constant needs a value
+    }
+    else if (!Number.isNaN(parseFloat(v))) f[k] = parseFloat(v);
+    render(); renderProps();
+  });
+}
+async function refreshIO() {
+  const { status, data } = await post("/io", { config: stripView(cfg) });
+  if (status !== 200) { const b = document.getElementById("chans"); if (b) b.textContent = "(service unreachable — cannot compute Modbus addresses)"; return; }
+  ioTable = data.devices || {};
+  renderChannels();
 }
 function renameNode(oldId, newId) {
   if (!newId || newId === oldId || allNodes().some(n => n.id === newId)) { render(); renderProps(); return; }
@@ -184,6 +339,8 @@ function renameNode(oldId, newId) {
     (r.if || []).forEach(c => { if (c.device === oldId) c.device = newId; });
     (r.then || []).forEach(a => { if (a.device === oldId) a.device = newId; });
   });
+  fieldDevices().forEach(f => { if (f.device === oldId) f.device = newId; });
+  document.getElementById("rules").value = rulesToText();
   pos[newId] = pos[oldId]; delete pos[oldId];
   if (selected === oldId) selected = newId;
   render(); renderProps();
@@ -239,9 +396,11 @@ svg.addEventListener("contextmenu", e => {                   // right-click canc
   if (mode === "connect" && connectFrom) { e.preventDefault(); connectFrom = null; rubber = null; render(); updateStatus(); }
 });
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { connectFrom = null; rubber = null; if (mode === "connect") setMode("select"); render(); updateStatus(); closeHelp(); }
-  if ((e.key === "Delete" || e.key === "Backspace") && selected && document.activeElement.tagName !== "INPUT"
-      && document.activeElement.tagName !== "TEXTAREA") { removeNode(selected); }
+  if (e.key === "Escape") { connectFrom = null; rubber = null; if (mode === "connect") setMode("select"); render(); updateStatus(); }
+  const t = document.activeElement.tagName;
+  if ((e.key === "Delete" || e.key === "Backspace") && selected && !["INPUT", "TEXTAREA", "SELECT"].includes(t)) {
+    removeNode(selected);
+  }
 });
 
 // ---- modes + status ---------------------------------------------------------
@@ -283,6 +442,7 @@ document.getElementById("file").onchange = ev => {
 function loadConfig(obj) {
   cfg = Object.assign(blankConfig(), obj);
   pos = cfg._view || {};
+  ioTable = {};
   let i = 0;
   allNodes().forEach(n => { if (!pos[n.id]) pos[n.id] = { x: 70 + (i % 6) * 120, y: 70 + Math.floor(i / 6) * 100 }; i++; });
   // keep the id counters ahead of imported names
@@ -304,6 +464,10 @@ async function post(path, body) {
     return { status: res.status, data: await res.json().catch(() => ({})) };
   } catch (e) { return { status: 0, data: { detail: "cannot reach service: " + e.message } }; }
 }
+async function loadCatalog() {
+  try { catalog = await (await fetch(base() + "/io/catalog", { headers: headers() })).json(); }
+  catch (e) { log("Could not load the I/O catalog from the service: " + e.message); }
+}
 document.getElementById("validateBtn").onclick = async () => {
   syncRules();
   const { status, data } = await post("/validate", { config: stripView(cfg) });
@@ -315,9 +479,20 @@ document.getElementById("runBtn").onclick = async () => {
   const { status, data } = await post("/run", { config: stripView(cfg) });
   if (status !== 200) return log(`RUN failed (${status}): ` + (data.detail || "") + ((data.issues) ? "\n  " + data.issues.join("\n  ") : ""));
   let s = `RUN ✓ started=${data.started}, reached ${data.reached}/${data.devices}`;
-  (data.results || []).forEach(r => { s += `\n  ${r.id}: reachable=${r.reachable} ` + Object.entries(r.points || {}).map(([k, v]) => `${k}=${v}`).join(" "); });
+  (data.results || []).forEach(r => {
+    const labels = r.labels || {};
+    if (!(r.io || Object.keys(labels).length)) {           // plain registers: one line
+      s += `\n  ${r.id}: reachable=${r.reachable} ` + Object.entries(r.points || {}).map(([k, v]) => `${k}=${v}`).join(" ");
+      return;
+    }
+    s += `\n  ${r.id}: reachable=${r.reachable}`;          // I/O channels: one per line
+    Object.entries(r.points || {}).forEach(([k, v]) => {
+      const val = v === null || v === undefined ? "--" : (+v).toFixed(2);
+      s += `\n     ${k.padEnd(4)} = ${val.padEnd(7)} ${labels[k] || (val === "--" ? "(no signal)" : "")}`;
+    });
+  });
   if ((cfg.logic || []).length === 0)
-    s += "\n  note: no rules applied, so actuators (a) stay at default — add rules then Apply.";
+    s += "\n  note: no rules applied, so outputs stay off — add rules then Apply.";
   if ((data.results || []).some(r => !r.reachable))
     s += "\n  ⚠ some devices unreachable — connect every device (usually via a Switch) and give them IPs in the same subnet.";
   log(s);
@@ -329,8 +504,10 @@ document.getElementById("helpBtn").onclick = () => window.open("tutorial.html", 
 function log(s) { const e = document.getElementById("log"); e.textContent = new Date().toLocaleTimeString() + "  " + s + "\n" + e.textContent; }
 
 // expose for E2E/testing
-window.SCADAVT = { get cfg() { return cfg; }, addNode, addLink, removeNode, loadConfig, textToRules,
+window.SCADAVT = { get cfg() { return cfg; }, get ioTable() { return ioTable; }, addNode, addLink, removeNode,
+                   loadConfig, textToRules, addModule, removeModule, wire, refreshIO,
                    exportJSON: () => { syncRules(); return JSON.stringify(stripView(cfg)); } };
 
 setMode("select"); render(); updateStatus();
-log("Ready. Click “? Tutorial” (opens a full guide with a 3-PLC example in a new tab).");
+loadCatalog();
+log("Ready. Click “? Tutorial” (opens a full guide with worked examples in a new tab).");

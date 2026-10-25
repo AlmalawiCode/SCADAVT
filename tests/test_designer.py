@@ -64,11 +64,27 @@ def test_tutorial_served_in_new_tab():
     c = TestClient(create_app())
     r = c.get("/designer/tutorial.html")
     assert r.status_code == 200
-    assert "three" in r.text.lower() and "PLC" in r.text        # worked 3-PLC example present
+    # the worked I/O example (sensor -> rule -> other PLC's output) is present
+    assert "Worked example" in r.text and "PLC1.AI0 &gt; 25 =&gt; PLC2.DO0 on" in r.text
+    for img in ("designer_io.png", "wireshark_fc4.png", "wireshark_fc5.png"):
+        assert f'src="img/{img}"' in r.text and c.get(f"/designer/img/{img}").status_code == 200
     # the designer links to it and opens it in a new tab
     with open(os.path.join(DESIGNER_DIR, "designer.js")) as fh:
         js = fh.read()
     assert 'window.open("tutorial.html"' in js and "_blank" in js
+
+
+def test_shipped_io_example_is_valid_and_served():
+    # the tutorial's Scenario D / the designer's Import example
+    import json
+    with open(os.path.join(DESIGNER_DIR, "examples", "io_lab.json")) as fh:
+        cfg = json.load(fh)
+    assert validation.validate(cfg) == []
+    assert {s["id"] for s in cfg["sensors"]} == {"TT101", "HT101", "SW101", "PT201"}
+    pytest.importorskip("fastapi")
+    from fastapi.testclient import TestClient
+    from scadavt.service import create_app
+    assert TestClient(create_app()).get("/designer/examples/io_lab.json").json() == cfg
 
 
 # ---- R8 lossless round-trip incl. GUI-style edit ---------------------------

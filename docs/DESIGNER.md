@@ -28,9 +28,18 @@ SCADAVT_TOKEN=secret python -m scadavt.service --host 0.0.0.0
 
 - **+PLC / +MTU / +Switch / +Router** add nodes; drag to place.
 - **Link mode** on, then click two nodes to wire them (arbitrary topology).
-- Select a node to edit `id` / `ip` / `seed`.
-- **Rules** box, one per line: `S1 < 3 => A2 open` (PLC1's low sensor opens
-  PLC2's actuator) — arbitrary cross-PLC control relationships.
+- Select a node to edit `id` / `ip`. A selected **PLC** also shows its **I/O
+  modules** (a new PLC has `AI×4`, `DI×4`, `DO×4`; add/remove with **+ Module** /
+  **✕**) and a **channel table** with each channel's Modbus address (`AI0 30001`,
+  `DI0 10001`, `DO0 00001`, …), computed by the service (`POST /io`).
+- **Wired to** on a channel attaches an **emulated sensor** (temperature,
+  humidity, pressure, level, flow, analog on AI; switch on DI) or **actuator**
+  (pump, fan, valve, lamp, motor on DO; valve_position, speed on AO); a sensor's
+  signal is `constant`/`sine`/`ramp`/`random`/`square`. Types come from
+  `GET /io/catalog`. See `scadavt.core.fieldio`.
+- **Rules** box, one per line: `PLC1.AI0 > 25 => PLC2.DO0 on` (operators
+  `< > <= >= == !=`; action `on`/`off` or a number) — arbitrary cross-PLC
+  control relationships.
 - **Export** downloads the canonical config JSON; **Import** loads one back
   (Python-authored or GUI-authored) — lossless round-trip.
 - **Validate** / **Run** call the service (`/validate`, `/run`).
@@ -67,12 +76,16 @@ Python CLI) keeps working.
   `/run` delegation (fake CORE interpreter) returns results.
 - **Genuine browser → CORE E2E** (`tests/e2e_designer_run.js`, needs `node` +
   `puppeteer-core` + Chrome, plus a service with CORE in-process or via
-  `SCADAVT_CORE_PYTHON`): builds an arbitrary 3-PLC topology **with a cross-PLC
-  rule ring through the GUI's own code**, validates, and **executes it live on
-  CORE via `/run`, retrieving the actual results in the browser**:
-  `started=true, reached 3/3, every actuator opened by the ring (a=1)`, no page
-  errors.
+  `SCADAVT_CORE_PYTHON`): builds an arbitrary 3-PLC topology through the GUI's
+  own code, wires an emulated temperature sensor (constant 28) to each PLC's
+  `AI0`, adds a cross-PLC rule ring (`PLCn.AI0 > 25 => PLCn+1.DO0 on`),
+  validates, and **executes it live on CORE via `/run`**: `reached 3/3`, every
+  `AI0 = 28`, every `DO0 = 1` (the ring fired), no page errors.
+- **Real-click I/O E2E** (`tests/e2e_designer_io.js`): toolbar clicks, Connect
+  mode, the channel table's *Wired to* lists, typing a sensor's value, Apply
+  rules, Validate, ▶ Run — the tutorial's worked example step by step, with
+  10 assertions on the live result.
 - **Consistency**: the same GUI-exported config run through the Python CLI
-  (`scadavt run --live --json`) gives identical results (3/3, all actuators 1.0)
-  — one engine behind both interfaces.
+  (`scadavt run --live`) gives identical results (3/3, every `AI0 = 28.00`,
+  every `DO0 = 1.00`) — one engine behind both interfaces.
 - A simpler create/export/validate browser E2E is `tests/e2e_designer.js`.

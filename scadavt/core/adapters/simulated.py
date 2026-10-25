@@ -1,7 +1,7 @@
 """Simulated adapter — software sensors and actuators for experiments and CI.
 
 Domain-neutral: a variable is a named signal. Sensors are generated from a simple
-waveform spec (constant / ramp / sine / random); actuators record the commands
+waveform spec (constant / ramp / sine / random / square); actuators record the commands
 written to them (a simulated actuator "responding to register commands").
 
     {"id": "sim1", "kind": "simulated", "spec": {
@@ -46,6 +46,9 @@ class SimulatedAdapter(Adapter):
             return lo + (hi - lo) * (0.5 + 0.5 * math.sin(2 * math.pi * t / period))
         if wave == "random":
             return self._rng.uniform(lo, hi)
+        if wave == "square":                     # on/off switch: hi for `duty` of each period
+            period = float(cfg.get("period", 60.0))
+            return hi if (t % period) < float(cfg.get("duty", 0.5)) * period else lo
         return float(cfg.get("value", lo))
 
     def read(self, var: str) -> Sample:

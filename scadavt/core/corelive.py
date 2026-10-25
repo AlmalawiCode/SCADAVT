@@ -38,6 +38,7 @@ import time
 
 from . import coregen
 from . import fieldbus as fb
+from . import fieldio
 
 NODE_PY = os.environ.get("SCADAVT_NODE_PY", "/opt/core/venv/bin/python")
 REPO = os.environ.get(
@@ -198,6 +199,7 @@ class LiveNetwork:
         self.workdir = workdir
         self.handles = handles                   # {node_id: core node wrapper}
         self.sess_json = os.path.join(workdir, "session.json")
+        self.xcfg = fieldio.expand(cfg)           # I/O channels + field devices lowered
 
     # -- raw command in a node's namespace ---------------------------------
     def nrun(self, node_id, cmd, wait=True):
@@ -210,7 +212,7 @@ class LiveNetwork:
                   f">/tmp/{logname}.log 2>&1 </dev/null &'", wait=False)
 
     # -- bring the whole network to life -----------------------------------
-    def start(self, settle: float = 3.0, cycles: int = 60):
+    def start(self, settle: float = 3.0, cycles: int = 60, io_period: float = 0.2):
         # give device bring-up more time as the network grows (each field node
         # spawns its own process); the master also retries over its cycles.
         settle = max(settle, 0.3 * len(self.cfg["devices"]))
@@ -231,6 +233,12 @@ class LiveNetwork:
                          f"scadavt.core.device --session {self.sess_json} --node {d['id']} "
                          f"--modbus {ip}:{port} --io 0.0.0.0:9161{seed}", d["id"])
         time.sleep(settle)
+        # sensors/actuators wired to a device: run its adapter host beside it,
+        # feeding/reading the device's channels over the local back channel
+        for did in self.io_hosted():
+            self._launch(did, f"scadavt.core.iohost --session {self.sess_json} --node {did} "
+                              f"--io 127.0.0.1:9161 --cycles 0 --sleep {io_period}",
+                         f"iohost_{did}")
         # launch the MTU master (drives all devices via the cross-PLC rules)
         if self.cfg.get("mtu"):
             self._launch(self.cfg["mtu"]["id"],
@@ -238,6 +246,11 @@ class LiveNetwork:
                          f"--node {self.cfg['mtu']['id']} --step 0.1 --cycles {cycles}",
                          self.cfg["mtu"]["id"])
         return ok, warn
+
+    def io_hosted(self) -> list:
+        """Devices that have adapters wired to them (each gets an adapter host)."""
+        wired = {m.get("device") for m in self.xcfg.get("io_map", [])}
+        return [d["id"] for d in self.cfg["devices"] if d["id"] in wired]
 
     # -- inspection primitives (what a user script calls) ------------------
     def ping(self, src_node, dst_ip, count=2):
@@ -256,6 +269,26 @@ class LiveNetwork:
             return float((out or "").strip().split("=")[-1].split("@")[0])
         except Exception:
             return None
+
+    def probe_many(self, from_node, target_node, points, timeout=5) -> dict:
+        """Read several points of one device over a single Modbus connection:
+        ``{point: value or None}``."""
+        out = {p: None for p in points}
+        if not points:
+            return out
+        _, text = self.nrun(from_node,
+                            f"{PREFIX} && {NODE_PY} -m scadavt.core.probe "
+                            f"--session {self.sess_json} --node {target_node} "
+                            f"--points {','.join(points)} --timeout {timeout}")
+        for line in (text or "").splitlines():
+            head, _, rest = line.partition(" = ")
+            p = head.rpartition(".")[2]
+            if p in out and rest:
+                try:
+                    out[p] = float(rest.split("@")[0])
+                except ValueError:
+                    pass
+        return out
 
     def capture_start(self, node_id, pcap_path, expr="tcp port 502", bind_wait=2.0):
         # -U = packet-buffered (flush each packet) so a short capture under heavy
@@ -343,26 +376,33 @@ def run_live(core, cfg: dict, cycles: int = 60) -> dict:
     and the HTTP service (`/run`), so they always produce the same result shape.
 
     Returns ``{started, reached, devices, results}`` where ``results`` is a list
-    of ``{id, reachable, points: {point_id: value}}`` — each point value read
-    back over Modbus from the MTU."""
+    of ``{id, reachable, points: {point_id: value}, labels: {point_id: text}}``
+    — each point value read back over Modbus from the MTU; ``labels`` names the
+    emulated sensor/actuator wired to an I/O channel."""
     net = build(core, cfg)
     try:
         ok, _warn = net.start(cycles=cycles)
         import time as _t
-        _t.sleep(2.0)                    # let the field devices bind Modbus + the master run
+        # let the field devices bind Modbus + the master run (and, with wired
+        # sensors, the adapter hosts start feeding the channels)
+        _t.sleep(3.0 if net.io_hosted() else 2.0)
         mtu = cfg.get("mtu", {}).get("id")
+        lab = fieldio.labels(cfg)
         results, reached = [], 0
-        for d in cfg["devices"]:
-            r = {"id": d["id"], "reachable": False, "points": {}}
+        for d in net.xcfg["devices"]:
+            r = {"id": d["id"], "reachable": False, "points": {}, "labels": {},
+                 "io": bool(d.get("io_modules"))}
             if mtu and d.get("ip"):
                 r["reachable"] = net.ping(mtu, d["ip"])
                 reached += 1 if r["reachable"] else 0
-                # read back each data point — registers (native) or legacy points
-                for p in d.get("registers") or d.get("points", []):
-                    try:
-                        r["points"][p["id"]] = net.probe(mtu, d["id"], p["id"])
-                    except Exception:
-                        r["points"][p["id"]] = None
+                # read back each data point — registers (native, incl. I/O
+                # channels) or legacy points — over one connection
+                ids = [p["id"] for p in d.get("registers") or d.get("points", [])]
+                try:
+                    r["points"] = net.probe_many(mtu, d["id"], ids)
+                except Exception:
+                    r["points"] = {p: None for p in ids}
+                r["labels"] = {p: lab[(d["id"], p)] for p in ids if (d["id"], p) in lab}
             results.append(r)
         return {"started": bool(ok), "reached": reached,
                 "devices": len(cfg["devices"]), "results": results}
