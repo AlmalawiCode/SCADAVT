@@ -248,10 +248,13 @@ MTU reached 2/2 devices
     <pre>SCADAVT_DIR=$PWD SCADAVT_NODE_PY=$PWD/.venv/bin/python \
   /opt/core/venv/bin/python tools/live_core_network.py --plcs 3</pre>
     <p>It prints an evidence folder, e.g. <code>evidence: /tmp/scadavt_net_XXXX/evidence</code>. The capture is <code>mtu_modbus.pcap</code> in there.</p>
-    <p><strong>Open it in Wireshark:</strong></p>
-    <pre>wireshark /tmp/scadavt_net_*/evidence/mtu_modbus.pcap   <span class="c"># GUI</span>
-<span class="c"># or, in a terminal, without the GUI:</span>
-tcpdump -nr /tmp/scadavt_net_*/evidence/mtu_modbus.pcap | head</pre>
+    <p><strong>Open it in Wireshark.</strong> Each run makes its own <code>/tmp/scadavt_net_XXXX</code>,
+    so after a few runs the <code>*</code> glob matches many folders and the tools choke on more than
+    one file. Grab the newest capture into a variable first, then open just that one:</p>
+    <pre>latest=$(ls -t /tmp/scadavt_net_*/evidence/mtu_modbus.pcap | head -1)
+
+tcpdump -nr "$latest" | head          <span class="c"># terminal, no GUI</span>
+wireshark  -r "$latest" &amp;             <span class="c"># GUI (note the -r)</span></pre>
     <div class="result">10.0.1.254.52134 &gt; 10.0.1.1.502: Flags [P.], length 12   <span style="color:#7fae9c"># MTU -&gt; PLC1 request</span>
 10.0.1.1.502 &gt; 10.0.1.254.52134: Flags [P.], length 13   <span style="color:#7fae9c"># PLC1 -&gt; MTU reply</span></div>
     <p>Port <strong>502</strong> is Modbus/TCP. In Wireshark type <code>modbus</code> in the filter bar to
