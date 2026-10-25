@@ -71,13 +71,14 @@ def test_router_joins_subnets_and_gives_every_endpoint_a_gateway():
 
 
 def test_cross_plc_ring_targets_the_next_plc():
+    # register-native: PLC i's input register 's' low -> set PLC i+1's coil 'a'
     cfg = corelive.grid(12, per_subnet=6)
-    rules = {r["id"]: r for r in cfg["rules"]}
-    assert len(rules) == 12
-    # PLC i sensor Si -> opens A(i+1); PLC 12 wraps to A1
-    assert rules["r1"]["if"][0]["comp"] == "S1"
-    assert rules["r1"]["then"][0]["comp"] == "A2"
-    assert rules["r12"]["then"][0]["comp"] == "A1"
+    assert "rules" not in cfg and "mapping" not in cfg
+    logic = {r["id"]: r for r in cfg["logic"]}
+    assert len(logic) == 12
+    assert logic["r1"]["if"][0] == {"device": "PLC1", "register": "s", "op": "below", "value": 3.0}
+    assert logic["r1"]["then"][0] == {"device": "PLC2", "register": "a", "set": 1}
+    assert logic["r12"]["then"][0] == {"device": "PLC1", "register": "a", "set": 1}
 
 
 def test_interface_indices_are_per_node_sequential():

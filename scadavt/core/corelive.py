@@ -114,11 +114,16 @@ def build_plan(cfg: dict) -> dict:
 # config helpers — assemble a large network without writing every link by hand
 # --------------------------------------------------------------------------
 def _device(plc_id: str, ip: str, seed: float | None = None) -> dict:
+    """A register-native PLC: an input register ``s`` (the value the MTU reads)
+    and a coil ``a`` (the output the MTU drives). No sensor/actuator semantics —
+    just Modbus registers."""
     d = {"id": plc_id, "ip": ip, "protocol": "modbus",
-         "points": [{"id": "s", "role": "measurement", "is_bool": False},
-                    {"id": "a", "role": "command", "is_bool": True}]}
+         "registers": [
+             {"id": "s", "area": "input_register", "data_type": "float32",
+              "initial": seed if seed is not None else 0.0},
+             {"id": "a", "area": "coil", "data_type": "bool", "initial": False}]}
     if seed is not None:
-        d["seed"] = seed
+        d["seed"] = seed                     # also seeded at launch via --seed s=
     return d
 
 
@@ -163,21 +168,18 @@ def grid(n_plcs: int, per_subnet: int = 8, base: str = "10.0.{seg}.0",
     mtu = {"id": "MTU", "ip": f"{mnet3}.254"}
     links.append({"a": "MTU", "b": f"SW{mtu_subnet}", "a_ip": mtu["ip"]})
 
-    # cross-PLC ring over the element names in the mapping
-    mapping, rules = [], []
-    for i in range(1, n_plcs + 1):
-        mapping += [{"point": "s", "device": f"PLC{i}", "role": "measurement", "element": f"S{i}"},
-                    {"point": "a", "device": f"PLC{i}", "role": "command", "element": f"A{i}"}]
+    # cross-PLC control ring, register-based: PLC i's input register 's' low ->
+    # set PLC i+1's coil 'a'. Each actuator is driven from another PLC's reading,
+    # over Modbus, by the central MTU.
+    logic = []
     for i in range(1, n_plcs + 1):
         tgt = i % n_plcs + 1                     # ring: PLC i -> PLC i+1 (wrap)
-        rules.append({"id": f"r{i}",
-                      "if": [{"kind": "sensor", "comp": f"S{i}", "attr": "value",
-                              "op": "below", "value": 3.0}],
-                      "then": [{"comp": f"A{tgt}", "kind": "pump", "attr": "status",
-                                "value": "open"}]})
+        logic.append({"id": f"r{i}",
+                      "if": [{"device": f"PLC{i}", "register": "s", "op": "below", "value": 3.0}],
+                      "then": [{"device": f"PLC{tgt}", "register": "a", "set": 1}]})
     return {"name": name, "control": {"placement": "mtu"},
             "mtu": mtu, "devices": devices, "switches": switches,
-            "routers": routers, "links": links, "mapping": mapping, "rules": rules,
+            "routers": routers, "links": links, "logic": logic,
             "_plc_ips": plc_ips, "_seg_of": seg_of}
 
 
