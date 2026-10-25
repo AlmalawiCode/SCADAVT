@@ -83,6 +83,7 @@ def test_simulator_process_actuator_feedback():
     with a:
         a.write("pump", 1)                        # pump on -> level rises
         time.sleep(0.05)
+        a.tick()                                  # advance the co-sim one step
         assert a.read("level").value > 5.0
 
 

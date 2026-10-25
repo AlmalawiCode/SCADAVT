@@ -85,6 +85,13 @@ class IOSync:
 
     # -- one sync cycle ----------------------------------------------------
     def cycle(self) -> None:
+        # advance each adapter's process once per cycle (co-sim step)
+        for a in self.adapters.values():
+            try:
+                a.tick()
+            except Exception:
+                pass
+
         # OUT: register command -> adapter (simulated/real actuator responds)
         for m in self.io_map:
             if m.get("direction") != "out":
@@ -107,6 +114,11 @@ class IOSync:
             key = (m["device"], m["register"])
             value, qual = self._sample(m, key)
             self.quality[key] = qual
+            # propagate freshness into a companion register so control can gate on
+            # it (a stale/failed measurement sets it to 0 -> logic can require 1).
+            qreg = m.get("quality_register")
+            if qreg:
+                self.sink.write_in(m["device"], qreg, 1.0 if qual == QUALITY_OK else 0.0)
             if value is not None:
                 proposals.setdefault(key, []).append((m.get("owner", "process"), value))
         for key, props in proposals.items():

@@ -17,6 +17,12 @@ KINDS = tuple(_KINDS)
 
 
 def make_adapter(spec: dict) -> Adapter:
+    # optional plugin module to import first (e.g. a domain overlay registering a
+    # simulator engine or a new adapter kind) — keeps the core domain-neutral.
+    plugin = spec.get("plugin")
+    if plugin:
+        import importlib
+        importlib.import_module(plugin)
     kind = spec.get("kind")
     cls = _KINDS.get(kind)
     if cls is None:
