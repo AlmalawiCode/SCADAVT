@@ -93,6 +93,7 @@ class Register:
     offset: float = 0.0
     word_order: str = "big"         # 'big' = high word first (Modbus default)
     initial: float = 0.0
+    owner: str = ""                 # authoritative writer class (mtu|plc|process|'' = any)
     pinned: bool = False            # True: address fixed by config, not auto-assigned
 
     @property
@@ -171,7 +172,7 @@ def registers_from_config(node: dict) -> list[Register]:
                 data_type=dt, scale=float(r.get("scale", 1.0)),
                 offset=float(r.get("offset", 0.0)), word_order=r.get("word_order", "big"),
                 initial=(1.0 if init else 0.0) if dt == "bool" else float(init),
-                pinned="address" in r))
+                owner=r.get("owner", ""), pinned="address" in r))
         return out
     return [DevicePoint(p["id"], p["role"], bool(p.get("is_bool", False)),
                         address=int(p.get("address", 0)), pinned="address" in p)
@@ -250,6 +251,14 @@ class Device:
     # -- local control: write a command register directly --------------------
     def set_output(self, point_id: str, value: float) -> None:
         self._store(self.by_id[point_id], value, producer=False)
+
+    def value(self, point_id: str) -> float:
+        """Current decoded value of any register (regardless of area)."""
+        p = self.by_id[point_id]
+        t = self.bank.tables
+        if p.is_bool:
+            return 1.0 if t[p.reg_type][p.address] else 0.0
+        return p.decode(t[p.reg_type][p.address:p.address + p.words])
 
     def get_output(self, point_id: str) -> float | None:
         """Last value written to a writable register (by a master or locally), or

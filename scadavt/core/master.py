@@ -152,6 +152,9 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
                     pt = dev.by_id.get(rid) if dev else None
                     if pt is None:
                         continue
+                    owner = getattr(pt, "owner", "")
+                    if owner and owner not in ("mtu", "any"):
+                        continue                 # register owned elsewhere; MTU may not write it
                     try:
                         await clients[did].write(pt, val)
                         lcmd[f"{did}.{rid}"] = val
