@@ -68,12 +68,13 @@
   </div>
 
   <div class="toc">
-    <a href="#idea">The idea</a><a href="#parts">The parts</a><a href="#build">Build</a>
-    <a href="#addr">Addresses</a><a href="#rules">Rules</a><a href="#run">Run</a>
-    <a href="#example">★ 3-PLC example</a><a href="#cli">From the terminal</a><a href="#trouble">Troubleshooting</a>
+    <a href="#idea">The idea</a><a href="#parts">The parts</a><a href="#build">Build &amp; wire</a>
+    <a href="#rules">Rules</a><a href="#example">★ 3-PLC example</a>
+    <a href="#scenarios">★ Terminal scenarios (LAN / WAN)</a>
+    <a href="#traffic">See the traffic (Wireshark)</a><a href="#trouble">Troubleshooting</a>
   </div>
 
-  <h2 class="sec"><span class="num">1</span> The idea in one sentence</h2>
+  <h2 id="idea" class="sec"><span class="num">1</span> The idea in one sentence</h2>
   <div class="card"><span class="big">You draw a network of controllers on a canvas — and the picture you draw <em>is</em> the file the engine runs.</span>
   One <strong>MTU</strong> (the master) reads the sensors of many <strong>PLCs</strong> and, following your rules, sends commands back to them. Everything on a <strong>switch</strong> can talk; a <strong>router</strong> joins two switches.</div>
 
@@ -92,7 +93,7 @@
     <p class="lead" style="margin:.8rem 0 0">A typical network: the MTU and all PLCs connect to one switch (one LAN), so the MTU can reach every PLC.</p>
   </div>
 
-  <h2 class="sec"><span class="num">2</span> The four parts</h2>
+  <h2 id="parts" class="sec"><span class="num">2</span> The four parts</h2>
   <p>Four node types. Each PLC becomes a <strong>real emulated machine</strong> running a Modbus device.</p>
   <table>
     <thead><tr><th>Node</th><th>What it is</th><th>Has an IP?</th></tr></thead>
@@ -104,7 +105,7 @@
     </tbody>
   </table>
 
-  <h2 class="sec"><span class="num">3</span> Build it: add &amp; wire</h2>
+  <h2 id="build" class="sec"><span class="num">3</span> Build it: add &amp; wire</h2>
   <ol class="steps">
     <li><strong>Add nodes.</strong> Click <kbd>+ PLC</kbd>, <kbd>+ MTU</kbd>, <kbd>+ Switch</kbd>, <kbd>+ Router</kbd> — each appears on the canvas.</li>
     <li><strong>Move anything.</strong> Press a node and drag it anywhere — free movement, no grid snapping. A single click (no drag) selects it.</li>
@@ -125,10 +126,10 @@
     </tbody>
   </table>
 
-  <h2 class="sec"><span class="num">5</span> Control rules — one PLC drives another</h2>
+  <h2 id="rules" class="sec"><span class="num">5</span> Control rules — one PLC drives another</h2>
   <p>In the <strong>Rules</strong> box, type one rule per line, then press <kbd>Apply rules</kbd>:</p>
-  <pre>S1 &lt; 3 =&gt; A2 open   <span class="c"># if PLC1's sensor (S1) is below 3, open PLC2's actuator (A2)</span></pre>
-  <p><code>Sx</code> is PLC <em>x</em>'s sensor, <code>Ax</code> is PLC <em>x</em>'s actuator. This is <strong>cross-PLC control</strong>: the MTU reads one PLC and commands another.</p>
+  <pre>PLC1.s &lt; 3 =&gt; PLC2.a open   <span class="c"># if PLC1's register s is below 3, set PLC2's register a</span></pre>
+  <p>Each PLC has two Modbus registers: <code>s</code> (an input register the MTU reads) and <code>a</code> (a coil the MTU writes). This is <strong>cross-PLC control</strong>: the MTU reads one PLC's register and commands another's.</p>
   <div class="card gold"><span class="big">If you see every <code>a=0</code> after a run:</span> no rule fired. Either you added no rules, or the triggering sensor's <strong>seed</strong> is not below the threshold. Add rules, press <kbd>Apply rules</kbd>, and set the seed low (e.g. <code>2</code>).</div>
 
   <h2 class="sec"><span class="num">6</span> Run it — what actually happens</h2>
@@ -139,7 +140,7 @@
   </div>
   <p><kbd>Validate</kbd> checks everything and lists any problems in the <strong>Output</strong> panel. <kbd>▶ Run</kbd> builds and runs it live, then reports for each PLC whether the MTU <strong>reached</strong> it and the read-back values (<code>s</code> = sensor, <code>a</code> = actuator). <kbd>Export</kbd> saves the config file; the <em>same</em> file runs from the terminal.</p>
 
-  <h2 class="sec star"><span class="num">★</span> Worked example — run three PLCs</h2>
+  <h2 id="example" class="sec star"><span class="num">★</span> Worked example — run three PLCs</h2>
   <p class="lead">One MTU reads three PLCs on a switch; a control ring makes each PLC's low sensor open the <em>next</em> PLC's actuator.</p>
 
   <ol class="steps">
@@ -147,9 +148,9 @@
     <li><strong>Wire to the switch:</strong> click <kbd>🔗 Connect</kbd>, then drag each onto <code>SW1</code> — <code>MTU→SW1</code>, <code>PLC1→SW1</code>, <code>PLC2→SW1</code>, <code>PLC3→SW1</code>. All links should be solid grey (no amber).</li>
     <li><strong>Addresses:</strong> the defaults already fit (PLCs <code>10.0.1.1/2/3</code>, MTU <code>10.0.1.254</code>). Leave each PLC's <strong>seed</strong> at <code>2</code>.</li>
     <li><strong>Rules:</strong> paste into the Rules box, then <kbd>Apply rules</kbd>:
-      <pre style="margin:.5rem 0 0">S1 &lt; 3 =&gt; A2 open
-S2 &lt; 3 =&gt; A3 open
-S3 &lt; 3 =&gt; A1 open</pre></li>
+      <pre style="margin:.5rem 0 0">PLC1.s &lt; 3 =&gt; PLC2.a open
+PLC2.s &lt; 3 =&gt; PLC3.a open
+PLC3.s &lt; 3 =&gt; PLC1.a open</pre></li>
     <li><strong>Run:</strong> press <kbd>Validate</kbd> (should say VALID), then <kbd>▶ Run</kbd>.</li>
   </ol>
 
@@ -160,17 +161,106 @@ S3 &lt; 3 =&gt; A1 open</pre></li>
   PLC3: reachable=true s=2 a=1</div>
   <p>Every sensor is 2 (below 3), so every rule fires and every actuator opens (<code>a=1</code>). Now change one PLC's <strong>seed</strong> to <code>5</code> and run again: that PLC's rule no longer fires, and the actuator it targets stays <code>a=0</code> — you can see the control logic working.</p>
 
-  <h2 class="sec"><span class="num">7</span> The same network from the terminal</h2>
-  <p>The GUI is optional. <kbd>Export</kbd> your design to <code>net.json</code>, then run the identical file:</p>
-  <pre><span class="c"># validate and run the very file the designer produced</span>
-scadavt validate net.json
-scadavt run net.json --live</pre>
-  <p>Or build a three-PLC network with no GUI at all:</p>
-  <pre>scadavt scaffold --plcs 3 -o net.json
-scadavt run net.json --live</pre>
-  <p>Same model, same validation, same engine — the designer just draws it.</p>
+  <h2 id="scenarios" class="sec"><span class="num">7</span> Terminal scenarios you can run (tested)</h2>
+  <p class="lead">The GUI is optional — everything runs from the terminal. These examples
+  were all executed on this machine; the output shown is what they actually print.
+  First, once per boot, start the emulator and go to the project folder:</p>
+  <pre><span class="c"># start the CORE daemon (asks for your password, once per boot)</span>
+sudo systemctl start core-daemon
+cd /home/abdul/claudeProjects/Research-Papers/SCADATestbed/scadavt</pre>
+  <p>All commands below use the small wrapper <code>./scadavt.sh</code> (it sets the
+  environment and picks the right Python for you).</p>
 
-  <h2 class="sec"><span class="num">8</span> Troubleshooting</h2>
+  <h4 style="color:var(--accent);margin:18px 0 4px">Scenario A · your first network — one MTU, one switch, two PLCs</h4>
+  <div class="card">
+    <p>Save this as <code>/tmp/hand.json</code> — it is the whole network (two Modbus-register PLCs on one switch, with one control rule):</p>
+    <pre>{
+  "name": "my-first-net",
+  "control": { "placement": "mtu" },
+  "mtu": { "id": "MTU", "ip": "10.0.1.254" },
+  "devices": [
+    { "id": "PLC1", "ip": "10.0.1.1", "protocol": "modbus", "seed": 2.0,
+      "registers": [
+        { "id": "s", "area": "input_register", "data_type": "float32", "initial": 2.0 },
+        { "id": "a", "area": "coil", "data_type": "bool", "owner": "mtu" } ] },
+    { "id": "PLC2", "ip": "10.0.1.2", "protocol": "modbus", "seed": 9.0,
+      "registers": [
+        { "id": "s", "area": "input_register", "data_type": "float32", "initial": 9.0 },
+        { "id": "a", "area": "coil", "data_type": "bool", "owner": "mtu" } ] }
+  ],
+  "switches": [ { "id": "SW1" } ],
+  "links": [
+    { "a": "MTU",  "b": "SW1", "a_ip": "10.0.1.254" },
+    { "a": "PLC1", "b": "SW1", "a_ip": "10.0.1.1" },
+    { "a": "PLC2", "b": "SW1", "a_ip": "10.0.1.2" }
+  ],
+  "logic": [
+    { "id": "r1",
+      "if":   [ { "device": "PLC1", "register": "s", "op": "below", "value": 3.0 } ],
+      "then": [ { "device": "PLC2", "register": "a", "set": 1 } ] }
+  ]
+}</pre>
+    <p>Each <strong>link</strong> connects a node to the switch (<code>PLC1 → SW1</code>, <code>MTU → SW1</code>, …). Then:</p>
+    <pre>./scadavt.sh validate /tmp/hand.json
+./scadavt.sh run /tmp/hand.json --live</pre>
+    <div class="result">OK — config is valid (structure + semantics)
+session started=True
+MTU reached 2/2 devices
+  PLC1     reachable=True  s=2.0 a=0.0
+  PLC2     reachable=True  s=9.0 a=1.0</div>
+    <p>PLC1's register <code>s</code>=2 is below 3, so the rule fired and set PLC2's coil <code>a</code>=1 — the MTU read PLC1 and commanded PLC2, all over real Modbus.</p>
+  </div>
+
+  <h4 style="color:var(--accent);margin:18px 0 4px">Scenario B · a bigger LAN — 3 PLCs on one subnet, no file writing</h4>
+  <div class="card">
+    <p><code>scaffold</code> builds a ready network for you (a cross-PLC ring); then run it:</p>
+    <pre>./scadavt.sh scaffold --plcs 3 -o /tmp/lan.json
+./scadavt.sh run /tmp/lan.json --live</pre>
+    <div class="result">MTU reached 3/3 devices
+  PLC1     reachable=True  s=2.0 a=1.0
+  PLC2     reachable=True  s=5.0 a=1.0
+  PLC3     reachable=True  s=2.0 a=0.0</div>
+    <p>A control <em>ring</em>: each PLC whose <code>s</code> is low opens the next PLC's <code>a</code>.</p>
+  </div>
+
+  <h4 style="color:var(--accent);margin:18px 0 4px">Scenario C · a WAN — 6 PLCs across two subnets joined by a router</h4>
+  <div class="card">
+    <p><code>--per-subnet</code> splits the PLCs over several <code>/24</code> subnets; a router joins them (a WAN). The MTU still reaches and controls every PLC <strong>across the router</strong>:</p>
+    <pre>./scadavt.sh scaffold --plcs 6 --per-subnet 3 -o /tmp/wan.json
+./scadavt.sh plan /tmp/wan.json          <span class="c"># see the nodes/links (SW1, SW2, R1 router)</span>
+./scadavt.sh run /tmp/wan.json --live</pre>
+    <div class="result">MTU reached 6/6 devices
+  PLC1     reachable=True  s=2.0 a=0.0
+  PLC2     reachable=True  s=5.0 a=1.0
+  PLC3     reachable=True  s=2.0 a=0.0
+  PLC4     reachable=True  s=5.0 a=1.0
+  PLC5     reachable=True  s=2.0 a=0.0
+  PLC6     reachable=True  s=5.0 a=1.0</div>
+    <p>PLC3 (subnet&nbsp;1) opening PLC4 (subnet&nbsp;2) proves cross-subnet control over the router.</p>
+    <div class="callout tip"><span class="ic">💡</span><div>To put specific PLCs on specific subnets by hand, give them IPs in different <code>/24</code>s (e.g. <code>10.0.1.x</code> and <code>10.0.2.x</code>), add a second switch and a <code>router</code>, and link each switch to the router (see the scaffolded <code>/tmp/wan.json</code> for the exact shape).</div></div>
+  </div>
+
+  <h2 id="traffic" class="sec"><span class="num">8</span> See the traffic — capture &amp; open in Wireshark</h2>
+  <p class="lead">Nothing is hidden: the Modbus packets between the MTU and the PLCs are real
+  and you can watch them. This run captures them to a <code>.pcap</code> you open in Wireshark.</p>
+  <div class="card">
+    <p><strong>Capture</strong> — run a 3-PLC network that records the MTU's traffic to a pcap:</p>
+    <pre>SCADAVT_DIR=$PWD SCADAVT_NODE_PY=$PWD/.venv/bin/python \
+  /opt/core/venv/bin/python tools/live_core_network.py --plcs 3</pre>
+    <p>It prints an evidence folder, e.g. <code>evidence: /tmp/scadavt_net_XXXX/evidence</code>. The capture is <code>mtu_modbus.pcap</code> in there.</p>
+    <p><strong>Open it in Wireshark:</strong></p>
+    <pre>wireshark /tmp/scadavt_net_*/evidence/mtu_modbus.pcap   <span class="c"># GUI</span>
+<span class="c"># or, in a terminal, without the GUI:</span>
+tcpdump -nr /tmp/scadavt_net_*/evidence/mtu_modbus.pcap | head</pre>
+    <div class="result">10.0.1.254.52134 &gt; 10.0.1.1.502: Flags [P.], length 12   <span style="color:#7fae9c"># MTU -&gt; PLC1 request</span>
+10.0.1.1.502 &gt; 10.0.1.254.52134: Flags [P.], length 13   <span style="color:#7fae9c"># PLC1 -&gt; MTU reply</span></div>
+    <p>Port <strong>502</strong> is Modbus/TCP. In Wireshark type <code>modbus</code> in the filter bar to
+    decode each read/write (function code, register address, value) — you can see exactly which
+    register the MTU read and which coil it wrote.</p>
+    <div class="callout tip"><span class="ic">💡</span><div><strong>Live capture instead of a file:</strong> keep a session up and sniff a node directly — run a scenario with the tool left running, then in another terminal attach to a node's namespace with CORE's <code>vcmd</code>/<code>coresendmsg</code> and run <code>tcpdump -i eth0 tcp port 502 -w live.pcap</code>, then open <code>live.pcap</code> in Wireshark. The pcap method above is the simplest and needs no extra tools.</div></div>
+  </div>
+
+  <h2 id="trouble" class="sec"><span class="num">9</span> Troubleshooting</h2>
   <table>
     <thead><tr><th>You see…</th><th>Why / fix</th></tr></thead>
     <tbody>

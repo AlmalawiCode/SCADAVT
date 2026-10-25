@@ -348,6 +348,8 @@ def run_live(core, cfg: dict, cycles: int = 60) -> dict:
     net = build(core, cfg)
     try:
         ok, _warn = net.start(cycles=cycles)
+        import time as _t
+        _t.sleep(2.0)                    # let the field devices bind Modbus + the master run
         mtu = cfg.get("mtu", {}).get("id")
         results, reached = [], 0
         for d in cfg["devices"]:
@@ -355,7 +357,8 @@ def run_live(core, cfg: dict, cycles: int = 60) -> dict:
             if mtu and d.get("ip"):
                 r["reachable"] = net.ping(mtu, d["ip"])
                 reached += 1 if r["reachable"] else 0
-                for p in d.get("points", []):
+                # read back each data point — registers (native) or legacy points
+                for p in d.get("registers") or d.get("points", []):
                     try:
                         r["points"][p["id"]] = net.probe(mtu, d["id"], p["id"])
                     except Exception:
