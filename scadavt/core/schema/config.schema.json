@@ -55,6 +55,7 @@
                 "scale": {"type": "number"},
                 "offset": {"type": "number"},
                 "word_order": {"type": "string", "enum": ["big", "little"]},
+                "owner": {"type": "string", "enum": ["mtu", "plc", "process", "any"]},
                 "initial": {}
               }
             }
@@ -153,6 +154,40 @@
             "properties": {
               "device": {"type": "string"}, "register": {"type": "string"},
               "set": {"type": "number"}, "value": {"type": "number"}}}}
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string", "enum": ["simulated", "hardware", "simulator"]},
+          "authorized": {"type": "boolean"}
+        }
+      }
+    },
+    "io_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["adapter", "device", "register"],
+        "additionalProperties": true,
+        "properties": {
+          "adapter": {"type": "string"},
+          "external": {"type": "object"},
+          "device": {"type": "string"},
+          "register": {"type": "string"},
+          "direction": {"type": "string", "enum": ["in", "out"]},
+          "scale": {"type": "number"}, "offset": {"type": "number"},
+          "max_age": {"type": "number"},
+          "quality": {"type": "string", "enum": ["hold_last", "default", "fault"]},
+          "default": {"type": "number"},
+          "owner": {"type": "string", "enum": ["mtu", "plc", "process", "any"]},
+          "limits": {"type": "object"}
         }
       }
     },

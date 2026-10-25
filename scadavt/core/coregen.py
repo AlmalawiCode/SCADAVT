@@ -32,6 +32,39 @@ class ConfigError(ValueError):
     pass
 
 
+def _validate_adapters(cfg: dict, known: set, reg_owner: dict) -> list[str]:
+    """Validate the optional adapter/io-map layer: adapter kinds, references, and
+    that mapping direction matches the register's read-only / read-write area."""
+    from .adapters.registry import KINDS
+    out: list[str] = []
+    adapters = {a.get("id"): a for a in cfg.get("adapters", [])}
+    for a in cfg.get("adapters", []):
+        if a.get("kind") not in KINDS:
+            out.append(f"adapter {a.get('id')!r}: unknown kind {a.get('kind')!r}")
+    ro = {(d["id"], r["id"]) for d in cfg.get("devices", []) for r in d.get("registers", [])
+          if r.get("area") in ("input_register", "discrete_input")}
+    rw = {(d["id"], r["id"]) for d in cfg.get("devices", []) for r in d.get("registers", [])
+          if r.get("area") in ("coil", "holding_register")}
+    for m in cfg.get("io_map", []):
+        mid = f"io_map {m.get('adapter')}->{m.get('device')}.{m.get('register')}"
+        if m.get("adapter") not in adapters:
+            out.append(f"{mid}: unknown adapter {m.get('adapter')!r}")
+        ref = (m.get("device"), m.get("register"))
+        if ref not in known:
+            out.append(f"{mid}: unknown register {ref[0]}.{ref[1]}")
+            continue
+        direction = m.get("direction", "in")
+        if direction == "in" and rw and ref in rw:
+            out.append(f"{mid}: direction 'in' must target a read-only register "
+                       f"(input_register/discrete_input)")
+        if direction == "out" and ro and ref in ro:
+            out.append(f"{mid}: direction 'out' must target a read/write register "
+                       f"(coil/holding_register)")
+        if m.get("quality") not in (None, "hold_last", "default", "fault"):
+            out.append(f"{mid}: bad quality policy {m.get('quality')!r}")
+    return out
+
+
 def _validate_device_data(d: dict) -> list[str]:
     """Validate a device's data model: native registers, or (transitionally)
     legacy role-points — never both (one model only)."""
@@ -93,9 +126,12 @@ def validate(cfg: dict) -> list[str]:
         if (m.get("device"), m.get("point")) not in known:
             issues.append(f"mapping references unknown point {m.get('device')}.{m.get('point')}")
     # register-based control logic references real (device, register) points, and
-    # a 'then' target must be a writable register (coil/holding — not read-only).
+    # a 'then' target must be a writable register (coil/holding — not read-only)
+    # that the MTU is allowed to own.
     writable = {(d["id"], r["id"]) for d in devices for r in d.get("registers", [])
                 if r.get("area") in ("coil", "holding_register")}
+    reg_owner = {(d["id"], r["id"]): r.get("owner", "")
+                 for d in devices for r in d.get("registers", [])}
     for rule in cfg.get("logic", []):
         for c in rule.get("if", []):
             if (c.get("device"), c.get("register")) not in known:
@@ -108,6 +144,11 @@ def validate(cfg: dict) -> list[str]:
             elif writable and ref not in writable:
                 issues.append(f"logic {rule.get('id')}: target {ref[0]}.{ref[1]} is a "
                               f"read-only register (use a coil/holding_register)")
+            owner = reg_owner.get(ref, "")
+            if owner and owner not in ("mtu", "any"):
+                issues.append(f"logic {rule.get('id')}: target {ref[0]}.{ref[1]} is owned "
+                              f"by {owner!r}, the MTU may not write it (set owner: mtu)")
+    issues += _validate_adapters(cfg, known, reg_owner)
     # addressing uniqueness (IPs and back channels must not clash)
     ips = [d.get("ip") for d in devices if d.get("ip")]
     if cfg.get("mtu", {}).get("ip"):
@@ -181,6 +222,8 @@ def session(cfg: dict) -> dict:
         "mapping": list(cfg.get("mapping", [])),
         "rules": list(cfg.get("rules", [])),
         "logic": list(cfg.get("logic", [])),
+        "adapters": list(cfg.get("adapters", [])),
+        "io_map": list(cfg.get("io_map", [])),
     }
 
 
