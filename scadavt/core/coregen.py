@@ -32,6 +32,40 @@ class ConfigError(ValueError):
     pass
 
 
+def _validate_device_data(d: dict) -> list[str]:
+    """Validate a device's data model: native registers, or (transitionally)
+    legacy role-points — never both (one model only)."""
+    out: list[str] = []
+    did = d.get("id")
+    has_regs, has_pts = bool(d.get("registers")), bool(d.get("points"))
+    if has_regs and has_pts:
+        out.append(f"{did}: declares both 'registers' and legacy 'points' — use one model")
+    seen: dict = {}
+    for r in d.get("registers", []):
+        rid, area = r.get("id"), r.get("area")
+        if area not in fb.AREAS:
+            out.append(f"{did}.{rid}: bad register area {area!r} "
+                       f"(one of {', '.join(fb.AREAS)})")
+            continue
+        dt = r.get("data_type", "float32")
+        if dt not in fb.DATA_TYPES:
+            out.append(f"{did}.{rid}: bad data_type {dt!r}")
+        addr = r.get("address")
+        if addr is not None and (not isinstance(addr, int) or addr < 0):
+            out.append(f"{did}.{rid}: bad address {addr!r}")
+        if "address" in r:                       # only pinned addresses can clash
+            width = 1 if dt == "bool" else fb._DTYPE_WORDS.get(dt, 2)
+            for off in range(width):
+                key = (area, int(addr or 0) + off)
+                if key in seen:
+                    out.append(f"{did}.{rid}: {area} address {key[1]} overlaps {seen[key]!r}")
+                seen[key] = rid
+    for p in d.get("points", []):
+        if p.get("role") not in ig.ROLES:
+            out.append(f"{did}.{p.get('id')}: bad role {p.get('role')!r}")
+    return out
+
+
 def validate(cfg: dict) -> list[str]:
     """Return a list of problems; empty means the configuration is usable."""
     issues: list[str] = []
@@ -45,17 +79,16 @@ def validate(cfg: dict) -> list[str]:
         proto = d.get("protocol", "modbus")
         if proto not in fb.PROTOCOLS:
             issues.append(f"{d.get('id')}: unknown field-bus protocol {proto!r}")
-        for p in d.get("points", []):
-            if p.get("role") not in ig.ROLES:
-                issues.append(f"{d.get('id')}.{p.get('id')}: bad role {p.get('role')!r}")
+        issues += _validate_device_data(d)
     # control placement
     placement = cfg.get("control", {}).get("placement", "mtu")
     if placement not in ("mtu", "plc", "distributed"):
         issues.append(f"bad control placement {placement!r}")
     if placement == "mtu" and not cfg.get("mtu"):
         issues.append("centralized (mtu) placement requires an 'mtu' node")
-    # mapping references real devices/points
+    # mapping references real devices/points (registers or legacy points)
     known = {(d["id"], p["id"]) for d in devices for p in d.get("points", [])}
+    known |= {(d["id"], r["id"]) for d in devices for r in d.get("registers", [])}
     for m in cfg.get("mapping", []):
         if (m.get("device"), m.get("point")) not in known:
             issues.append(f"mapping references unknown point {m.get('device')}.{m.get('point')}")
@@ -108,6 +141,7 @@ def session(cfg: dict) -> dict:
             "services": [fb.PROTOCOLS[proto]["server"].__name__, "IOModules"],
             "protocol": proto,
             "points": [dict(p) for p in d.get("points", [])],
+            "registers": [dict(r) for r in d.get("registers", [])],
         })
     if cfg.get("mtu"):
         m = cfg["mtu"]
