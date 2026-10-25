@@ -135,6 +135,27 @@
       "type": "array",
       "items": {"type": "object"}
     },
+    "logic": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": {"type": "string"},
+          "if": {"type": "array", "items": {
+            "type": "object", "required": ["device", "register"],
+            "properties": {
+              "device": {"type": "string"}, "register": {"type": "string"},
+              "op": {"type": "string", "enum": ["below", "above", "at_most", "at_least", "equal", "not_equal"]},
+              "value": {"type": "number"}}}},
+          "then": {"type": "array", "items": {
+            "type": "object", "required": ["device", "register"],
+            "properties": {
+              "device": {"type": "string"}, "register": {"type": "string"},
+              "set": {"type": "number"}, "value": {"type": "number"}}}}
+        }
+      }
+    },
     "external_apps": {
       "type": "array",
       "items": {"type": "object"}
