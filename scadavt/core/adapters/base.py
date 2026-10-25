@@ -84,6 +84,10 @@ class Adapter(ABC):
             self.close()                         # always release, even on error
 
     # -- data --------------------------------------------------------------
+    def tick(self) -> None:
+        """Advance the adapter's process one cycle (co-sim step). Default no-op;
+        a simulator advances its engine here so reads see a consistent state."""
+
     @abstractmethod
     def read(self, var: str) -> Sample:
         """Produce a measurement for ``var`` (``in`` direction)."""

@@ -26,7 +26,7 @@ class _TankProcess:
         self.pump = 0.0
         self._t = time.monotonic()
 
-    def _advance(self) -> None:
+    def tick(self) -> None:
         now = time.monotonic()
         dt = now - self._t
         self._t = now
@@ -34,7 +34,6 @@ class _TankProcess:
         self.level = max(0.0, min(self.max, self.level + rate * dt))
 
     def read(self, var: str) -> float:
-        self._advance()
         if var in ("level", "pv"):
             return self.level
         if var == "pump":
@@ -67,8 +66,17 @@ class SimulatorAdapter(Adapter):
         self._open = True
 
     def close(self) -> None:
+        if self._proc is not None and hasattr(self._proc, "close"):
+            try:
+                self._proc.close()               # release engine resources (e.g. EPANET)
+            except Exception:
+                pass
         self._proc = None
         self._open = False
+
+    def tick(self) -> None:
+        if self._proc is not None and hasattr(self._proc, "tick"):
+            self._proc.tick()
 
     def read(self, var: str) -> Sample:
         return Sample(float(self._proc.read(var)), QUALITY_OK, time.monotonic())
