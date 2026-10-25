@@ -29,7 +29,7 @@ const OUT = process.env.OUT || '/tmp/gui_exported.json';
       S.addNode('plc', 260, 200);  // PLC3
       ['MTU', 'PLC1', 'PLC2', 'PLC3'].forEach(n => S.addLink(n, 'SW1'));
       // cross-PLC control ring entered as a user would type it
-      document.getElementById('rules').value = 'S1 < 3 => A2 open\nS2 < 3 => A3 open\nS3 < 3 => A1 open';
+      document.getElementById('rules').value = 'PLC1.s < 3 => PLC2.a open\nPLC2.s < 3 => PLC3.a open\nPLC3.s < 3 => PLC1.a open';
       const exported = JSON.parse(S.exportJSON());
       const v = await (await fetch('/validate', { method: 'POST',
         headers: { 'Content-Type': 'application/json' },

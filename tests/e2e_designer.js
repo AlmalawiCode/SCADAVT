@@ -29,7 +29,7 @@ const BASE = process.env.BASE || 'http://127.0.0.1:8161';
       S.addLink('PLC1', 'SW1');
       S.addLink('PLC2', 'SW1');
       // a cross-PLC control rule, typed into the rules box as a user would
-      document.getElementById('rules').value = 'S1 < 3 => A2 open';
+      document.getElementById('rules').value = 'PLC1.s < 3 => PLC2.a open';
       const exported = JSON.parse(S.exportJSON());   // exportJSON() syncs the box
       // validate via the shared service, same-origin (as the Validate button does)
       const res = await fetch('/validate', { method: 'POST',

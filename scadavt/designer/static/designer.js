@@ -27,7 +27,7 @@ let counter = { plc: 0, mtu: 0, switch: 0, router: 0 };
 function blankConfig() {
   return { schema_version: 1, name: "untitled", control: { placement: "mtu" },
            netmask: 24, mtu: null, devices: [], switches: [], routers: [],
-           links: [], mapping: [], rules: [] };
+           links: [], logic: [] };
 }
 
 // ---- model helpers ---------------------------------------------------------
@@ -52,11 +52,10 @@ function addNode(kind, x, y) {
   let id;
   if (kind === "plc") {
     id = "PLC" + counter.plc;
-    const i = cfg.devices.length + 1;
+    // register-native PLC: an input register 's' (read) + a coil 'a' (command)
     cfg.devices.push({ id, ip: `10.0.1.${cfg.devices.length + 1}`, protocol: "modbus", seed: 2.0,
-      points: [{ id: "s", role: "measurement" }, { id: "a", role: "command", is_bool: true }] });
-    cfg.mapping.push({ point: "s", device: id, role: "measurement", element: "S" + i });
-    cfg.mapping.push({ point: "a", device: id, role: "command", element: "A" + i });
+      registers: [{ id: "s", area: "input_register", data_type: "float32", initial: 2.0 },
+                  { id: "a", area: "coil", data_type: "bool", owner: "mtu" }] });
   } else if (kind === "mtu") {
     if (cfg.mtu) { log("There is already an MTU (one MTU controls many PLCs)."); return; }
     id = "MTU"; cfg.mtu = { id, ip: "10.0.1.254" };
@@ -73,7 +72,8 @@ function removeNode(id) {
   cfg.switches = cfg.switches.filter(s => s.id !== id);
   if (cfg.mtu && cfg.mtu.id === id) cfg.mtu = null;
   cfg.links = cfg.links.filter(l => l.a !== id && l.b !== id);
-  cfg.mapping = cfg.mapping.filter(m => m.device !== id);
+  cfg.logic = (cfg.logic || []).filter(r =>
+    !(r.if || []).some(c => c.device === id) && !(r.then || []).some(a => a.device === id));
   delete pos[id];
   if (selected === id) selected = null;
   if (connectFrom === id) connectFrom = null;
@@ -99,23 +99,26 @@ function addLink(a, b) {
   return true;
 }
 
-// ---- rules text <-> cfg.rules ----------------------------------------------
+// ---- rules text <-> cfg.logic ----------------------------------------------
 function rulesToText() {
-  return (cfg.rules || []).map(r => {
+  return (cfg.logic || []).map(r => {
     const c = (r.if && r.if[0]) || {}, t = (r.then && r.then[0]) || {};
-    return `${c.comp} < ${c.value} => ${t.comp} ${t.value || "open"}`;
+    const set = (t.set !== undefined ? t.set : t.value);
+    return `${c.device}.${c.register} < ${c.value} => ${t.device}.${t.register} ${set ? "open" : "close"}`;
   }).join("\n");
 }
 function textToRules(text) {
-  const rules = [];
+  // register-native: "PLC1.s < 3 => PLC2.a open"
+  const logic = [];
   text.split("\n").map(s => s.trim()).filter(Boolean).forEach((line, i) => {
-    const m = line.match(/^(\w+)\s*<\s*([\d.]+)\s*=>\s*(\w+)\s*(\w+)?$/);
-    if (!m) { log("Ignored rule (expected `S1 < 3 => A2 open`): " + line); return; }
-    rules.push({ id: "r" + (i + 1),
-      if: [{ kind: "sensor", comp: m[1], attr: "value", op: "below", value: parseFloat(m[2]) }],
-      then: [{ comp: m[3], kind: "pump", attr: "status", value: m[4] || "open" }] });
+    const m = line.match(/^(\w+)\.(\w+)\s*<\s*([\d.]+)\s*=>\s*(\w+)\.(\w+)\s*(\w+)?$/);
+    if (!m) { log("Ignored rule (expected `PLC1.s < 3 => PLC2.a open`): " + line); return; }
+    const set = (m[6] || "open").toLowerCase();
+    logic.push({ id: "r" + (i + 1),
+      if: [{ device: m[1], register: m[2], op: "below", value: parseFloat(m[3]) }],
+      then: [{ device: m[4], register: m[5], set: (set === "open" || set === "on" || set === "1") ? 1 : 0 }] });
   });
-  cfg.rules = rules;
+  cfg.logic = logic;
 }
 
 // ---- rendering --------------------------------------------------------------
@@ -155,7 +158,11 @@ function renderProps() {
   let h = `<div style="display:inline-block;padding:2px 8px;border-radius:999px;color:#06101f;background:${COLORS[kind]}">${kind}</div>`;
   h += `<label>id</label><input id="p_id" value="${o.id}">`;
   if (kind !== "switch") h += `<label>ip</label><input id="p_ip" value="${o.ip || ""}">`;
-  if (kind === "plc") h += `<label>seed (sensor value)</label><input id="p_seed" value="${o.seed ?? ""}">`;
+  if (kind === "plc") {
+    const regs = (o.registers || []).map(r => `${r.id}:${r.area}`).join(", ");
+    h += `<label>seed (input register 's' initial value)</label><input id="p_seed" value="${o.seed ?? ""}">`;
+    h += `<label>registers</label><div class="hint">${regs}</div>`;
+  }
   box.innerHTML = h;
   const idEl = document.getElementById("p_id");
   idEl.onchange = () => renameNode(selected, idEl.value.trim());
@@ -163,13 +170,20 @@ function renderProps() {
   if (ipEl) ipEl.onchange = () => { o.ip = ipEl.value.trim();
     cfg.links.forEach(l => { if (l.a === o.id) l.a_ip = o.ip; if (l.b === o.id) l.b_ip = o.ip; }); render(); };
   const seedEl = document.getElementById("p_seed");
-  if (seedEl) seedEl.onchange = () => { o.seed = parseFloat(seedEl.value); };
+  if (seedEl) seedEl.onchange = () => {
+    o.seed = parseFloat(seedEl.value);
+    const sreg = (o.registers || []).find(r => r.id === "s");   // seed = input register 's' initial
+    if (sreg) sreg.initial = o.seed;
+  };
 }
 function renameNode(oldId, newId) {
   if (!newId || newId === oldId || allNodes().some(n => n.id === newId)) { render(); renderProps(); return; }
   nodeObj(oldId).id = newId;
   cfg.links.forEach(l => { if (l.a === oldId) l.a = newId; if (l.b === oldId) l.b = newId; });
-  cfg.mapping.forEach(m => { if (m.device === oldId) m.device = newId; });
+  (cfg.logic || []).forEach(r => {
+    (r.if || []).forEach(c => { if (c.device === oldId) c.device = newId; });
+    (r.then || []).forEach(a => { if (a.device === oldId) a.device = newId; });
+  });
   pos[newId] = pos[oldId]; delete pos[oldId];
   if (selected === oldId) selected = newId;
   render(); renderProps();
@@ -247,7 +261,7 @@ function updateStatus() {
 document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => addNode(b.dataset.add));
 document.getElementById("connectBtn").onclick = () => setMode(mode === "connect" ? "select" : "connect");
 document.getElementById("delBtn").onclick = () => { if (selected) removeNode(selected); else log("Select a node first, then Delete."); };
-document.getElementById("applyRules").onclick = () => { textToRules(document.getElementById("rules").value); log("Applied " + cfg.rules.length + " rule(s)."); };
+document.getElementById("applyRules").onclick = () => { textToRules(document.getElementById("rules").value); log("Applied " + cfg.logic.length + " rule(s)."); };
 
 // ---- import / export -------------------------------------------------------
 function syncRules() { textToRules(document.getElementById("rules").value); }
@@ -302,7 +316,7 @@ document.getElementById("runBtn").onclick = async () => {
   if (status !== 200) return log(`RUN failed (${status}): ` + (data.detail || "") + ((data.issues) ? "\n  " + data.issues.join("\n  ") : ""));
   let s = `RUN ✓ started=${data.started}, reached ${data.reached}/${data.devices}`;
   (data.results || []).forEach(r => { s += `\n  ${r.id}: reachable=${r.reachable} ` + Object.entries(r.points || {}).map(([k, v]) => `${k}=${v}`).join(" "); });
-  if ((cfg.rules || []).length === 0)
+  if ((cfg.logic || []).length === 0)
     s += "\n  note: no rules applied, so actuators (a) stay at default — add rules then Apply.";
   if ((data.results || []).some(r => !r.reachable))
     s += "\n  ⚠ some devices unreachable — connect every device (usually via a Switch) and give them IPs in the same subnet.";

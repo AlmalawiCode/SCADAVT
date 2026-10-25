@@ -76,8 +76,8 @@
     <h3>Properties</h3>
     <div id="props"><p class="hint">Click a node to edit its id / IP / seed.</p></div>
     <h3>Rules (cross-PLC control)</h3>
-    <p class="hint">One per line: <code>S1 &lt; 3 =&gt; A2 open</code> — PLC1's low sensor opens PLC2's actuator.</p>
-    <textarea id="rules" placeholder="S1 < 3 => A2 open"></textarea>
+    <p class="hint">One per line: <code>PLC1.s &lt; 3 =&gt; PLC2.a open</code> — when PLC1's register <code>s</code> is low, set PLC2's register <code>a</code>.</p>
+    <textarea id="rules" placeholder="PLC1.s < 3 => PLC2.a open"></textarea>
     <button id="applyRules">Apply rules</button>
     <h3>Server</h3>
     <label>Service base (blank = same origin)</label>

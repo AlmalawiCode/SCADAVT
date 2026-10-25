@@ -72,17 +72,19 @@ def test_tutorial_served_in_new_tab():
 
 
 # ---- R8 lossless round-trip incl. GUI-style edit ---------------------------
+def _plc(pid, ip):
+    """Register-native PLC — the shape the designer now emits (no sensor/actuator)."""
+    return {"id": pid, "ip": ip, "protocol": "modbus", "seed": 2.0,
+            "registers": [{"id": "s", "area": "input_register", "data_type": "float32", "initial": 2.0},
+                          {"id": "a", "area": "coil", "data_type": "bool", "owner": "mtu"}]}
+
+
 def _arbitrary():
-    """A hand-built NON-grid topology, the shape the designer emits."""
+    """A hand-built NON-grid topology, register-native, as the designer emits."""
     return {
         "schema_version": 1, "name": "hand", "control": {"placement": "mtu"},
         "mtu": {"id": "MTU", "ip": "10.0.1.254"},
-        "devices": [
-            {"id": "PLC1", "ip": "10.0.1.1", "protocol": "modbus", "seed": 2.0,
-             "points": [{"id": "s", "role": "measurement"}, {"id": "a", "role": "command", "is_bool": True}]},
-            {"id": "PLC2", "ip": "10.0.2.1", "protocol": "modbus", "seed": 5.0,
-             "points": [{"id": "s", "role": "measurement"}, {"id": "a", "role": "command", "is_bool": True}]},
-        ],
+        "devices": [_plc("PLC1", "10.0.1.1"), _plc("PLC2", "10.0.2.1")],
         "switches": [{"id": "SWA"}, {"id": "SWB"}],
         "routers": [{"id": "R1", "model": "router"}],
         "links": [
@@ -92,37 +94,26 @@ def _arbitrary():
             {"a": "PLC1", "b": "SWA", "a_ip": "10.0.1.1"},
             {"a": "PLC2", "b": "SWB", "a_ip": "10.0.2.1"},
         ],
-        "mapping": [
-            {"point": "s", "device": "PLC1", "role": "measurement", "element": "S1"},
-            {"point": "a", "device": "PLC1", "role": "command", "element": "A1"},
-            {"point": "s", "device": "PLC2", "role": "measurement", "element": "S2"},
-            {"point": "a", "device": "PLC2", "role": "command", "element": "A2"},
-        ],
-        "rules": [{"id": "r1",
-                   "if": [{"kind": "sensor", "comp": "S1", "attr": "value", "op": "below", "value": 3.0}],
-                   "then": [{"comp": "A2", "kind": "pump", "attr": "status", "value": "open"}]}],
+        "logic": [{"id": "r1",
+                   "if": [{"device": "PLC1", "register": "s", "op": "below", "value": 3.0}],
+                   "then": [{"device": "PLC2", "register": "a", "set": 1}]}],
     }
 
 
 def _gui_add_plc(cfg, pid, ip, subnet_switch):
     """Mirror designer.js addNode('plc') + addLink: the GUI's edit contract."""
-    i = len(cfg["devices"]) + 1
-    cfg["devices"].append({"id": pid, "ip": ip, "protocol": "modbus", "seed": 2.0,
-                           "points": [{"id": "s", "role": "measurement"},
-                                      {"id": "a", "role": "command", "is_bool": True}]})
-    cfg["mapping"] += [{"point": "s", "device": pid, "role": "measurement", "element": f"S{i}"},
-                       {"point": "a", "device": pid, "role": "command", "element": f"A{i}"}]
+    cfg["devices"].append(_plc(pid, ip))
     cfg["links"].append({"a": pid, "b": subnet_switch, "a_ip": ip})
 
 
 def test_roundtrip_with_edit_preserves_and_executes(tmp_path):
     cfg = _arbitrary()
     assert validation.is_valid(cfg)
-    # edit as the GUI does: add a 3rd PLC on SWB + a cross-PLC rule
+    # edit as the GUI does: add a 3rd PLC on SWB + a cross-PLC logic rule
     _gui_add_plc(cfg, "PLC3", "10.0.2.2", "SWB")
-    cfg["rules"].append({"id": "r2",
-                         "if": [{"kind": "sensor", "comp": "S2", "attr": "value", "op": "below", "value": 3.0}],
-                         "then": [{"comp": "A3", "kind": "pump", "attr": "status", "value": "open"}]})
+    cfg["logic"].append({"id": "r2",
+                         "if": [{"device": "PLC2", "register": "s", "op": "below", "value": 3.0}],
+                         "then": [{"device": "PLC3", "register": "a", "set": 1}]})
     # export -> reload (Python <- GUI document) is lossless
     p = tmp_path / "net.json"
     model.dump(cfg, str(p))
@@ -134,6 +125,29 @@ def test_roundtrip_with_edit_preserves_and_executes(tmp_path):
     plan = corelive.build_plan(back)
     ids = {n["id"] for n in plan["nodes"]}
     assert {"PLC1", "PLC2", "PLC3", "MTU", "R1", "SWA", "SWB"} == ids
+
+
+# ---- A5: one register model behind API and GUI -----------------------------
+def test_designer_config_is_register_native():
+    cfg = _arbitrary()
+    for d in cfg["devices"]:
+        assert "registers" in d and "points" not in d
+        assert {r["id"]: r["area"] for r in d["registers"]} == {"s": "input_register", "a": "coil"}
+    assert "mapping" not in cfg and "rules" not in cfg and cfg["logic"]
+    assert validation.validate(cfg) == []
+
+
+def test_api_and_gui_share_register_model(tmp_path):
+    # a config authored by the Python API (corelive.grid) is register-native and
+    # round-trips through the designer's document format unchanged (API == GUI).
+    from scadavt.core import corelive
+    api_cfg = corelive.grid(3)
+    api_cfg.pop("_plc_ips", None); api_cfg.pop("_seg_of", None)
+    assert all("registers" in d for d in api_cfg["devices"]) and api_cfg["logic"]
+    p = tmp_path / "net.json"
+    model.dump(api_cfg, str(p))
+    assert model.load(str(p)) == api_cfg            # opens in the designer unchanged
+    assert validation.validate(api_cfg) == []
 
 
 # ---- R9 arbitrary (non-grid) topology --------------------------------------
