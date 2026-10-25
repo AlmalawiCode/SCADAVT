@@ -25,6 +25,7 @@ dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 scadavt = "scadavt.cli:main"
+scadavt-service = "scadavt.service.__main__:main"
 scadavt-lab = "scadavt.webui.__main__:main"
 
 [tool.setuptools.packages.find]
@@ -34,3 +35,4 @@ include = ["scadavt*"]
 "scadavt.scenarios.town" = ["*.inp", "*.yaml"]
 "scadavt.webui" = ["static/*"]
 "scadavt.core" = ["schema/*.json"]
+"scadavt.designer" = ["static/*"]

@@ -335,3 +335,33 @@ def build(core, cfg: dict, workdir: str | None = None) -> LiveNetwork:
             pass
         raise
     return LiveNetwork(core, session, sid, cfg, plan, workdir, handles)
+
+
+def run_live(core, cfg: dict, cycles: int = 60) -> dict:
+    """Build, start, and read back a config on live CORE, returning the actual
+    simulation results. The single runner behind both the CLI (`scadavt run`)
+    and the HTTP service (`/run`), so they always produce the same result shape.
+
+    Returns ``{started, reached, devices, results}`` where ``results`` is a list
+    of ``{id, reachable, points: {point_id: value}}`` — each point value read
+    back over Modbus from the MTU."""
+    net = build(core, cfg)
+    try:
+        ok, _warn = net.start(cycles=cycles)
+        mtu = cfg.get("mtu", {}).get("id")
+        results, reached = [], 0
+        for d in cfg["devices"]:
+            r = {"id": d["id"], "reachable": False, "points": {}}
+            if mtu and d.get("ip"):
+                r["reachable"] = net.ping(mtu, d["ip"])
+                reached += 1 if r["reachable"] else 0
+                for p in d.get("points", []):
+                    try:
+                        r["points"][p["id"]] = net.probe(mtu, d["id"], p["id"])
+                    except Exception:
+                        r["points"][p["id"]] = None
+            results.append(r)
+        return {"started": bool(ok), "reached": reached,
+                "devices": len(cfg["devices"]), "results": results}
+    finally:
+        net.stop()
