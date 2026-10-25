@@ -129,6 +129,9 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
 
             # register-based control: read condition registers, decide, write
             # target registers — all over real Modbus, node to node (central MTU).
+            # Reads are taken FRESH each cycle; a failed read is omitted so its
+            # rule cannot fire (never act on invalid/stale data). Conflicting
+            # writes resolve deterministically: the last matching rule wins.
             if logic:
                 rvals = {}
                 for did, rid in lreads:
@@ -139,15 +142,18 @@ async def run_master(session: dict, step_seconds: float = 1.0, cycles: int | Non
                     try:
                         rvals[(did, rid)] = await clients[did].read(pt)
                     except Exception:
-                        pass
-                lcmd = {}
+                        pass                     # failed read -> value absent -> rule won't fire
+                decided = {}
                 for did, rid, val in evaluate_logic(logic, rvals):
+                    decided[(did, rid)] = float(val)   # last writer wins (deterministic)
+                lcmd = {}
+                for (did, rid), val in decided.items():
                     dev = devs.get(did)
                     pt = dev.by_id.get(rid) if dev else None
                     if pt is None:
                         continue
                     try:
-                        await clients[did].write(pt, float(val))
+                        await clients[did].write(pt, val)
                         lcmd[f"{did}.{rid}"] = val
                     except Exception:
                         pass

@@ -80,6 +80,21 @@ def cmd_export(a) -> int:
     return 0
 
 
+def cmd_migrate(a) -> int:
+    from .core import migrate as mig
+    cfg = _load(a.config)
+    out = mig.migrate(cfg)
+    was = mig.is_legacy(cfg)
+    text = model.dumps(out)
+    if a.out:
+        with open(a.out, "w") as fh:
+            fh.write(text + "\n")
+        print(f"wrote {a.out}  ({'migrated from legacy' if was else 'already register-native'})")
+    else:
+        print(text)
+    return 0
+
+
 def cmd_scaffold(a) -> int:
     corelive = _import_engine(need_core=False)
     if corelive is None:
@@ -176,6 +191,9 @@ def build_parser() -> argparse.ArgumentParser:
     sc.add_argument("--plcs", type=int, default=3)
     sc.add_argument("--per-subnet", type=int, default=8)
     sc.add_argument("-o", "--out"); sc.set_defaults(fn=cmd_scaffold)
+
+    mg = sub.add_parser("migrate", help="convert a legacy role-based config to registers")
+    mg.add_argument("config"); mg.add_argument("-o", "--out"); mg.set_defaults(fn=cmd_migrate)
 
     ex = sub.add_parser("export", help="round-trip / convert a config")
     ex.add_argument("config"); ex.add_argument("--format", choices=["json", "yaml"], default="json")
